@@ -18,13 +18,34 @@
     <maven.compiler.target>1.7</maven.compiler.target>
   </properties>
 
+  <repositories>
+      <repository>
+          <id>pt2matsim</id>
+          <url>https://repo.matsim.org/repository/matsim/</url>
+      </repository>
+        <repository>
+          <id>eqasim</id>
+          <url>https://packagecloud.io/eth-ivt/eqasim/maven2</url>
+      </repository>
+  </repositories>
+
   <dependencies>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.11</version>
-      <scope>test</scope>
-    </dependency>
+      <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <version>4.11</version>
+          <scope>test</scope>
+      </dependency>
+      <dependency>
+          <groupId>org.matsim</groupId>
+          <artifactId>pt2matsim</artifactId>
+          <version>24.4</version>
+      </dependency>
+      <dependency>
+          <groupId>org.eqasim</groupId>
+          <artifactId>core</artifactId>
+          <version>1.5.0</version>
+      </dependency>
   </dependencies>
 
   <build>
