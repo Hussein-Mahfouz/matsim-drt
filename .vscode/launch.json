@@ -19,7 +19,7 @@
         },
         {
             "type": "java",
-            "name": "RunOSMConverter",
+            "name": "Run OSM Converter",
             "request": "launch",
             "mainClass": "com.husseinmahfouz.matsim.pt2matsim.RunOSMConverter",
             "projectName": "matsim-leeds",
@@ -28,7 +28,7 @@
         },
         {
             "type": "java",
-            "name": "Gtfs2TransitSchedule",
+            "name": "Run GTFS to Transit Schedule",
             "request": "launch",
             "mainClass": "com.husseinmahfouz.matsim.pt2matsim.RunPTConverter",
             "cwd": "${workspaceFolder}/matsim-leeds",
@@ -39,6 +39,15 @@
                 "data/schedule_unmapped.xml.gz",
                 "data/vehicles_unmapped.xml"
             ]
+        }
+        {
+            "type": "java",
+            "name": "Run PT Mapper",
+            "request": "launch",
+            "mainClass": "com.husseinmahfouz.matsim.pt2matsim.RunPTMapper",
+            "projectName": "matsim-leeds",
+            "cwd": "${workspaceFolder}/matsim-leeds",
+            "args": "src/main/resources/config.xml"
         }
     ]
 }
