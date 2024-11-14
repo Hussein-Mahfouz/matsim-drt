@@ -1,0 +1,53 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Current File",
+            "request": "launch",
+            "mainClass": "${file}"
+        },
+        {
+            "type": "java",
+            "name": "App",
+            "request": "launch",
+            "mainClass": "com.husseinmahfouz.matsim.drt.App",
+            "projectName": "matsim-leeds"
+        },
+        {
+            "type": "java",
+            "name": "Run OSM Converter",
+            "request": "launch",
+            "mainClass": "com.husseinmahfouz.matsim.pt2matsim.RunOSMConverter",
+            "projectName": "matsim-leeds",
+            "cwd": "${workspaceFolder}/matsim-leeds",
+            "args": "src/main/resources/config.xml"
+        },
+        {
+            "type": "java",
+            "name": "Run GTFS to Transit Schedule",
+            "request": "launch",
+            "mainClass": "com.husseinmahfouz.matsim.pt2matsim.RunPTConverter",
+            "cwd": "${workspaceFolder}/matsim-leeds",
+            "args": [
+                "data/study_area_gtfs_bus.zip",
+                "20230814",
+                "EPSG:3857",
+                "data/schedule_unmapped.xml.gz",
+                "data/vehicles_unmapped.xml"
+            ]
+        }
+        {
+            "type": "java",
+            "name": "Run PT Mapper",
+            "request": "launch",
+            "mainClass": "com.husseinmahfouz.matsim.pt2matsim.RunPTMapper",
+            "projectName": "matsim-leeds",
+            "cwd": "${workspaceFolder}/matsim-leeds",
+            "args": "src/main/resources/config.xml"
+        }
+    ]
+}
