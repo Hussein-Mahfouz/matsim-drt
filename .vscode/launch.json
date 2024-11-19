@@ -39,7 +39,7 @@
                 "data/schedule_unmapped.xml.gz",
                 "data/vehicles_unmapped.xml"
             ]
-        }
+        },
         {
             "type": "java",
             "name": "Run PT Mapper",
@@ -48,6 +48,18 @@
             "projectName": "matsim-leeds",
             "cwd": "${workspaceFolder}/matsim-leeds",
             "args": "src/main/resources/config.xml"
+        },
+        {
+            "type": "java",
+            "name": "Create Sample from Population",
+            "request": "launch",
+            "mainClass": "com.husseinmahfouz.matsim.sample.CreatePopulationSample",
+            "projectName": "matsim-leeds",
+            "cwd": "${workspaceFolder}/matsim-leeds",
+            "args": [
+                "data/demand/plans.xml",
+                "scenarios/test/plans.xml",
+            ]
         }
     ]
 }
