@@ -93,7 +93,7 @@
 		<!-- A prefix to be used for auto-generated IDs. -->
 		<param name="idPrefix" value="f_auto_" />
 		<!-- The Coordinates Reference System in which the coordinates are expressed in the input file. At import, the coordinates will be converted to the coordinate system defined in "global", and willbe converted back at export. If not specified, no conversion happens. -->
-		<param name="inputCRS" value="null" />
+		<param name="inputCRS" value="EPSG:27700" />
 		<param name="inputFacilitiesFile" value="null" />
 		<param name="inputFacilityAttributesFile" value="null" />
 		<param name="insistingOnUsingDeprecatedFacilitiesAttributeFile" value="false" />
@@ -157,7 +157,7 @@
 		<!-- The Coordinates Reference System in which the coordinates are expressed in the input file. At import, the coordinates will be converted to the coordinate system defined in "global", and willbe converted back at export. If not specified, no conversion happens. -->
 		<param name="inputCRS" value="EPSG:4326" />
 		<param name="inputPersonAttributesFile" value="null" />
-		<param name="inputPlansFile" value="data/demand/plans_sample.xml" />
+		<param name="inputPlansFile" value="scenarios/test/plans.xml" />
 		<param name="insistingOnUsingDeprecatedPersonAttributeFile" value="false" />
 		<!-- Defines how routes are stored in memory. Currently supported: LinkNetworkRoute, MediumCompressedNetworkRoute, HeavyCompressedNetworkRoute. -->
 		<param name="networkRouteType" value="LinkNetworkRoute" />
