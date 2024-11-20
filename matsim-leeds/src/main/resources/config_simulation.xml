@@ -35,7 +35,7 @@
 		Depending on the chosen mobsim, you'll have to add additional config modules to configure the corresponding mobsim.
 		For 'qsim', add a module 'qsim' to the config. -->
 		<param name="mobsim" value="qsim" />
-		<param name="outputDirectory" value="scenarios/test" />
+		<param name="outputDirectory" value="scenarios/test/results" />
 		<!-- Possible values: failIfDirectoryExists,overwriteExistingFiles,deleteDirectoryIfExists -->
 		<param name="overwriteFiles" value="failIfDirectoryExists" />
 		<!-- The type of routing (least cost path) algorithm used, may have the values: [Dijkstra, AStarLandmarks, SpeedyALT] -->
@@ -141,7 +141,7 @@
 		<!-- The Coordinates Reference System in which the coordinates are expressed in the input file. At import, the coordinates will be converted to the coordinate system defined in "global", and willbe converted back at export. If not specified, no conversion happens. -->
 		<param name="inputCRS" value="EPSG:3857" />
 		<param name="inputChangeEventsFile" value="null" />
-		<param name="inputNetworkFile" value="data/supply/network_mapped.xml.gz" />
+		<param name="inputNetworkFile" value="../../../data/supply/network_mapped.xml.gz" />
 		<param name="laneDefinitionsFile" value="null" />
 		<param name="timeVariantNetwork" value="false" />
 	</module>
@@ -157,7 +157,7 @@
 		<!-- The Coordinates Reference System in which the coordinates are expressed in the input file. At import, the coordinates will be converted to the coordinate system defined in "global", and willbe converted back at export. If not specified, no conversion happens. -->
 		<param name="inputCRS" value="EPSG:4326" />
 		<param name="inputPersonAttributesFile" value="null" />
-		<param name="inputPlansFile" value="scenarios/test/plans.xml" />
+		<param name="inputPlansFile" value="../../../scenarios/test/plans.xml" />
 		<param name="insistingOnUsingDeprecatedPersonAttributeFile" value="false" />
 		<!-- Defines how routes are stored in memory. Currently supported: LinkNetworkRoute, MediumCompressedNetworkRoute, HeavyCompressedNetworkRoute. -->
 		<param name="networkRouteType" value="LinkNetworkRoute" />
@@ -229,6 +229,26 @@
 		<param name="maxAgentPlanMemorySize" value="5" />
 		<!-- strategyName of PlanSelector for plans removal.  Possible defaults: WorstPlanSelector SelectRandom SelectExpBetaForRemoval ChangeExpBetaForRemoval PathSizeLogitSelectorForRemoval . The current default, WorstPlanSelector is not a good choice from a discrete choice theoretical perspective. Alternatives, however, have not been systematically tested. kai, feb'12 -->
 		<param name="planSelectorForRemoval" value="WorstPlanSelector" />
+		<!-- <parameterset type="strategysettings">
+			<param name="strategyName" value="ChangeExpBeta"/>
+			<param name="weight" value="0.7"/>
+		</parameterset> -->
+		<parameterset type="strategysettings">
+			<param name="strategyName" value="ReRoute"/>
+			<param name="disableAfterIteration" value="2900" />
+			<param name="weight" value="0.1"/>
+		</parameterset>
+		<!-- <parameterset type="strategysettings">
+			<param name="strategyName" value="SubtourModeChoice"/>
+			<param name="disableAfterIteration" value="2900" />
+			<param name="weight" value="0.01"/>
+		</parameterset>
+
+		<parameterset type="strategysettings">
+			<param name="strategyName" value="TimeAllocationMutator"/>
+			<param name="disableAfterIteration" value="2900" />
+			<param name="weight" value="0.01"/>
+		</parameterset> -->
 	</module>
 	<module name="replanningAnnealer">
 		<!-- Activate the scaling of replanning modules using an annealing approach rather than fixed rates. -->
@@ -596,14 +616,14 @@
 		<!-- Comma-separated list of transportation modes that are handled as transit. Defaults to 'pt'. -->
 		<param name="transitModes" value="pt" />
 		<!-- Input file containing the transit schedule to be simulated. -->
-		<param name="transitScheduleFile" value="data/supply/schedule_mapped.xml" />
+		<param name="transitScheduleFile" value="../../../data/supply/schedule_mapped.xml.gz" />
 		<!-- Optional input file containing additional attributes for transit stop facilities, stored as ObjectAttributes. -->
 		<param name="transitStopsAttributesFile" value="null" />
 		<!-- Set this parameter to true if transit should be simulated, false if not. -->
 		<param name="useTransit" value="true" />
 		<param name="usingTransitInMobsim" value="true" />
 		<!-- Input file containing the vehicles used by the departures in the transit schedule. -->
-		<param name="vehiclesFile" value="data/supply/vehicles_unmapped.xml" />
+		<param name="vehiclesFile" value="../../../data/supply/vehicles_unmapped.xml" />
 	</module>
 	<module name="transitRouter">
 		<!-- additional time the router allocates when a line switch happens. Can be interpreted as a 'safety' time that agents need to safely transfer from one line to another -->
