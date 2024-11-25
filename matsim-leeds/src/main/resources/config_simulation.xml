@@ -1,14 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE config SYSTEM "http://www.matsim.org/files/dtd/config_v2.dtd">
 <config>
-	<module name="changeMode">
-		<!-- Defines whether car availability is considered be considered or not. An agent has no car only if it has no license, or never access to a car. Default: true -->
-		<param name="ignoreCarAvailability" value="true" />
-		<!-- Defines the mode switch behavior. Possible values [fromAllModesToSpecifiedModes, fromSpecifiedModesToSpecifiedModes] Default: fromSpecifiedModesToSpecifiedModes. -->
-		<param name="modeSwitchBehavior" value="fromSpecifiedModesToSpecifiedModes" />
-		<!-- Defines all the modes available, including chain-based modes, seperated by commas -->
-		<param name="modes" value="car,pt" />
-	</module>
 	<module name="controller">
 		<!-- Defines what should be done with the ITERS directory when a simulation finished successfully -->
 		<param name="cleanItersAtEnd" value="keep" />
@@ -28,7 +20,7 @@
 		<!-- Default=0. First Iteration of a simulation. -->
 		<param name="firstIteration" value="0" />
 		<!-- Default=1000. Last Iteration of a simulation. -->
-		<param name="lastIteration" value="10" />
+		<param name="lastIteration" value="5" />
 		<!-- Defines the interval for printing memory usage to the log in [seconds]. Must be positive. Defaults to 60. -->
 		<param name="memoryObserverInterval" value="60" />
 		<!-- Defines which mobility simulation will be used. Currently supported: [qsim, JDEQSim, hermes]
@@ -109,7 +101,7 @@
 	<module name="hermes">
 		<!-- Simulation End Time -->
 		<param name="endTime" value="30:00:00" />
-		<param name="flowCapacityFactor" value="1.0" />
+		<param name="flowCapacityFactor" value="0.1" />
 		<param name="mainMode" value="car" />
 		<param name="storageCapacityFactor" value="1.0" />
 		<!-- time in seconds.  Time after which the frontmost vehicle on a link is called `stuck' if it does not move. Set to Integer.MAX_VALUE to disable this behavior -->
@@ -238,13 +230,14 @@
 			<param name="disableAfterIteration" value="2900" />
 			<param name="weight" value="0.1"/>
 		</parameterset>
-		<!-- <parameterset type="strategysettings">
-			<param name="strategyName" value="SubtourModeChoice"/>
-			<param name="disableAfterIteration" value="2900" />
-			<param name="weight" value="0.01"/>
-		</parameterset>
 
 		<parameterset type="strategysettings">
+			<param name="strategyName" value="SubtourModeChoice"/>
+			<param name="disableAfterIteration" value="2900" />
+			<param name="weight" value="0.1"/>
+		</parameterset>
+
+		<!-- <parameterset type="strategysettings">
 			<param name="strategyName" value="TimeAllocationMutator"/>
 			<param name="disableAfterIteration" value="2900" />
 			<param name="weight" value="0.01"/>
@@ -289,12 +282,6 @@
 			<param name="beelineDistanceFactor" value="1.3" />
 			<param name="mode" value="ride" />
 			<param name="teleportedModeFreespeedFactor" value="1.0" />
-			<param name="teleportedModeSpeed" value="null" />
-		</parameterset>
-		<parameterset type="teleportedModeParameters">
-			<param name="beelineDistanceFactor" value="1.3" />
-			<param name="mode" value="pt" />
-			<param name="teleportedModeFreespeedFactor" value="2.0" />
 			<param name="teleportedModeSpeed" value="null" />
 		</parameterset>
 	</module>
@@ -585,7 +572,7 @@
 		<!-- Defines the chain-based modes, seperated by commas -->
 		<param name="chainBasedModes" value="car,bike" />
 		<!-- Defines whether car availability must be considered or not. A agent has no car only if it has no license, or never access to a car -->
-		<param name="considerCarAvailability" value="false" />
+		<param name="considerCarAvailability" value="true" />
 		<!-- If greater than 0, activities that are closer than coordDistance, to each other, will be considered part of the same subtour.i.e. if two activities are close to each other, the agent is allowed to use the same 'chain-based' vehicle for both subtours. -->
 		<param name="coordDistance" value="0.0" />
 		<!-- Defines all the modes available, including chain-based modes, seperated by commas -->
