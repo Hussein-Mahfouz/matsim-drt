@@ -1,18 +1,18 @@
-package org.eqasim.ile_de_france.policies.city_tax;
+package com.husseinmahfouz.matsim.dmc.policies.city_tax;
 
 import java.io.File;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.eqasim.ile_de_france.mode_choice.parameters.IDFModeParameters;
-import org.eqasim.ile_de_france.policies.DefaultPolicy;
-import org.eqasim.ile_de_france.policies.PoliciesConfigGroup;
-import org.eqasim.ile_de_france.policies.Policy;
-import org.eqasim.ile_de_france.policies.PolicyFactory;
-import org.eqasim.ile_de_france.policies.PolicyPersonFilter;
-import org.eqasim.ile_de_france.policies.routing.FixedRoutingPenalty;
-import org.eqasim.ile_de_france.policies.routing.PolicyLinkFinder;
-import org.eqasim.ile_de_france.policies.routing.PolicyLinkFinder.Predicate;
+import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.IDFModeParameters;
+import com.husseinmahfouz.matsim.dmc.policies.DefaultPolicy;
+import com.husseinmahfouz.matsim.dmc.policies.PoliciesConfigGroup;
+import com.husseinmahfouz.matsim.dmc.policies.Policy;
+import com.husseinmahfouz.matsim.dmc.policies.PolicyFactory;
+import com.husseinmahfouz.matsim.dmc.policies.PolicyPersonFilter;
+import com.husseinmahfouz.matsim.dmc.policies.routing.FixedRoutingPenalty;
+import com.husseinmahfouz.matsim.dmc.policies.routing.PolicyLinkFinder;
+import com.husseinmahfouz.matsim.dmc.policies.routing.PolicyLinkFinder.Predicate;
 import org.matsim.api.core.v01.IdSet;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
@@ -36,7 +36,8 @@ public class CityTaxPolicyFactory implements PolicyFactory {
 
 	@Override
 	public Policy createPolicy(String name, PolicyPersonFilter personFilter) {
-		for (ConfigGroup item : PoliciesConfigGroup.get(config).getParameterSets(CityTaxPolicyFactory.POLICY_NAME)) {
+		for (ConfigGroup item : PoliciesConfigGroup.get(config)
+				.getParameterSets(CityTaxPolicyFactory.POLICY_NAME)) {
 			CityTaxConfigGroup policyItem = (CityTaxConfigGroup) item;
 
 			if (policyItem.policyName.equals(name)) {
@@ -44,25 +45,26 @@ public class CityTaxPolicyFactory implements PolicyFactory {
 			}
 		}
 
-		throw new IllegalStateException(
-				"Configuration not found for policy " + name + " of type " + CityTaxPolicyFactory.POLICY_NAME);
+		throw new IllegalStateException("Configuration not found for policy " + name + " of type "
+				+ CityTaxPolicyFactory.POLICY_NAME);
 	}
 
 	private Policy createPolicy(CityTaxConfigGroup enterConfig, PolicyPersonFilter personFilter) {
-		logger.info("Creating policy " + enterConfig.policyName + " of type " + CityTaxPolicyFactory.POLICY_NAME);
+		logger.info("Creating policy " + enterConfig.policyName + " of type "
+				+ CityTaxPolicyFactory.POLICY_NAME);
 		logger.info("  Perimeters: " + enterConfig.perimetersPath);
 		logger.info("  Tax level: " + enterConfig.tax_EUR + " EUR");
 
-		IdSet<Link> linkIds = PolicyLinkFinder
-				.create(new File(
-						ConfigGroup.getInputFileURL(config.getContext(), enterConfig.perimetersPath).getPath()))
+		IdSet<Link> linkIds = PolicyLinkFinder.create(new File(ConfigGroup
+				.getInputFileURL(config.getContext(), enterConfig.perimetersPath).getPath()))
 				.findLinks(network, Predicate.Entering);
 
 		logger.info("  Affected entering links: " + linkIds.size());
 
-		return new DefaultPolicy(
-				new FixedRoutingPenalty(linkIds, calculateEnterTaxPenalty(enterConfig.tax_EUR, modeParameters), personFilter),
-				new CityTaxUtilityPenalty(linkIds, modeParameters, enterConfig.tax_EUR, personFilter));
+		return new DefaultPolicy(new FixedRoutingPenalty(linkIds,
+				calculateEnterTaxPenalty(enterConfig.tax_EUR, modeParameters), personFilter),
+				new CityTaxUtilityPenalty(linkIds, modeParameters, enterConfig.tax_EUR,
+						personFilter));
 	}
 
 	private double calculateEnterTaxPenalty(double enterTax_EUR, IDFModeParameters parameters) {

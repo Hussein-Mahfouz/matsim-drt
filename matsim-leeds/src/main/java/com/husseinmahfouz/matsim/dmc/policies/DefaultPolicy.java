@@ -1,7 +1,7 @@
-package org.eqasim.ile_de_france.policies;
+package com.husseinmahfouz.matsim.dmc.policies;
 
-import org.eqasim.ile_de_france.policies.mode_choice.UtilityPenalty;
-import org.eqasim.ile_de_france.policies.routing.RoutingPenalty;
+import com.husseinmahfouz.matsim.dmc.policies.mode_choice.UtilityPenalty;
+import com.husseinmahfouz.matsim.dmc.policies.routing.RoutingPenalty;
 
 public class DefaultPolicy implements Policy {
 	private final RoutingPenalty routingPenalty;

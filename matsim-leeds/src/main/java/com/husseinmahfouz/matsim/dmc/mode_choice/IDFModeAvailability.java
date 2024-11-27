@@ -1,4 +1,4 @@
-package org.eqasim.ile_de_france.mode_choice;
+package com.husseinmahfouz.matsim.dmc.mode_choice;
 
 import java.util.Collection;
 import java.util.HashSet;

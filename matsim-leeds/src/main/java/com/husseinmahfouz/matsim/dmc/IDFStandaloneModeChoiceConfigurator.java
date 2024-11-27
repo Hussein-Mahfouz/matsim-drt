@@ -1,7 +1,7 @@
-package org.eqasim.ile_de_france;
+package com.husseinmahfouz.matsim.dmc;
 
 import org.eqasim.core.standalone_mode_choice.StandaloneModeChoiceConfigurator;
-import org.eqasim.ile_de_france.mode_choice.IDFModeChoiceModule;
+import com.husseinmahfouz.matsim.dmc.mode_choice.IDFModeChoiceModule;
 import org.matsim.core.config.CommandLine;
 import org.matsim.core.config.Config;
 import org.matsim.core.controler.AbstractModule;

@@ -1,4 +1,4 @@
-package org.eqasim.ile_de_france.mode_choice.parameters;
+package com.husseinmahfouz.matsim.dmc.mode_choice.parameters;
 
 import org.eqasim.core.simulation.mode_choice.ParameterDefinition;
 

@@ -1,6 +1,6 @@
-package org.eqasim.ile_de_france.policies.limited_traffic_zone;
+package com.husseinmahfouz.matsim.dmc.policies.limited_traffic_zone;
 
-import org.eqasim.ile_de_france.policies.PolicyConfigGroup;
+import com.husseinmahfouz.matsim.dmc.policies.PolicyConfigGroup;
 
 public class LimitedTrafficZoneConfigGroup extends PolicyConfigGroup {
 	public LimitedTrafficZoneConfigGroup() {

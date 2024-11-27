@@ -1,4 +1,4 @@
-package org.eqasim.ile_de_france.mode_choice;
+package com.husseinmahfouz.matsim.dmc.mode_choice;
 
 import java.io.File;
 import java.io.IOException;
@@ -9,14 +9,14 @@ import org.eqasim.core.simulation.mode_choice.AbstractEqasimExtension;
 import org.eqasim.core.simulation.mode_choice.ParameterDefinition;
 import org.eqasim.core.simulation.mode_choice.parameters.ModeParameters;
 import org.eqasim.core.simulation.mode_choice.tour_finder.ActivityTourFinderWithExcludedActivities;
-import org.eqasim.ile_de_france.mode_choice.costs.IDFCarCostModel;
-import org.eqasim.ile_de_france.mode_choice.costs.IDFPtCostModel;
-import org.eqasim.ile_de_france.mode_choice.parameters.IDFCostParameters;
-import org.eqasim.ile_de_france.mode_choice.parameters.IDFModeParameters;
-import org.eqasim.ile_de_france.mode_choice.utilities.estimators.IDFBikeUtilityEstimator;
-import org.eqasim.ile_de_france.mode_choice.utilities.estimators.IDFCarUtilityEstimator;
-import org.eqasim.ile_de_france.mode_choice.utilities.predictors.IDFPersonPredictor;
-import org.eqasim.ile_de_france.mode_choice.utilities.predictors.IDFSpatialPredictor;
+import com.husseinmahfouz.matsim.dmc.mode_choice.costs.IDFCarCostModel;
+import com.husseinmahfouz.matsim.dmc.mode_choice.costs.IDFPtCostModel;
+import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.IDFCostParameters;
+import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.IDFModeParameters;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.IDFBikeUtilityEstimator;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.IDFCarUtilityEstimator;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.IDFPersonPredictor;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.IDFSpatialPredictor;
 import org.matsim.contribs.discrete_mode_choice.components.tour_finder.ActivityTourFinder;
 import org.matsim.contribs.discrete_mode_choice.modules.config.ActivityTourFinderConfigGroup;
 import org.matsim.contribs.discrete_mode_choice.modules.config.DiscreteModeChoiceConfigGroup;
@@ -58,7 +58,8 @@ public class IDFModeChoiceModule extends AbstractEqasimExtension {
 
 		bind(ModeParameters.class).to(IDFModeParameters.class);
 
-		bindTourFinder(ISOLATED_OUTSIDE_TOUR_FINDER_NAME).to(ActivityTourFinderWithExcludedActivities.class);
+		bindTourFinder(ISOLATED_OUTSIDE_TOUR_FINDER_NAME)
+				.to(ActivityTourFinderWithExcludedActivities.class);
 	}
 
 	@Provides
@@ -90,8 +91,10 @@ public class IDFModeChoiceModule extends AbstractEqasimExtension {
 
 	@Provides
 	@Singleton
-	public ActivityTourFinderWithExcludedActivities provideActivityTourFinderWithExcludedActivities(DiscreteModeChoiceConfigGroup dmcConfig) {
+	public ActivityTourFinderWithExcludedActivities provideActivityTourFinderWithExcludedActivities(
+			DiscreteModeChoiceConfigGroup dmcConfig) {
 		ActivityTourFinderConfigGroup config = dmcConfig.getActivityTourFinderConfigGroup();
-		return new ActivityTourFinderWithExcludedActivities(List.of("outside"), new ActivityTourFinder(config.getActivityTypes()));
+		return new ActivityTourFinderWithExcludedActivities(List.of("outside"),
+				new ActivityTourFinder(config.getActivityTypes()));
 	}
 }

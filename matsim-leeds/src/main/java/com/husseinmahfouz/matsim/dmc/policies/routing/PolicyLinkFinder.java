@@ -1,4 +1,4 @@
-package org.eqasim.ile_de_france.policies.routing;
+package com.husseinmahfouz.matsim.dmc.policies.routing;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,17 +39,19 @@ public class PolicyLinkFinder {
 				Coord fromCoord = link.getFromNode().getCoord();
 				Coord toCoord = link.getToNode().getCoord();
 
-				Point fromPoint = geometryFactory.createPoint(new Coordinate(fromCoord.getX(), fromCoord.getY()));
-				Point toPoint = geometryFactory.createPoint(new Coordinate(toCoord.getX(), toCoord.getY()));
+				Point fromPoint = geometryFactory
+						.createPoint(new Coordinate(fromCoord.getX(), fromCoord.getY()));
+				Point toPoint =
+						geometryFactory.createPoint(new Coordinate(toCoord.getX(), toCoord.getY()));
 
 				boolean fromInside = shape.contains(fromPoint);
 				boolean toInside = shape.contains(toPoint);
 
 				boolean isRelvant = switch (predicate) {
-				case Exiting -> fromInside && !toInside;
-				case Entering -> !fromInside && toInside;
-				case Crossing -> fromInside || toInside;
-				case Inside -> fromInside && toInside;
+					case Exiting -> fromInside && !toInside;
+					case Entering -> !fromInside && toInside;
+					case Crossing -> fromInside || toInside;
+					case Inside -> fromInside && toInside;
 				};
 
 				if (isRelvant) {

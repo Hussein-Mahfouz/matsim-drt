@@ -1,6 +1,6 @@
-package org.eqasim.ile_de_france.policies.city_tax;
+package com.husseinmahfouz.matsim.dmc.policies.city_tax;
 
-import org.eqasim.ile_de_france.policies.PolicyConfigGroup;
+import com.husseinmahfouz.matsim.dmc.policies.PolicyConfigGroup;
 import org.matsim.core.config.ReflectiveConfigGroup.Parameter;
 
 public class CityTaxConfigGroup extends PolicyConfigGroup {

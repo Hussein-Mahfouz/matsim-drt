@@ -1,7 +1,7 @@
-package org.eqasim.ile_de_france;
+package com.husseinmahfouz.matsim.dmc;
 
 import org.eqasim.core.simulation.EqasimConfigurator;
-import org.eqasim.ile_de_france.policies.PoliciesConfigGroup;
+import com.husseinmahfouz.matsim.dmc.policies.PoliciesConfigGroup;
 
 public class IDFConfigurator extends EqasimConfigurator {
 	public IDFConfigurator() {

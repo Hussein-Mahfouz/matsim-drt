@@ -1,4 +1,4 @@
-package org.eqasim.ile_de_france.mode_choice.utilities.variables;
+package com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables;
 
 import org.eqasim.core.simulation.mode_choice.utilities.variables.BaseVariables;
 

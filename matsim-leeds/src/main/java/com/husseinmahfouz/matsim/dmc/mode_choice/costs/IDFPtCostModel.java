@@ -1,12 +1,12 @@
-package org.eqasim.ile_de_france.mode_choice.costs;
+package com.husseinmahfouz.matsim.dmc.mode_choice.costs;
 
 import java.util.List;
 
 import org.eqasim.core.simulation.mode_choice.cost.CostModel;
-import org.eqasim.ile_de_france.mode_choice.utilities.predictors.IDFPersonPredictor;
-import org.eqasim.ile_de_france.mode_choice.utilities.predictors.IDFSpatialPredictor;
-import org.eqasim.ile_de_france.mode_choice.utilities.variables.IDFPersonVariables;
-import org.eqasim.ile_de_france.mode_choice.utilities.variables.IDFSpatialVariables;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.IDFPersonPredictor;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.IDFSpatialPredictor;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.IDFPersonVariables;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.IDFSpatialVariables;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.TransportMode;
 import org.matsim.api.core.v01.population.Leg;
@@ -42,8 +42,8 @@ public class IDFPtCostModel implements CostModel {
 				if (leg.getMode().equals(TransportMode.pt)) {
 					TransitPassengerRoute route = (TransitPassengerRoute) leg.getRoute();
 
-					String transportMode = transitSchedule.getTransitLines().get(route.getLineId()).getRoutes()
-							.get(route.getRouteId()).getTransportMode();
+					String transportMode = transitSchedule.getTransitLines().get(route.getLineId())
+							.getRoutes().get(route.getRouteId()).getTransportMode();
 
 					if (!transportMode.equals("bus") && !transportMode.equals("subway")) {
 						return false;
@@ -59,14 +59,17 @@ public class IDFPtCostModel implements CostModel {
 
 	private double calculateBasisDistance_km(DiscreteModeChoiceTrip trip) {
 		return 1e-3 * (CoordUtils.calcEuclideanDistance(CENTER, trip.getOriginActivity().getCoord())
-				+ CoordUtils.calcEuclideanDistance(CENTER, trip.getDestinationActivity().getCoord()));
+				+ CoordUtils.calcEuclideanDistance(CENTER,
+						trip.getDestinationActivity().getCoord()));
 	}
 
 	@Override
-	public double calculateCost_MU(Person person, DiscreteModeChoiceTrip trip, List<? extends PlanElement> elements) {
+	public double calculateCost_MU(Person person, DiscreteModeChoiceTrip trip,
+			List<? extends PlanElement> elements) {
 		// I) If the person has a subscription, the price is zero!
 
-		IDFPersonVariables personVariables = personPredictor.predictVariables(person, trip, elements);
+		IDFPersonVariables personVariables =
+				personPredictor.predictVariables(person, trip, elements);
 
 		if (personVariables.hasSubscription) {
 			return 0.0;
@@ -75,8 +78,10 @@ public class IDFPtCostModel implements CostModel {
 		// II) If the trip is entirely inside of Paris, or it only consists of metro and
 		// bus, the price is 1.80 EUR
 
-		IDFSpatialVariables spatialVariables = spatialPredictor.predictVariables(person, trip, elements);
-		boolean isWithinParis = spatialVariables.hasUrbanOrigin && spatialVariables.hasUrbanDestination;
+		IDFSpatialVariables spatialVariables =
+				spatialPredictor.predictVariables(person, trip, elements);
+		boolean isWithinParis =
+				spatialVariables.hasUrbanOrigin && spatialVariables.hasUrbanDestination;
 
 		boolean isOnlyMetroOrBus = isOnlyMetroOrBus(elements);
 

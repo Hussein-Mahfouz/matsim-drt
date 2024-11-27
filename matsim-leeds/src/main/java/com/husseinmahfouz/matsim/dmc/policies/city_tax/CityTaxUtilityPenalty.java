@@ -1,10 +1,10 @@
-package org.eqasim.ile_de_france.policies.city_tax;
+package com.husseinmahfouz.matsim.dmc.policies.city_tax;
 
 import java.util.List;
 
-import org.eqasim.ile_de_france.mode_choice.parameters.IDFModeParameters;
-import org.eqasim.ile_de_france.policies.PolicyPersonFilter;
-import org.eqasim.ile_de_france.policies.mode_choice.UtilityPenalty;
+import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.IDFModeParameters;
+import com.husseinmahfouz.matsim.dmc.policies.PolicyPersonFilter;
+import com.husseinmahfouz.matsim.dmc.policies.mode_choice.UtilityPenalty;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.IdSet;
 import org.matsim.api.core.v01.TransportMode;
@@ -21,8 +21,8 @@ public class CityTaxUtilityPenalty implements UtilityPenalty {
 	private final double enterTax_EUR;
 	private final PolicyPersonFilter personFilter;
 
-	public CityTaxUtilityPenalty(IdSet<Link> taxedLinkIds, IDFModeParameters parameters, double enterTax_EUR,
-			PolicyPersonFilter personFilter) {
+	public CityTaxUtilityPenalty(IdSet<Link> taxedLinkIds, IDFModeParameters parameters,
+			double enterTax_EUR, PolicyPersonFilter personFilter) {
 		this.taxedLinkIds = taxedLinkIds;
 		this.parameters = parameters;
 		this.enterTax_EUR = enterTax_EUR;

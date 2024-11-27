@@ -1,4 +1,4 @@
-package org.eqasim.ile_de_france.policies;
+package com.husseinmahfouz.matsim.dmc.policies;
 
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.IdSet;
@@ -21,7 +21,8 @@ public class PolicyPersonFilter {
 			IdSet<Person> selection = new IdSet<>(Person.class);
 
 			for (Person person : population.getPersons().values()) {
-				Boolean indicator = (Boolean) person.getAttributes().getAttribute(policy.personFilter);
+				Boolean indicator =
+						(Boolean) person.getAttributes().getAttribute(policy.personFilter);
 
 				if (indicator != null && indicator) {
 					selection.add(person.getId());

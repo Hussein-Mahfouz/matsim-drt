@@ -1,4 +1,4 @@
-package org.eqasim.ile_de_france.policies;
+package com.husseinmahfouz.matsim.dmc.policies;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -10,18 +10,18 @@ import java.util.Set;
 import org.eqasim.core.components.config.EqasimConfigGroup;
 import org.eqasim.core.simulation.mode_choice.AbstractEqasimExtension;
 import org.eqasim.core.simulation.mode_choice.utilities.UtilityEstimator;
-import org.eqasim.ile_de_france.policies.city_tax.CityTaxPolicyExtension;
-import org.eqasim.ile_de_france.policies.city_tax.CityTaxPolicyFactory;
-import org.eqasim.ile_de_france.policies.limited_traffic_zone.LimitedTrafficZonePolicyExtension;
-import org.eqasim.ile_de_france.policies.limited_traffic_zone.LimitedTrafficZonePolicyFactory;
-import org.eqasim.ile_de_france.policies.mode_choice.PolicyUtilityEstimator;
-import org.eqasim.ile_de_france.policies.mode_choice.SumUtilityPenalty;
-import org.eqasim.ile_de_france.policies.mode_choice.UtilityPenalty;
-import org.eqasim.ile_de_france.policies.routing.PolicyTravelDisutilityFactory;
-import org.eqasim.ile_de_france.policies.routing.RoutingPenalty;
-import org.eqasim.ile_de_france.policies.routing.SumRoutingPenalty;
-import org.eqasim.ile_de_france.policies.transit_discount.TransitDiscountPolicyExtension;
-import org.eqasim.ile_de_france.policies.transit_discount.TransitDiscountPolicyFactory;
+import com.husseinmahfouz.matsim.dmc.policies.city_tax.CityTaxPolicyExtension;
+import com.husseinmahfouz.matsim.dmc.policies.city_tax.CityTaxPolicyFactory;
+import com.husseinmahfouz.matsim.dmc.policies.limited_traffic_zone.LimitedTrafficZonePolicyExtension;
+import com.husseinmahfouz.matsim.dmc.policies.limited_traffic_zone.LimitedTrafficZonePolicyFactory;
+import com.husseinmahfouz.matsim.dmc.policies.mode_choice.PolicyUtilityEstimator;
+import com.husseinmahfouz.matsim.dmc.policies.mode_choice.SumUtilityPenalty;
+import com.husseinmahfouz.matsim.dmc.policies.mode_choice.UtilityPenalty;
+import com.husseinmahfouz.matsim.dmc.policies.routing.PolicyTravelDisutilityFactory;
+import com.husseinmahfouz.matsim.dmc.policies.routing.RoutingPenalty;
+import com.husseinmahfouz.matsim.dmc.policies.routing.SumRoutingPenalty;
+import com.husseinmahfouz.matsim.dmc.policies.transit_discount.TransitDiscountPolicyExtension;
+import com.husseinmahfouz.matsim.dmc.policies.transit_discount.TransitDiscountPolicyFactory;
 import org.matsim.api.core.v01.TransportMode;
 import org.matsim.api.core.v01.population.Population;
 import org.matsim.core.config.Config;
@@ -57,12 +57,16 @@ public class PolicyExtension extends AbstractEqasimExtension {
 
 	@Override
 	protected void installEqasimExtension() {
-		Verify.verifyNotNull(delegateCarEstimator, "Need to run PolicyExtension.adaptConfiguration first");
-		Verify.verifyNotNull(delegateTransitEstimator, "Need to run PolicyExtension.adaptConfiguration first");
+		Verify.verifyNotNull(delegateCarEstimator,
+				"Need to run PolicyExtension.adaptConfiguration first");
+		Verify.verifyNotNull(delegateTransitEstimator,
+				"Need to run PolicyExtension.adaptConfiguration first");
 
 		// set up travel disutility for routing
-		addTravelDisutilityFactoryBinding(TransportMode.car).to(PolicyTravelDisutilityFactory.class);
-		addTravelDisutilityFactoryBinding("car_passenger").to(OnlyTimeDependentTravelDisutilityFactory.class);
+		addTravelDisutilityFactoryBinding(TransportMode.car)
+				.to(PolicyTravelDisutilityFactory.class);
+		addTravelDisutilityFactoryBinding("car_passenger")
+				.to(OnlyTimeDependentTravelDisutilityFactory.class);
 
 		install(new CityTaxPolicyExtension());
 		install(new LimitedTrafficZonePolicyExtension());
@@ -70,8 +74,10 @@ public class PolicyExtension extends AbstractEqasimExtension {
 
 		var policyBinder = MapBinder.newMapBinder(binder(), String.class, PolicyFactory.class);
 		policyBinder.addBinding(CityTaxPolicyFactory.POLICY_NAME).to(CityTaxPolicyFactory.class);
-		policyBinder.addBinding(LimitedTrafficZonePolicyFactory.POLICY_NAME).to(LimitedTrafficZonePolicyFactory.class);
-		policyBinder.addBinding(TransitDiscountPolicyFactory.POLICY_NAME).to(TransitDiscountPolicyFactory.class);
+		policyBinder.addBinding(LimitedTrafficZonePolicyFactory.POLICY_NAME)
+				.to(LimitedTrafficZonePolicyFactory.class);
+		policyBinder.addBinding(TransitDiscountPolicyFactory.POLICY_NAME)
+				.to(TransitDiscountPolicyFactory.class);
 
 		bindUtilityEstimator(ESTIMATOR_PREFIX + delegateCarEstimator)
 				.to(Key.get(PolicyUtilityEstimator.class, Names.named(TransportMode.car)));
@@ -82,7 +88,8 @@ public class PolicyExtension extends AbstractEqasimExtension {
 
 	@Provides
 	@Singleton
-	Map<String, Policy> providePolicies(Map<String, PolicyFactory> factories, Population population) {
+	Map<String, Policy> providePolicies(Map<String, PolicyFactory> factories,
+			Population population) {
 		PoliciesConfigGroup policyConfig = PoliciesConfigGroup.get(getConfig());
 		Map<String, Policy> policies = new HashMap<>();
 
@@ -98,13 +105,14 @@ public class PolicyExtension extends AbstractEqasimExtension {
 								"Policy names must be set");
 
 						if (!names.add(policy.policyName)) {
-							throw new IllegalStateException("Duplicate policy name: " + policy.policyName);
+							throw new IllegalStateException(
+									"Duplicate policy name: " + policy.policyName);
 						}
 
 						PolicyPersonFilter filter = PolicyPersonFilter.create(population, policy);
 
-						policies.put(policy.policyName,
-								factories.get(policy.getName()).createPolicy(policy.policyName, filter));
+						policies.put(policy.policyName, factories.get(policy.getName())
+								.createPolicy(policy.policyName, filter));
 					}
 				}
 			}
@@ -121,16 +129,16 @@ public class PolicyExtension extends AbstractEqasimExtension {
 
 	@Provides
 	@Named(TransportMode.car)
-	PolicyUtilityEstimator providePolicyUtilityEstimatorForCar(Map<String, Provider<UtilityEstimator>> providers,
-			UtilityPenalty penalty) {
+	PolicyUtilityEstimator providePolicyUtilityEstimatorForCar(
+			Map<String, Provider<UtilityEstimator>> providers, UtilityPenalty penalty) {
 		UtilityEstimator delegate = providers.get(delegateCarEstimator).get();
 		return new PolicyUtilityEstimator(delegate, penalty, TransportMode.car);
 	}
 
 	@Provides
 	@Named(TransportMode.pt)
-	PolicyUtilityEstimator providePolicyUtilityEstimatorForTransit(Map<String, Provider<UtilityEstimator>> providers,
-			UtilityPenalty penalty) {
+	PolicyUtilityEstimator providePolicyUtilityEstimatorForTransit(
+			Map<String, Provider<UtilityEstimator>> providers, UtilityPenalty penalty) {
 		UtilityEstimator delegate = providers.get(delegateTransitEstimator).get();
 		return new PolicyUtilityEstimator(delegate, penalty, TransportMode.pt);
 	}

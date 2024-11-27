@@ -1,14 +1,14 @@
-package org.eqasim.ile_de_france.policies.transit_discount;
+package com.husseinmahfouz.matsim.dmc.policies.transit_discount;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eqasim.core.simulation.mode_choice.cost.CostModel;
-import org.eqasim.ile_de_france.mode_choice.parameters.IDFModeParameters;
-import org.eqasim.ile_de_france.policies.DefaultPolicy;
-import org.eqasim.ile_de_france.policies.PoliciesConfigGroup;
-import org.eqasim.ile_de_france.policies.Policy;
-import org.eqasim.ile_de_france.policies.PolicyFactory;
-import org.eqasim.ile_de_france.policies.PolicyPersonFilter;
+import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.IDFModeParameters;
+import com.husseinmahfouz.matsim.dmc.policies.DefaultPolicy;
+import com.husseinmahfouz.matsim.dmc.policies.PoliciesConfigGroup;
+import com.husseinmahfouz.matsim.dmc.policies.Policy;
+import com.husseinmahfouz.matsim.dmc.policies.PolicyFactory;
+import com.husseinmahfouz.matsim.dmc.policies.PolicyPersonFilter;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigGroup;
 
@@ -21,7 +21,8 @@ public class TransitDiscountPolicyFactory implements PolicyFactory {
 	private final CostModel costModel;
 	private final IDFModeParameters modeParameters;
 
-	public TransitDiscountPolicyFactory(Config config, CostModel costModel, IDFModeParameters modeParameters) {
+	public TransitDiscountPolicyFactory(Config config, CostModel costModel,
+			IDFModeParameters modeParameters) {
 		this.config = config;
 		this.costModel = costModel;
 		this.modeParameters = modeParameters;
@@ -38,16 +39,17 @@ public class TransitDiscountPolicyFactory implements PolicyFactory {
 			}
 		}
 
-		throw new IllegalStateException(
-				"Configuration not found for policy " + name + " of type " + TransitDiscountPolicyFactory.POLICY_NAME);
+		throw new IllegalStateException("Configuration not found for policy " + name + " of type "
+				+ TransitDiscountPolicyFactory.POLICY_NAME);
 	}
 
-	private Policy createPolicy(TransitDiscountConfigGroup discountConfig, PolicyPersonFilter personFilter) {
+	private Policy createPolicy(TransitDiscountConfigGroup discountConfig,
+			PolicyPersonFilter personFilter) {
 		logger.info("Creating policy " + discountConfig.policyName + " of type "
 				+ TransitDiscountPolicyFactory.POLICY_NAME);
 		logger.info("  Price factor: " + discountConfig.priceFactor);
 
-		return new DefaultPolicy(null,
-				new TransitDiscountUtilityPenalty(costModel, modeParameters, discountConfig.priceFactor, personFilter));
+		return new DefaultPolicy(null, new TransitDiscountUtilityPenalty(costModel, modeParameters,
+				discountConfig.priceFactor, personFilter));
 	}
 }

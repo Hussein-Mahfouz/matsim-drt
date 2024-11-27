@@ -1,13 +1,13 @@
-package org.eqasim.ile_de_france.mode_choice.utilities.estimators;
+package com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators;
 
 import java.util.List;
 
 import org.eqasim.core.simulation.mode_choice.utilities.estimators.BikeUtilityEstimator;
 import org.eqasim.core.simulation.mode_choice.utilities.predictors.BikePredictor;
 import org.eqasim.core.simulation.mode_choice.utilities.predictors.PersonPredictor;
-import org.eqasim.ile_de_france.mode_choice.parameters.IDFModeParameters;
-import org.eqasim.ile_de_france.mode_choice.utilities.predictors.IDFSpatialPredictor;
-import org.eqasim.ile_de_france.mode_choice.utilities.variables.IDFSpatialVariables;
+import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.IDFModeParameters;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.IDFSpatialPredictor;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.IDFSpatialVariables;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.PlanElement;
 import org.matsim.contribs.discrete_mode_choice.model.DiscreteModeChoiceTrip;
@@ -19,8 +19,9 @@ public class IDFBikeUtilityEstimator extends BikeUtilityEstimator {
 	private final IDFSpatialPredictor spatialPredictor;
 
 	@Inject
-	public IDFBikeUtilityEstimator(IDFModeParameters parameters, IDFSpatialPredictor spatialPredictor,
-			PersonPredictor personPredictor, BikePredictor bikePredictor) {
+	public IDFBikeUtilityEstimator(IDFModeParameters parameters,
+			IDFSpatialPredictor spatialPredictor, PersonPredictor personPredictor,
+			BikePredictor bikePredictor) {
 		super(parameters, personPredictor, bikePredictor);
 
 		this.parameters = parameters;
@@ -38,7 +39,8 @@ public class IDFBikeUtilityEstimator extends BikeUtilityEstimator {
 	}
 
 	@Override
-	public double estimateUtility(Person person, DiscreteModeChoiceTrip trip, List<? extends PlanElement> elements) {
+	public double estimateUtility(Person person, DiscreteModeChoiceTrip trip,
+			List<? extends PlanElement> elements) {
 		IDFSpatialVariables variables = spatialPredictor.predictVariables(person, trip, elements);
 
 		double utility = 0.0;

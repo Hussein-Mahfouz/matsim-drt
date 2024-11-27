@@ -1,4 +1,4 @@
-package org.eqasim.ile_de_france.policies.mode_choice;
+package com.husseinmahfouz.matsim.dmc.policies.mode_choice;
 
 import java.util.List;
 
@@ -19,7 +19,8 @@ public class PolicyUtilityEstimator implements UtilityEstimator {
 	}
 
 	@Override
-	public double estimateUtility(Person person, DiscreteModeChoiceTrip trip, List<? extends PlanElement> elements) {
+	public double estimateUtility(Person person, DiscreteModeChoiceTrip trip,
+			List<? extends PlanElement> elements) {
 		double utility = delegate.estimateUtility(person, trip, elements);
 		utility += penalty.calculatePenalty(mode, person, trip, elements);
 		return utility;
