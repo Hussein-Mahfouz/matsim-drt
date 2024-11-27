@@ -1,5 +1,6 @@
 package com.husseinmahfouz.matsim.dmc;
 
+import org.eqasim.core.scenario.RunInsertVehicles;
 import org.eqasim.core.scenario.validation.VehiclesValidator;
 import org.eqasim.core.simulation.analysis.EqasimAnalysisModule;
 import org.eqasim.core.simulation.mode_choice.EqasimModeChoiceModule;
@@ -24,7 +25,6 @@ public class RunDMCSimulation {
 		Config config = ConfigUtils.loadConfig(cmd.getOptionStrict("config-path"));
 		configurator.updateConfig(config);
 		cmd.applyConfiguration(config);
-		VehiclesValidator.validate(config);
 
 		// PolicyExtension policies = new PolicyExtension();
 		// policies.adaptConfiguration(config);
@@ -33,6 +33,9 @@ public class RunDMCSimulation {
 		configurator.configureScenario(scenario);
 		ScenarioUtils.loadScenario(scenario);
 		configurator.adjustScenario(scenario);
+
+		RunInsertVehicles.insertVehicles(config, scenario);
+		VehiclesValidator.validate(config);
 
 		Controler controller = new Controler(scenario);
 		configurator.configureController(controller);
