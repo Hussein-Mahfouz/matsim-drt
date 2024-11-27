@@ -67,10 +67,10 @@
 		<!-- Specifies how often the counts comparison should be calculated and written. -->
 		<param name="writeCountsInterval" value="10" />
 	</module>
-	<module name="DiscreteModeChoice" >
+	<module name="DiscreteModeChoice">
 		<param name="accumulateEstimationDelays" value="true" />
 		<!-- Trips tested with the modes listed here will be cached for each combination of trip and agent during one replanning pass. -->
-		<param name="cachedModes" value="pt, car, truck, car_passenger, walk, bike" />
+		<param name="cachedModes" value="pt, car, car_passenger, walk, bike" />
 		<!-- Defines whether to run a runtime check that verifies that everything is set up correctl for a 'mode-choice-in-the-loop' setup. -->
 		<param name="enforceSinglePlan" value="true" />
 		<!-- Defines what happens if there is no feasible choice alternative for an agent: IGNORE_AGENT, INITIAL_CHOICE, EXCEPTION -->
@@ -78,7 +78,7 @@
 		<!-- Defines how home activities are identified. Built-in choices: FirstActivity, ActivityBased -->
 		<param name="homeFinder" value="EqasimHomeFinder" />
 		<!-- Defines which ModeAvailability component to use. Built-in choices: Default, Car -->
-		<param name="modeAvailability" value="IDFModeAvailability" />
+		<param name="modeAvailability" value="LeedsModeAvailability" />
 		<!-- Main model type: Trip, Tour -->
 		<param name="modelType" value="Tour" />
 		<!-- Defines whether the DiscreteModeChoice strategy should be followed by a rerouting of all trips. If the estimator returns alternatives with routes attached this is not necessary. -->
@@ -99,19 +99,19 @@
 		<param name="tripEstimator" value="EqasimUtilityEstimator" />
 		<!-- Defines a number of TripFilter components that should be activated. Built-in choices:  -->
 		<param name="tripFilters" value="" />
-		<parameterset type="homeFinder:ActivityBased" >
+		<parameterset type="homeFinder:ActivityBased">
 			<!-- Comma-separated activity types which should be considered as home. -->
 			<param name="activityTypes" value="home" />
 		</parameterset>
-		<parameterset type="modeAvailability:Car" >
+		<parameterset type="modeAvailability:Car">
 			<!-- Defines which modes are avialable to the agents. -->
 			<param name="availableModes" value="pt, car, walk, bike" />
 		</parameterset>
-		<parameterset type="modeAvailability:Default" >
+		<parameterset type="modeAvailability:Default">
 			<!-- Defines which modes are avialable to the agents. -->
 			<param name="availableModes" value="pt, car, walk, bike" />
 		</parameterset>
-		<parameterset type="selector:MultinomialLogit" >
+		<parameterset type="selector:MultinomialLogit">
 			<!-- Defines whether candidates with a utility lower than the minimum utility should be filtered out. -->
 			<param name="considerMinimumUtility" value="false" />
 			<!-- Candidates with a utility above that threshold will be cut off to this value. -->
@@ -119,23 +119,23 @@
 			<!-- Candidates with a utility lower than that threshold will not be considered by default. -->
 			<param name="minimumUtility" value="-700.0" />
 		</parameterset>
-		<parameterset type="tourConstraint:SubtourMode" >
+		<parameterset type="tourConstraint:SubtourMode">
 			<!-- Modes for which the sub-tour behaviour should be replicated. If all available modes are put here, this equals to SubTourModeChoice with singleLegProbability == 0.0; if only the constrained modes are put here, it equals singleLegProbability > 0.0 -->
 			<param name="constrainedModes" value="" />
 		</parameterset>
-		<parameterset type="tourConstraint:VehicleContinuity" >
+		<parameterset type="tourConstraint:VehicleContinuity">
 			<!-- Defines which modes must fulfill continuity constraints (can only be used where they have been brough to before) -->
 			<param name="restrictedModes" value="car, bike" />
 		</parameterset>
-		<parameterset type="tourFilter:TourLength" >
+		<parameterset type="tourFilter:TourLength">
 			<!-- Defines the maximum allowed length of a tour. -->
 			<param name="maximumLength" value="10" />
 		</parameterset>
-		<parameterset type="tourFinder:ActivityBased" >
+		<parameterset type="tourFinder:ActivityBased">
 			<!-- Comma-separated activity types which should be considered as start and end of a tour. If a plan does not start or end with such an activity additional tours are added. -->
 			<param name="activityTypes" value="outside, home" />
 		</parameterset>
-		<parameterset type="tripConstraint:LinkAttribute" >
+		<parameterset type="tripConstraint:LinkAttribute">
 			<!-- Link attribute that will be considered for feasibility of the trip. -->
 			<param name="attributeName" value="null" />
 			<!-- Value that the link attributes should equal. -->
@@ -145,7 +145,7 @@
 			<!-- Defines the criterion on when a trip with the constrained mode will be allowed: ORIGIN, DESTINATION, BOTH, ANY, NONE -->
 			<param name="requirement" value="BOTH" />
 		</parameterset>
-		<parameterset type="tripConstraint:ShapeFile" >
+		<parameterset type="tripConstraint:ShapeFile">
 			<!-- Modes for which the shapes will be considered. -->
 			<param name="constrainedModes" value="" />
 			<!-- Path to a shape file, which should have the same projection as the network. -->
@@ -153,16 +153,64 @@
 			<!-- Defines the criterion on when a trip with the constrained mode will be allowed: ORIGIN, DESTINATION, BOTH, ANY, NONE -->
 			<param name="requirement" value="BOTH" />
 		</parameterset>
-		<parameterset type="tripConstraint:VehicleContinuity" >
+		<parameterset type="tripConstraint:VehicleContinuity">
 			<!-- Defines if the advanced constriant is used (vehicles must be brought back home). -->
 			<param name="isAdvanced" value="true" />
 			<!-- Defines which modes must fulfill continuity constraints (can only be used where they have been brough to before) -->
 			<param name="restrictedModes" value="car, bike" />
 		</parameterset>
-		<parameterset type="tripEstimator:MATSimTripScoring" >
+		<parameterset type="tripEstimator:MATSimTripScoring">
 			<!-- Modes which are considered as public transit, i.e. they involve waiting for a vehicle. -->
 			<param name="ptLegModes" value="pt" />
 		</parameterset>
+	</module>
+	<module name="eqasim">
+		<!-- Possible values: kilometer, meter, mile, foot -->
+		<param name="analysisDistanceUnit" value="meter" />
+		<param name="analysisInterval" value="60" />
+		<param name="costParametersPath" value="null" />
+		<param name="crossingPenalty" value="3.0" />
+		<!-- Possible values: kilometer, meter, mile, foot -->
+		<param name="distanceUnit" value="meter" />
+		<param name="modeParametersPath" value="null" />
+		<param name="sampleSize" value="0.001" />
+		<param name="useScheduleBasedTransport" value="true" />
+		<parameterset type="cost_model">
+			<param name="mode" value="car" />
+			<param name="model" value="LeedsCarCostModel" />
+		</parameterset>
+		<parameterset type="cost_model">
+			<param name="mode" value="pt" />
+			<param name="model" value="LeedsPtCostModel" />
+		</parameterset>
+		<parameterset type="estimator">
+			<param name="estimator" value="LeedsCarUtilityEstimator" />
+			<param name="mode" value="car" />
+		</parameterset>
+		<parameterset type="estimator">
+			<param name="estimator" value="PtUtilityEstimator" />
+			<param name="mode" value="pt" />
+		</parameterset>
+		<parameterset type="estimator">
+			<param name="estimator" value="LeedsBikeUtilityEstimator" />
+			<param name="mode" value="bike" />
+		</parameterset>
+		<parameterset type="estimator">
+			<param name="estimator" value="WalkUtilityEstimator" />
+			<param name="mode" value="walk" />
+		</parameterset>
+		<parameterset type="estimator">
+			<param name="estimator" value="ZeroUtilityEstimator" />
+			<param name="mode" value="outside" />
+		</parameterset>
+		<parameterset type="estimator">
+			<param name="estimator" value="ZeroUtilityEstimator" />
+			<param name="mode" value="car_passenger" />
+		</parameterset>
+		<!-- <parameterset type="estimator">
+			<param name="estimator" value="ZeroUtilityEstimator" />
+			<param name="mode" value="truck" />
+		</parameterset> -->
 	</module>
 	<module name="eventsManager">
 		<!-- Estimated number of events during mobsim run. An optional optimization hint for the framework. -->
