@@ -20,7 +20,7 @@
 		<!-- Default=0. First Iteration of a simulation. -->
 		<param name="firstIteration" value="0" />
 		<!-- Default=1000. Last Iteration of a simulation. -->
-		<param name="lastIteration" value="5" />
+		<param name="lastIteration" value="1" />
 		<!-- Defines the interval for printing memory usage to the log in [seconds]. Must be positive. Defaults to 60. -->
 		<param name="memoryObserverInterval" value="60" />
 		<!-- Defines which mobility simulation will be used. Currently supported: [qsim, JDEQSim, hermes]
@@ -51,7 +51,7 @@
 		<!-- Specifies over how many iterations the link volumes should be averaged that are used for the counts comparison. Use 1 or 0 to only use the link volumes of a single iteration. This values cannot be larger than the value specified for writeCountsInterval -->
 		<param name="averageCountsOverIterations" value="5" />
 		<!-- factor by which to re-scale the simulated values.  necessary when simulation runs with something different from 100%.  needs to be adapted manually -->
-		<param name="countsScaleFactor" value="1.0" />
+		<param name="countsScaleFactor" value="0.01" />
 		<!-- distance to distanceFilterCenterNode to include counting stations. The unit of distance is the Euclidean distance implied by the coordinate system -->
 		<param name="distanceFilter" value="null" />
 		<!-- node id for center node of distance filter -->
@@ -85,7 +85,7 @@
 		<!-- A prefix to be used for auto-generated IDs. -->
 		<param name="idPrefix" value="f_auto_" />
 		<!-- The Coordinates Reference System in which the coordinates are expressed in the input file. At import, the coordinates will be converted to the coordinate system defined in "global", and willbe converted back at export. If not specified, no conversion happens. -->
-		<param name="inputCRS" value="EPSG:27700" />
+		<param name="inputCRS" value="null" />
 		<param name="inputFacilitiesFile" value="null" />
 		<param name="inputFacilityAttributesFile" value="null" />
 		<param name="insistingOnUsingDeprecatedFacilitiesAttributeFile" value="false" />
@@ -101,7 +101,7 @@
 	<module name="hermes">
 		<!-- Simulation End Time -->
 		<param name="endTime" value="30:00:00" />
-		<param name="flowCapacityFactor" value="0.1" />
+		<param name="flowCapacityFactor" value="1.0" />
 		<param name="mainMode" value="car" />
 		<param name="storageCapacityFactor" value="1.0" />
 		<!-- time in seconds.  Time after which the frontmost vehicle on a link is called `stuck' if it does not move. Set to Integer.MAX_VALUE to disable this behavior -->
@@ -131,7 +131,7 @@
 	</module>
 	<module name="network">
 		<!-- The Coordinates Reference System in which the coordinates are expressed in the input file. At import, the coordinates will be converted to the coordinate system defined in "global", and willbe converted back at export. If not specified, no conversion happens. -->
-		<param name="inputCRS" value="EPSG:3857" />
+		<param name="inputCRS" value="null" />
 		<param name="inputChangeEventsFile" value="null" />
 		<param name="inputNetworkFile" value="../../../data/supply/network_mapped.xml.gz" />
 		<param name="laneDefinitionsFile" value="null" />
@@ -147,7 +147,7 @@
 		<!-- Possible values: reject,useMainModeIdentifier -->
 		<param name="handlingOfPlansWithoutRoutingMode" value="reject" />
 		<!-- The Coordinates Reference System in which the coordinates are expressed in the input file. At import, the coordinates will be converted to the coordinate system defined in "global", and willbe converted back at export. If not specified, no conversion happens. -->
-		<param name="inputCRS" value="EPSG:4326" />
+		<param name="inputCRS" value="null" />
 		<param name="inputPersonAttributesFile" value="null" />
 		<param name="inputPlansFile" value="../../../scenarios/test/plans.xml" />
 		<param name="insistingOnUsingDeprecatedPersonAttributeFile" value="false" />
@@ -162,7 +162,7 @@
 		<param name="endTime" value="undefined" />
 		<!-- If set to withLinkAttributes snapshots will only be generated for links which include generateSnapshotForLink as attribute key. Default is no filtering. -->
 		<param name="filterSnapshots" value="no" />
-		<param name="flowCapacityFactor" value="1.0" />
+		<param name="flowCapacityFactor" value="0.01" />
 		<!-- decides if waiting vehicles enter the network after or before the already driving vehicles were moved. Default: false -->
 		<param name="insertingWaitingVehiclesBeforeDrivingVehicles" value="true" />
 		<!-- If link dynamics is set as SeepageQ, set to false if all seep modes should perform seepage. Default is true (better option). -->
@@ -191,7 +191,7 @@
 		<param name="snapshotStyle" value="queue" />
 		<param name="snapshotperiod" value="00:00:00" />
 		<param name="startTime" value="undefined" />
-		<param name="storageCapacityFactor" value="1.0" />
+		<param name="storageCapacityFactor" value="0.01" />
 		<!-- time in seconds.  Time after which the frontmost vehicle on a link is called `stuck' if it does not move. -->
 		<param name="stuckTime" value="10.0" />
 		<param name="timeStepSize" value="00:00:01" />
@@ -227,15 +227,15 @@
 		</parameterset> -->
 		<parameterset type="strategysettings">
 			<param name="strategyName" value="ReRoute"/>
-			<param name="disableAfterIteration" value="2900" />
+			<param name="disableAfterIteration" value="2" />
 			<param name="weight" value="0.1"/>
 		</parameterset>
 
-		<parameterset type="strategysettings">
+		<!-- <parameterset type="strategysettings">
 			<param name="strategyName" value="SubtourModeChoice"/>
 			<param name="disableAfterIteration" value="2900" />
 			<param name="weight" value="0.1"/>
-		</parameterset>
+		</parameterset> -->
 
 		<!-- <parameterset type="strategysettings">
 			<param name="strategyName" value="TimeAllocationMutator"/>
@@ -249,7 +249,7 @@
 	</module>
 	<module name="routing">
 		<!-- Defines how access and egress to main mode is simulated. Either of [none, accessEgressModeToLink, walkConstantTimeToLink, accessEgressModeToLinkPlusTimeConstant], Current default=none which means no access or egress trips are simulated. -->
-		<param name="accessEgressType" value="none" />
+		<param name="accessEgressType" value="accessEgressModeToLink" />
 		<!-- Some typical teleportation routing params are set by default, such as for walk and bike.  Setting this switch to "true" will clear them.  Note that this will also clear settings for helper modes such as for non_network_walk -->
 		<param name="clearDefaultTeleportedModeParams" value="false" />
 		<!-- All the modes for which the router is supposed to generate network routes (like car) -->
@@ -594,7 +594,7 @@
 	</module>
 	<module name="transit">
 		<!-- The Coordinates Reference System in which the coordinates are expressed in the input file. At import, the coordinates will be converted to the coordinate system defined in "global", and willbe converted back at export. If not specified, no conversion happens. -->
-		<param name="inputScheduleCRS" value="EPSG:3857" />
+		<param name="inputScheduleCRS" value="null" />
 		<param name="insistingOnUsingDeprecatedAttributeFiles" value="false" />
 		<!-- The type of transit routing algorithm used, may have the values: [DijkstraBased, SwissRailRaptor] -->
 		<param name="routingAlgorithmType" value="SwissRailRaptor" />
@@ -616,7 +616,7 @@
 		<!-- additional time the router allocates when a line switch happens. Can be interpreted as a 'safety' time that agents need to safely transfer from one line to another -->
 		<param name="additionalTransferTime" value="0.0" />
 		<!-- Factor with which direct walk generalized cost is multiplied before it is compared to the pt generalized cost.  Set to a very high value to reduce direct walk results. -->
-		<param name="directWalkFactor" value="1.0" />
+		<param name="directWalkFactor" value="5.0" />
 		<!-- step size to increase searchRadius if no stops are found -->
 		<param name="extensionRadius" value="200.0" />
 		<!-- maximum beeline distance between stops that agents could transfer to by walking -->

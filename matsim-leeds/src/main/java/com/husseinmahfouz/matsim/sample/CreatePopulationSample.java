@@ -15,7 +15,7 @@ public class CreatePopulationSample {
 
         PopulationReader reader = new PopulationReader(sc);
 
-        double sample = 0.05;
+        double sample = 0.005;
 
         // input population file
         reader.readFile(args[0]);
