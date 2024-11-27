@@ -4,7 +4,7 @@ import org.eqasim.core.scenario.validation.VehiclesValidator;
 import org.eqasim.core.simulation.analysis.EqasimAnalysisModule;
 import org.eqasim.core.simulation.mode_choice.EqasimModeChoiceModule;
 import com.husseinmahfouz.matsim.dmc.mode_choice.LeedsModeChoiceModule;
-import com.husseinmahfouz.matsim.dmc.policies.PolicyExtension;
+// import com.husseinmahfouz.matsim.dmc.policies.PolicyExtension;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.core.config.CommandLine;
 import org.matsim.core.config.CommandLine.ConfigurationException;
@@ -26,8 +26,8 @@ public class RunDMCSimulation {
 		cmd.applyConfiguration(config);
 		VehiclesValidator.validate(config);
 
-		PolicyExtension policies = new PolicyExtension();
-		policies.adaptConfiguration(config);
+		// PolicyExtension policies = new PolicyExtension();
+		// policies.adaptConfiguration(config);
 
 		Scenario scenario = ScenarioUtils.createScenario(config);
 		configurator.configureScenario(scenario);
@@ -39,7 +39,7 @@ public class RunDMCSimulation {
 		controller.addOverridingModule(new EqasimAnalysisModule());
 		controller.addOverridingModule(new EqasimModeChoiceModule());
 		controller.addOverridingModule(new LeedsModeChoiceModule(cmd));
-		controller.addOverridingModule(policies);
+		// controller.addOverridingModule(policies);
 		controller.run();
 	}
 }
