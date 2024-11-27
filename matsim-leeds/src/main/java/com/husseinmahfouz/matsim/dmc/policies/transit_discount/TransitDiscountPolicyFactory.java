@@ -3,7 +3,7 @@ package com.husseinmahfouz.matsim.dmc.policies.transit_discount;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eqasim.core.simulation.mode_choice.cost.CostModel;
-import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.IDFModeParameters;
+import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsModeParameters;
 import com.husseinmahfouz.matsim.dmc.policies.DefaultPolicy;
 import com.husseinmahfouz.matsim.dmc.policies.PoliciesConfigGroup;
 import com.husseinmahfouz.matsim.dmc.policies.Policy;
@@ -19,10 +19,10 @@ public class TransitDiscountPolicyFactory implements PolicyFactory {
 
 	private final Config config;
 	private final CostModel costModel;
-	private final IDFModeParameters modeParameters;
+	private final LeedsModeParameters modeParameters;
 
 	public TransitDiscountPolicyFactory(Config config, CostModel costModel,
-			IDFModeParameters modeParameters) {
+			LeedsModeParameters modeParameters) {
 		this.config = config;
 		this.costModel = costModel;
 		this.modeParameters = modeParameters;

@@ -2,7 +2,7 @@ package com.husseinmahfouz.matsim.dmc.mode_choice.parameters;
 
 import org.eqasim.core.simulation.mode_choice.parameters.ModeParameters;
 
-public class IDFModeParameters extends ModeParameters {
+public class LeedsModeParameters extends ModeParameters {
 	public class IDFCarParameters {
 		public double betaInsideUrbanArea;
 		public double betaCrossingUrbanArea;
@@ -15,8 +15,8 @@ public class IDFModeParameters extends ModeParameters {
 	public final IDFCarParameters idfCar = new IDFCarParameters();
 	public final IDFBikeParameters idfBike = new IDFBikeParameters();
 
-	public static IDFModeParameters buildDefault() {
-		IDFModeParameters parameters = new IDFModeParameters();
+	public static LeedsModeParameters buildDefault() {
+		LeedsModeParameters parameters = new LeedsModeParameters();
 
 		// Cost
 		parameters.betaCost_u_MU = -0.206;

@@ -3,8 +3,8 @@ package com.husseinmahfouz.matsim.dmc.mode_choice.costs;
 import java.util.List;
 
 import org.eqasim.core.simulation.mode_choice.cost.CostModel;
-import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.IDFPersonPredictor;
-import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.IDFSpatialPredictor;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsPersonPredictor;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsSpatialPredictor;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.IDFPersonVariables;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.IDFSpatialVariables;
 import org.matsim.api.core.v01.Coord;
@@ -19,16 +19,16 @@ import org.matsim.pt.transitSchedule.api.TransitSchedule;
 
 import com.google.inject.Inject;
 
-public class IDFPtCostModel implements CostModel {
-	private final IDFPersonPredictor personPredictor;
-	private final IDFSpatialPredictor spatialPredictor;
+public class LeedsPtCostModel implements CostModel {
+	private final LeedsPersonPredictor personPredictor;
+	private final LeedsSpatialPredictor spatialPredictor;
 
 	// TODO: This should be hidden by some custom predictor
 	private final TransitSchedule transitSchedule;
 
 	@Inject
-	public IDFPtCostModel(IDFPersonPredictor personPredictor, IDFSpatialPredictor spatialPredictor,
-			TransitSchedule transitSchedule) {
+	public LeedsPtCostModel(LeedsPersonPredictor personPredictor,
+			LeedsSpatialPredictor spatialPredictor, TransitSchedule transitSchedule) {
 		this.personPredictor = personPredictor;
 		this.spatialPredictor = spatialPredictor;
 		this.transitSchedule = transitSchedule;

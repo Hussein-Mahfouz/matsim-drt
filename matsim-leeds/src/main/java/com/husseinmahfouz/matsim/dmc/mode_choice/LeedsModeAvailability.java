@@ -10,7 +10,7 @@ import org.matsim.contribs.discrete_mode_choice.model.DiscreteModeChoiceTrip;
 import org.matsim.contribs.discrete_mode_choice.model.mode_availability.ModeAvailability;
 import org.matsim.core.population.PersonUtils;
 
-public class IDFModeAvailability implements ModeAvailability {
+public class LeedsModeAvailability implements ModeAvailability {
 	@Override
 	public Collection<String> getAvailableModes(Person person, List<DiscreteModeChoiceTrip> trips) {
 		Collection<String> modes = new HashSet<>();

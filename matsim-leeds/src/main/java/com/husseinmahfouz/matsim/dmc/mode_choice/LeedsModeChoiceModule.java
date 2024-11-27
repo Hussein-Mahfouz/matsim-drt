@@ -9,14 +9,14 @@ import org.eqasim.core.simulation.mode_choice.AbstractEqasimExtension;
 import org.eqasim.core.simulation.mode_choice.ParameterDefinition;
 import org.eqasim.core.simulation.mode_choice.parameters.ModeParameters;
 import org.eqasim.core.simulation.mode_choice.tour_finder.ActivityTourFinderWithExcludedActivities;
-import com.husseinmahfouz.matsim.dmc.mode_choice.costs.IDFCarCostModel;
-import com.husseinmahfouz.matsim.dmc.mode_choice.costs.IDFPtCostModel;
-import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.IDFCostParameters;
-import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.IDFModeParameters;
-import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.IDFBikeUtilityEstimator;
-import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.IDFCarUtilityEstimator;
-import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.IDFPersonPredictor;
-import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.IDFSpatialPredictor;
+import com.husseinmahfouz.matsim.dmc.mode_choice.costs.LeedsCarCostModel;
+import com.husseinmahfouz.matsim.dmc.mode_choice.costs.LeedsPtCostModel;
+import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsCostParameters;
+import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsModeParameters;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsBikeUtilityEstimator;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsCarUtilityEstimator;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsPersonPredictor;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsSpatialPredictor;
 import org.matsim.contribs.discrete_mode_choice.components.tour_finder.ActivityTourFinder;
 import org.matsim.contribs.discrete_mode_choice.modules.config.ActivityTourFinderConfigGroup;
 import org.matsim.contribs.discrete_mode_choice.modules.config.DiscreteModeChoiceConfigGroup;
@@ -26,37 +26,37 @@ import org.matsim.core.config.CommandLine.ConfigurationException;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 
-public class IDFModeChoiceModule extends AbstractEqasimExtension {
+public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 	private final CommandLine commandLine;
 
-	public static final String MODE_AVAILABILITY_NAME = "IDFModeAvailability";
+	public static final String MODE_AVAILABILITY_NAME = "LeedsModeAvailability";
 
-	public static final String CAR_COST_MODEL_NAME = "IDFCarCostModel";
-	public static final String PT_COST_MODEL_NAME = "IDFPtCostModel";
+	public static final String CAR_COST_MODEL_NAME = "LeedsCarCostModel";
+	public static final String PT_COST_MODEL_NAME = "LeedsPtCostModel";
 
-	public static final String CAR_ESTIMATOR_NAME = "IDFCarUtilityEstimator";
-	public static final String BIKE_ESTIMATOR_NAME = "IDFBikeUtilityEstimator";
+	public static final String CAR_ESTIMATOR_NAME = "LeedsCarUtilityEstimator";
+	public static final String BIKE_ESTIMATOR_NAME = "LeedsBikeUtilityEstimator";
 
 	public static final String ISOLATED_OUTSIDE_TOUR_FINDER_NAME = "IsolatedOutsideTrips";
 
-	public IDFModeChoiceModule(CommandLine commandLine) {
+	public LeedsModeChoiceModule(CommandLine commandLine) {
 		this.commandLine = commandLine;
 	}
 
 	@Override
 	protected void installEqasimExtension() {
-		bindModeAvailability(MODE_AVAILABILITY_NAME).to(IDFModeAvailability.class);
+		bindModeAvailability(MODE_AVAILABILITY_NAME).to(LeedsModeAvailability.class);
 
-		bind(IDFPersonPredictor.class);
+		bind(LeedsPersonPredictor.class);
 
-		bindCostModel(CAR_COST_MODEL_NAME).to(IDFCarCostModel.class);
-		bindCostModel(PT_COST_MODEL_NAME).to(IDFPtCostModel.class);
+		bindCostModel(CAR_COST_MODEL_NAME).to(LeedsCarCostModel.class);
+		bindCostModel(PT_COST_MODEL_NAME).to(LeedsPtCostModel.class);
 
-		bindUtilityEstimator(CAR_ESTIMATOR_NAME).to(IDFCarUtilityEstimator.class);
-		bindUtilityEstimator(BIKE_ESTIMATOR_NAME).to(IDFBikeUtilityEstimator.class);
-		bind(IDFSpatialPredictor.class);
+		bindUtilityEstimator(CAR_ESTIMATOR_NAME).to(LeedsCarUtilityEstimator.class);
+		bindUtilityEstimator(BIKE_ESTIMATOR_NAME).to(LeedsBikeUtilityEstimator.class);
+		bind(LeedsSpatialPredictor.class);
 
-		bind(ModeParameters.class).to(IDFModeParameters.class);
+		bind(ModeParameters.class).to(LeedsModeParameters.class);
 
 		bindTourFinder(ISOLATED_OUTSIDE_TOUR_FINDER_NAME)
 				.to(ActivityTourFinderWithExcludedActivities.class);
@@ -64,9 +64,9 @@ public class IDFModeChoiceModule extends AbstractEqasimExtension {
 
 	@Provides
 	@Singleton
-	public IDFModeParameters provideModeChoiceParameters(EqasimConfigGroup config)
+	public LeedsModeParameters provideModeChoiceParameters(EqasimConfigGroup config)
 			throws IOException, ConfigurationException {
-		IDFModeParameters parameters = IDFModeParameters.buildDefault();
+		LeedsModeParameters parameters = LeedsModeParameters.buildDefault();
 
 		if (config.getModeParametersPath() != null) {
 			ParameterDefinition.applyFile(new File(config.getModeParametersPath()), parameters);
@@ -78,8 +78,8 @@ public class IDFModeChoiceModule extends AbstractEqasimExtension {
 
 	@Provides
 	@Singleton
-	public IDFCostParameters provideCostParameters(EqasimConfigGroup config) {
-		IDFCostParameters parameters = IDFCostParameters.buildDefault();
+	public LeedsCostParameters provideCostParameters(EqasimConfigGroup config) {
+		LeedsCostParameters parameters = LeedsCostParameters.buildDefault();
 
 		if (config.getCostParametersPath() != null) {
 			ParameterDefinition.applyFile(new File(config.getCostParametersPath()), parameters);

@@ -8,11 +8,11 @@ import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.PlanElement;
 import org.matsim.contribs.discrete_mode_choice.model.DiscreteModeChoiceTrip;
 
-public class IDFPersonPredictor extends CachedVariablePredictor<IDFPersonVariables> {
+public class LeedsPersonPredictor extends CachedVariablePredictor<IDFPersonVariables> {
 	@Override
 	protected IDFPersonVariables predict(Person person, DiscreteModeChoiceTrip trip,
 			List<? extends PlanElement> elements) {
-		boolean hasSubscription = IDFPredictorUtils.hasSubscription(person);
+		boolean hasSubscription = LeedsPredictorUtils.hasSubscription(person);
 		return new IDFPersonVariables(hasSubscription);
 	}
 }

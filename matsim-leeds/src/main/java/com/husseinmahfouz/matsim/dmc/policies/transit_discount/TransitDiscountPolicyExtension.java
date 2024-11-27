@@ -6,7 +6,7 @@ import java.util.Objects;
 import org.eqasim.core.components.config.EqasimConfigGroup;
 import org.eqasim.core.simulation.mode_choice.AbstractEqasimExtension;
 import org.eqasim.core.simulation.mode_choice.cost.CostModel;
-import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.IDFModeParameters;
+import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsModeParameters;
 import org.matsim.api.core.v01.TransportMode;
 import org.matsim.api.core.v01.network.Network;
 
@@ -20,7 +20,7 @@ public class TransitDiscountPolicyExtension extends AbstractEqasimExtension {
 	@Provides
 	@Singleton
 	TransitDiscountPolicyFactory provideTransitDiscountPolicyFactory(Network network,
-			IDFModeParameters modeParameters, Map<String, CostModel> costModels,
+			LeedsModeParameters modeParameters, Map<String, CostModel> costModels,
 			EqasimConfigGroup eqasimConfig) {
 		CostModel costModel = Objects
 				.requireNonNull(costModels.get(eqasimConfig.getCostModels().get(TransportMode.pt)));

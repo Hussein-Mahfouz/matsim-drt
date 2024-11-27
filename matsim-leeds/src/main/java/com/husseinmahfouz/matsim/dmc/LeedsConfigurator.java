@@ -3,8 +3,8 @@ package com.husseinmahfouz.matsim.dmc;
 import org.eqasim.core.simulation.EqasimConfigurator;
 import com.husseinmahfouz.matsim.dmc.policies.PoliciesConfigGroup;
 
-public class IDFConfigurator extends EqasimConfigurator {
-	public IDFConfigurator() {
+public class LeedsConfigurator extends EqasimConfigurator {
+	public LeedsConfigurator() {
 		super();
 
 		registerConfigGroup(new PoliciesConfigGroup(), true);

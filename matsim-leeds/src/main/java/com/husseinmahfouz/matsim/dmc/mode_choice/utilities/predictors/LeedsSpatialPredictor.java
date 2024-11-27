@@ -11,12 +11,13 @@ import org.matsim.contribs.discrete_mode_choice.model.DiscreteModeChoiceTrip;
 import com.google.inject.Singleton;
 
 @Singleton
-public class IDFSpatialPredictor extends CachedVariablePredictor<IDFSpatialVariables> {
+public class LeedsSpatialPredictor extends CachedVariablePredictor<IDFSpatialVariables> {
 	@Override
 	protected IDFSpatialVariables predict(Person person, DiscreteModeChoiceTrip trip,
 			List<? extends PlanElement> elements) {
-		boolean hasUrbanOrigin = IDFPredictorUtils.isUrbanArea(trip.getOriginActivity());
-		boolean hasUrbanDestination = IDFPredictorUtils.isUrbanArea(trip.getDestinationActivity());
+		boolean hasUrbanOrigin = LeedsPredictorUtils.isUrbanArea(trip.getOriginActivity());
+		boolean hasUrbanDestination =
+				LeedsPredictorUtils.isUrbanArea(trip.getDestinationActivity());
 
 		return new IDFSpatialVariables(hasUrbanOrigin, hasUrbanDestination);
 	}

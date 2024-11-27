@@ -4,8 +4,8 @@ import java.util.List;
 
 import org.eqasim.core.simulation.mode_choice.utilities.estimators.CarUtilityEstimator;
 import org.eqasim.core.simulation.mode_choice.utilities.predictors.CarPredictor;
-import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.IDFModeParameters;
-import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.IDFSpatialPredictor;
+import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsModeParameters;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsSpatialPredictor;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.IDFSpatialVariables;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.PlanElement;
@@ -13,13 +13,13 @@ import org.matsim.contribs.discrete_mode_choice.model.DiscreteModeChoiceTrip;
 
 import com.google.inject.Inject;
 
-public class IDFCarUtilityEstimator extends CarUtilityEstimator {
-	private final IDFModeParameters parameters;
-	private final IDFSpatialPredictor spatialPredictor;
+public class LeedsCarUtilityEstimator extends CarUtilityEstimator {
+	private final LeedsModeParameters parameters;
+	private final LeedsSpatialPredictor spatialPredictor;
 
 	@Inject
-	public IDFCarUtilityEstimator(IDFModeParameters parameters,
-			IDFSpatialPredictor spatialPredictor, CarPredictor carPredictor) {
+	public LeedsCarUtilityEstimator(LeedsModeParameters parameters,
+			LeedsSpatialPredictor spatialPredictor, CarPredictor carPredictor) {
 		super(parameters, carPredictor);
 
 		this.parameters = parameters;

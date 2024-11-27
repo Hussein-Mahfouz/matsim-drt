@@ -4,18 +4,18 @@ package com.husseinmahfouz.matsim.dmc.mode_choice.costs;
 import java.util.List;
 
 import org.eqasim.core.simulation.mode_choice.cost.AbstractCostModel;
-import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.IDFCostParameters;
+import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsCostParameters;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.PlanElement;
 import org.matsim.contribs.discrete_mode_choice.model.DiscreteModeChoiceTrip;
 
 import com.google.inject.Inject;
 
-public class IDFCarCostModel extends AbstractCostModel {
-	private final IDFCostParameters costParameters;
+public class LeedsCarCostModel extends AbstractCostModel {
+	private final LeedsCostParameters costParameters;
 
 	@Inject
-	public IDFCarCostModel(IDFCostParameters costParameters) {
+	public LeedsCarCostModel(LeedsCostParameters costParameters) {
 		super("car");
 		this.costParameters = costParameters;
 	}

@@ -2,7 +2,7 @@ package com.husseinmahfouz.matsim.dmc.policies.city_tax;
 
 import java.util.List;
 
-import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.IDFModeParameters;
+import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsModeParameters;
 import com.husseinmahfouz.matsim.dmc.policies.PolicyPersonFilter;
 import com.husseinmahfouz.matsim.dmc.policies.mode_choice.UtilityPenalty;
 import org.matsim.api.core.v01.Id;
@@ -16,12 +16,12 @@ import org.matsim.contribs.discrete_mode_choice.model.DiscreteModeChoiceTrip;
 import org.matsim.core.population.routes.NetworkRoute;
 
 public class CityTaxUtilityPenalty implements UtilityPenalty {
-	private final IDFModeParameters parameters;
+	private final LeedsModeParameters parameters;
 	private final IdSet<Link> taxedLinkIds;
 	private final double enterTax_EUR;
 	private final PolicyPersonFilter personFilter;
 
-	public CityTaxUtilityPenalty(IdSet<Link> taxedLinkIds, IDFModeParameters parameters,
+	public CityTaxUtilityPenalty(IdSet<Link> taxedLinkIds, LeedsModeParameters parameters,
 			double enterTax_EUR, PolicyPersonFilter personFilter) {
 		this.taxedLinkIds = taxedLinkIds;
 		this.parameters = parameters;

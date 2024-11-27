@@ -3,7 +3,7 @@ package com.husseinmahfouz.matsim.dmc.policies.transit_discount;
 import java.util.List;
 
 import org.eqasim.core.simulation.mode_choice.cost.CostModel;
-import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.IDFModeParameters;
+import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsModeParameters;
 import com.husseinmahfouz.matsim.dmc.policies.PolicyPersonFilter;
 import com.husseinmahfouz.matsim.dmc.policies.mode_choice.UtilityPenalty;
 import org.matsim.api.core.v01.TransportMode;
@@ -13,11 +13,11 @@ import org.matsim.contribs.discrete_mode_choice.model.DiscreteModeChoiceTrip;
 
 public class TransitDiscountUtilityPenalty implements UtilityPenalty {
 	private final CostModel costModel;
-	private final IDFModeParameters modeParameters;
+	private final LeedsModeParameters modeParameters;
 	private final double costFactor;
 	private final PolicyPersonFilter personFilter;
 
-	public TransitDiscountUtilityPenalty(CostModel costModel, IDFModeParameters modeParameters,
+	public TransitDiscountUtilityPenalty(CostModel costModel, LeedsModeParameters modeParameters,
 			double costFactor, PolicyPersonFilter personFilter) {
 		this.costModel = costModel;
 		this.modeParameters = modeParameters;

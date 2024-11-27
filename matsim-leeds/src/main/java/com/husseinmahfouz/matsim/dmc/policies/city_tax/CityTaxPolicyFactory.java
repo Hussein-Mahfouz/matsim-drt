@@ -4,7 +4,7 @@ import java.io.File;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.IDFModeParameters;
+import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsModeParameters;
 import com.husseinmahfouz.matsim.dmc.policies.DefaultPolicy;
 import com.husseinmahfouz.matsim.dmc.policies.PoliciesConfigGroup;
 import com.husseinmahfouz.matsim.dmc.policies.Policy;
@@ -26,9 +26,10 @@ public class CityTaxPolicyFactory implements PolicyFactory {
 
 	private final Config config;
 	private final Network network;
-	private final IDFModeParameters modeParameters;
+	private final LeedsModeParameters modeParameters;
 
-	public CityTaxPolicyFactory(Config config, Network network, IDFModeParameters modeParameters) {
+	public CityTaxPolicyFactory(Config config, Network network,
+			LeedsModeParameters modeParameters) {
 		this.config = config;
 		this.network = network;
 		this.modeParameters = modeParameters;
@@ -67,7 +68,7 @@ public class CityTaxPolicyFactory implements PolicyFactory {
 						personFilter));
 	}
 
-	private double calculateEnterTaxPenalty(double enterTax_EUR, IDFModeParameters parameters) {
+	private double calculateEnterTaxPenalty(double enterTax_EUR, LeedsModeParameters parameters) {
 		double penalty_u = enterTax_EUR * parameters.betaCost_u_MU;
 		double penalty_min = penalty_u / parameters.car.betaTravelTime_u_min;
 		return penalty_min * 60.0;

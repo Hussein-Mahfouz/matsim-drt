@@ -3,7 +3,7 @@ package com.husseinmahfouz.matsim.dmc;
 import org.eqasim.core.scenario.validation.VehiclesValidator;
 import org.eqasim.core.simulation.analysis.EqasimAnalysisModule;
 import org.eqasim.core.simulation.mode_choice.EqasimModeChoiceModule;
-import com.husseinmahfouz.matsim.dmc.mode_choice.IDFModeChoiceModule;
+import com.husseinmahfouz.matsim.dmc.mode_choice.LeedsModeChoiceModule;
 import com.husseinmahfouz.matsim.dmc.policies.PolicyExtension;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.core.config.CommandLine;
@@ -20,7 +20,7 @@ public class RunDMCSimulation {
 				.allowPrefixes("mode-choice-parameter", "cost-parameter") //
 				.build();
 
-		IDFConfigurator configurator = new IDFConfigurator();
+		LeedsConfigurator configurator = new LeedsConfigurator();
 		Config config = ConfigUtils.loadConfig(cmd.getOptionStrict("config-path"));
 		configurator.updateConfig(config);
 		cmd.applyConfiguration(config);
@@ -38,7 +38,7 @@ public class RunDMCSimulation {
 		configurator.configureController(controller);
 		controller.addOverridingModule(new EqasimAnalysisModule());
 		controller.addOverridingModule(new EqasimModeChoiceModule());
-		controller.addOverridingModule(new IDFModeChoiceModule(cmd));
+		controller.addOverridingModule(new LeedsModeChoiceModule(cmd));
 		controller.addOverridingModule(policies);
 		controller.run();
 	}

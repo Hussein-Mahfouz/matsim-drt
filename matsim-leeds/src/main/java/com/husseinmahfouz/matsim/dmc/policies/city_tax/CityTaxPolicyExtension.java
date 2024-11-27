@@ -1,7 +1,7 @@
 package com.husseinmahfouz.matsim.dmc.policies.city_tax;
 
 import org.eqasim.core.simulation.mode_choice.AbstractEqasimExtension;
-import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.IDFModeParameters;
+import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsModeParameters;
 import org.matsim.api.core.v01.network.Network;
 
 import com.google.inject.Provides;
@@ -14,7 +14,7 @@ public class CityTaxPolicyExtension extends AbstractEqasimExtension {
 	@Provides
 	@Singleton
 	CityTaxPolicyFactory provideCityTaxPolicyFactory(Network network,
-			IDFModeParameters modeParameters) {
+			LeedsModeParameters modeParameters) {
 		return new CityTaxPolicyFactory(getConfig(), network, modeParameters);
 	}
 }

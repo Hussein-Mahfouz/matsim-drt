@@ -5,8 +5,8 @@ import java.util.List;
 import org.eqasim.core.simulation.mode_choice.utilities.estimators.BikeUtilityEstimator;
 import org.eqasim.core.simulation.mode_choice.utilities.predictors.BikePredictor;
 import org.eqasim.core.simulation.mode_choice.utilities.predictors.PersonPredictor;
-import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.IDFModeParameters;
-import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.IDFSpatialPredictor;
+import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsModeParameters;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsSpatialPredictor;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.IDFSpatialVariables;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.PlanElement;
@@ -14,13 +14,13 @@ import org.matsim.contribs.discrete_mode_choice.model.DiscreteModeChoiceTrip;
 
 import com.google.inject.Inject;
 
-public class IDFBikeUtilityEstimator extends BikeUtilityEstimator {
-	private final IDFModeParameters parameters;
-	private final IDFSpatialPredictor spatialPredictor;
+public class LeedsBikeUtilityEstimator extends BikeUtilityEstimator {
+	private final LeedsModeParameters parameters;
+	private final LeedsSpatialPredictor spatialPredictor;
 
 	@Inject
-	public IDFBikeUtilityEstimator(IDFModeParameters parameters,
-			IDFSpatialPredictor spatialPredictor, PersonPredictor personPredictor,
+	public LeedsBikeUtilityEstimator(LeedsModeParameters parameters,
+			LeedsSpatialPredictor spatialPredictor, PersonPredictor personPredictor,
 			BikePredictor bikePredictor) {
 		super(parameters, personPredictor, bikePredictor);
 
