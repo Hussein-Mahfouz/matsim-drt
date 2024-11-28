@@ -1,7 +1,5 @@
 package com.husseinmahfouz.matsim.dmc;
 
-import org.eqasim.core.scenario.RunInsertVehicles;
-import org.eqasim.core.scenario.validation.VehiclesValidator;
 import org.eqasim.core.simulation.analysis.EqasimAnalysisModule;
 import org.eqasim.core.simulation.mode_choice.EqasimModeChoiceModule;
 import com.husseinmahfouz.matsim.dmc.mode_choice.LeedsModeChoiceModule;
@@ -46,9 +44,6 @@ public class RunDMCSimulation {
 				attributes.removeAttribute("age_years");
 			}
 		});
-
-		RunInsertVehicles.insertVehicles(config, scenario);
-		VehiclesValidator.validate(config);
 
 		Controler controller = new Controler(scenario);
 		configurator.configureController(controller);
