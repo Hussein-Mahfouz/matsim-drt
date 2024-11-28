@@ -13,6 +13,8 @@ import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.controler.Controler;
 import org.matsim.core.scenario.ScenarioUtils;
+// TODO: Remove when age_years is turned to "age" in plans.xml input
+import org.matsim.utils.objectattributes.attributable.Attributes;
 
 public class RunDMCSimulation {
 	static public void main(String[] args) throws ConfigurationException {
@@ -33,6 +35,17 @@ public class RunDMCSimulation {
 		configurator.configureScenario(scenario);
 		ScenarioUtils.loadScenario(scenario);
 		configurator.adjustScenario(scenario);
+
+		// Rename "age_years" to "age" for all persons
+		// TODO remove when "age_years" is turned to "age" in plans.xml input
+		scenario.getPopulation().getPersons().values().forEach(person -> {
+			Attributes attributes = person.getAttributes();
+			Object ageYears = attributes.getAttribute("age_years");
+			if (ageYears != null) {
+				attributes.putAttribute("age", ageYears);
+				attributes.removeAttribute("age_years");
+			}
+		});
 
 		RunInsertVehicles.insertVehicles(config, scenario);
 		VehiclesValidator.validate(config);
