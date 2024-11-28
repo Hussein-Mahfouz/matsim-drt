@@ -19,7 +19,7 @@ public class RunSimulation {
         Scenario scenario = ScenarioUtils.loadScenario(config);
 
         Controler controler = new Controler(scenario);
-        // controler.addOverridingModule(new IDFModeChoiceModule());
+        // controler.addOverridingModule(new LeedsModeChoiceModule());
         // controler.addOverridingModule(new PolicyExtension());
 
         controler.run();

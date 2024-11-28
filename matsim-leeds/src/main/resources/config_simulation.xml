@@ -20,7 +20,7 @@
 		<!-- Default=0. First Iteration of a simulation. -->
 		<param name="firstIteration" value="0" />
 		<!-- Default=1000. Last Iteration of a simulation. -->
-		<param name="lastIteration" value="1" />
+		<param name="lastIteration" value="10" />
 		<!-- Defines the interval for printing memory usage to the log in [seconds]. Must be positive. Defaults to 60. -->
 		<param name="memoryObserverInterval" value="60" />
 		<!-- Defines which mobility simulation will be used. Currently supported: [qsim, JDEQSim, hermes]
@@ -159,7 +159,7 @@
 		<param name="tripDurationHandling" value="ignoreDelays" />
 	</module>
 	<module name="qsim">
-		<param name="endTime" value="undefined" />
+		<param name="endTime" value="30:00:00" />
 		<!-- If set to withLinkAttributes snapshots will only be generated for links which include generateSnapshotForLink as attribute key. Default is no filtering. -->
 		<param name="filterSnapshots" value="no" />
 		<param name="flowCapacityFactor" value="0.01" />
@@ -227,7 +227,7 @@
 		</parameterset> -->
 		<parameterset type="strategysettings">
 			<param name="strategyName" value="ReRoute"/>
-			<param name="disableAfterIteration" value="2" />
+			<param name="disableAfterIteration" value="10" />
 			<param name="weight" value="0.1"/>
 		</parameterset>
 

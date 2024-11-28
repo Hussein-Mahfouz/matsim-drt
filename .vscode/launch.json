@@ -14,14 +14,14 @@
             "type": "java",
             "name": "App",
             "request": "launch",
-            "mainClass": "com.husseinmahfouz.matsim.drt.App",
+            "mainClass": "com.husseinmahfouz.matsim.dmc.drt.App",
             "projectName": "matsim-leeds"
         },
         {
             "type": "java",
             "name": "Run OSM Converter",
             "request": "launch",
-            "mainClass": "com.husseinmahfouz.matsim.pt2matsim.RunOSMConverter",
+            "mainClass": "com.husseinmahfouz.matsim.dmc.pt2matsim.RunOSMConverter",
             "projectName": "matsim-leeds",
             "cwd": "${workspaceFolder}/matsim-leeds",
             "args": "src/main/resources/config_pt2matsim.xml"
@@ -30,7 +30,7 @@
             "type": "java",
             "name": "Run GTFS to Transit Schedule",
             "request": "launch",
-            "mainClass": "com.husseinmahfouz.matsim.pt2matsim.RunPTConverter",
+            "mainClass": "com.husseinmahfouz.matsim.dmc.pt2matsim.RunPTConverter",
             "cwd": "${workspaceFolder}/matsim-leeds",
             "args": [
                 "data/external/study_area_gtfs_bus.zip",
@@ -44,7 +44,7 @@
             "type": "java",
             "name": "Run PT Mapper",
             "request": "launch",
-            "mainClass": "com.husseinmahfouz.matsim.pt2matsim.RunPTMapper",
+            "mainClass": "com.husseinmahfouz.matsim.dmc.pt2matsim.RunPTMapper",
             "projectName": "matsim-leeds",
             "cwd": "${workspaceFolder}/matsim-leeds",
             "args": "src/main/resources/config_pt2matsim.xml"
@@ -53,7 +53,7 @@
             "type": "java",
             "name": "Create Default MATSim Config",
             "request": "launch",
-            "mainClass": "com.husseinmahfouz.matsim.RunCreateDefaultConfig",
+            "mainClass": "com.husseinmahfouz.matsim.dmc.RunCreateDefaultConfig",
             "projectName": "matsim-leeds",
             "cwd": "${workspaceFolder}/matsim-leeds",
             "args": "src/main/resources/config_simulation.xml"
@@ -62,7 +62,7 @@
             "type": "java",
             "name": "Create Sample from Population",
             "request": "launch",
-            "mainClass": "com.husseinmahfouz.matsim.sample.CreatePopulationSample",
+            "mainClass": "com.husseinmahfouz.matsim.dmc.sample.CreatePopulationSample",
             "projectName": "matsim-leeds",
             "cwd": "${workspaceFolder}/matsim-leeds",
             "args": [
@@ -74,10 +74,19 @@
             "type": "java",
             "name": "Run simulation with specified config",
             "request": "launch",
-            "mainClass": "com.husseinmahfouz.matsim.RunSimulation",
+            "mainClass": "com.husseinmahfouz.matsim.dmc.RunSimulation",
             "projectName": "matsim-leeds",
             "cwd": "${workspaceFolder}/matsim-leeds",
             "args": "src/main/resources/config_simulation.xml"
+        },
+        {
+            "type": "java",
+            "name": "RunDMCSimulation",
+            "request": "launch",
+            "mainClass": "com.husseinmahfouz.matsim.dmc.RunDMCSimulation",
+            "projectName": "matsim-leeds",
+            "cwd": "${workspaceFolder}/matsim-leeds",
+            "args": "--config-path src/main/resources/config_simulation_dmc.xml"
         }
     ]
 }
