@@ -45,6 +45,6 @@ public class RunAdaptConfig {
 		qsimConfig.setVehiclesSource(VehiclesSource.fromVehiclesData);
 
 		VehiclesConfigGroup vehiclesConfig = config.vehicles();
-		vehiclesConfig.setVehiclesFile(prefix + "vehicles.xml.gz");
+		vehiclesConfig.setVehiclesFile(prefix + "network_vehicles.xml.gz");
 	}
 }

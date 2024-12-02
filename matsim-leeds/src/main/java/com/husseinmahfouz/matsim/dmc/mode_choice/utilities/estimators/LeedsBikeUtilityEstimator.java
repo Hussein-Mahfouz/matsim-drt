@@ -7,7 +7,7 @@ import org.eqasim.core.simulation.mode_choice.utilities.predictors.BikePredictor
 import org.eqasim.core.simulation.mode_choice.utilities.predictors.PersonPredictor;
 import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsModeParameters;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsSpatialPredictor;
-import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.IDFSpatialVariables;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.LeedsSpatialVariables;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.PlanElement;
 import org.matsim.contribs.discrete_mode_choice.model.DiscreteModeChoiceTrip;
@@ -28,11 +28,11 @@ public class LeedsBikeUtilityEstimator extends BikeUtilityEstimator {
 		this.spatialPredictor = spatialPredictor;
 	}
 
-	protected double estimateUrbanUtility(IDFSpatialVariables variables) {
+	protected double estimateUrbanUtility(LeedsSpatialVariables variables) {
 		double utility = 0.0;
 
 		if (variables.hasUrbanOrigin && variables.hasUrbanDestination) {
-			utility += parameters.idfBike.betaInsideUrbanArea;
+			utility += parameters.leedsBike.betaInsideUrbanArea;
 		}
 
 		return utility;
@@ -41,7 +41,7 @@ public class LeedsBikeUtilityEstimator extends BikeUtilityEstimator {
 	@Override
 	public double estimateUtility(Person person, DiscreteModeChoiceTrip trip,
 			List<? extends PlanElement> elements) {
-		IDFSpatialVariables variables = spatialPredictor.predictVariables(person, trip, elements);
+		LeedsSpatialVariables variables = spatialPredictor.predictVariables(person, trip, elements);
 
 		double utility = 0.0;
 

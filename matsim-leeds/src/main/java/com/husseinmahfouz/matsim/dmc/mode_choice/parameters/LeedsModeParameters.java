@@ -3,17 +3,17 @@ package com.husseinmahfouz.matsim.dmc.mode_choice.parameters;
 import org.eqasim.core.simulation.mode_choice.parameters.ModeParameters;
 
 public class LeedsModeParameters extends ModeParameters {
-	public class IDFCarParameters {
+	public class LeedsCarParameters {
 		public double betaInsideUrbanArea;
 		public double betaCrossingUrbanArea;
 	}
 
-	public class IDFBikeParameters {
+	public class LeedsBikeParameters {
 		public double betaInsideUrbanArea;
 	}
 
-	public final IDFCarParameters idfCar = new IDFCarParameters();
-	public final IDFBikeParameters idfBike = new IDFBikeParameters();
+	public final LeedsCarParameters leedsCar = new LeedsCarParameters();
+	public final LeedsBikeParameters leedsBike = new LeedsBikeParameters();
 
 	public static LeedsModeParameters buildDefault() {
 		LeedsModeParameters parameters = new LeedsModeParameters();
@@ -30,8 +30,8 @@ public class LeedsModeParameters extends ModeParameters {
 		parameters.car.additionalAccessEgressWalkTime_min = 4.0;
 		parameters.car.constantParkingSearchPenalty_min = 4.0;
 
-		parameters.idfCar.betaInsideUrbanArea = -0.5;
-		parameters.idfCar.betaCrossingUrbanArea = -1.0;
+		parameters.leedsCar.betaInsideUrbanArea = -0.5;
+		parameters.leedsCar.betaCrossingUrbanArea = -1.0;
 
 		// PT
 		parameters.pt.alpha_u = 0.0;
@@ -45,7 +45,7 @@ public class LeedsModeParameters extends ModeParameters {
 		parameters.bike.betaTravelTime_u_min = -0.05;
 		parameters.bike.betaAgeOver18_u_a = -0.0496;
 
-		parameters.idfBike.betaInsideUrbanArea = 1.5;
+		parameters.leedsBike.betaInsideUrbanArea = 1.5;
 
 		// Walk
 		parameters.walk.alpha_u = 1.43;

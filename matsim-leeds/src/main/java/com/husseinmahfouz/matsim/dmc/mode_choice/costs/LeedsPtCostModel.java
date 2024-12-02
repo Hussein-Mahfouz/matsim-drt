@@ -5,8 +5,8 @@ import java.util.List;
 import org.eqasim.core.simulation.mode_choice.cost.CostModel;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsPersonPredictor;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsSpatialPredictor;
-import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.IDFPersonVariables;
-import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.IDFSpatialVariables;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.LeedsPersonVariables;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.LeedsSpatialVariables;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.TransportMode;
 import org.matsim.api.core.v01.population.Leg;
@@ -68,7 +68,7 @@ public class LeedsPtCostModel implements CostModel {
 			List<? extends PlanElement> elements) {
 		// I) If the person has a subscription, the price is zero!
 
-		IDFPersonVariables personVariables =
+		LeedsPersonVariables personVariables =
 				personPredictor.predictVariables(person, trip, elements);
 
 		if (personVariables.hasSubscription) {
@@ -78,7 +78,7 @@ public class LeedsPtCostModel implements CostModel {
 		// II) If the trip is entirely inside of Paris, or it only consists of metro and
 		// bus, the price is 1.80 EUR
 
-		IDFSpatialVariables spatialVariables =
+		LeedsSpatialVariables spatialVariables =
 				spatialPredictor.predictVariables(person, trip, elements);
 		boolean isWithinParis =
 				spatialVariables.hasUrbanOrigin && spatialVariables.hasUrbanDestination;
