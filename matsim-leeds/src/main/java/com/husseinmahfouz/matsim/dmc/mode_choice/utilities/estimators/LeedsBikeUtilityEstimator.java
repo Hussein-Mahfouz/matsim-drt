@@ -7,6 +7,8 @@ import org.eqasim.core.simulation.mode_choice.utilities.predictors.BikePredictor
 import org.eqasim.core.simulation.mode_choice.utilities.predictors.PersonPredictor;
 import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsModeParameters;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsSpatialPredictor;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsPersonPredictor;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.LeedsPersonVariables;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.LeedsSpatialVariables;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.PlanElement;
@@ -17,15 +19,17 @@ import com.google.inject.Inject;
 public class LeedsBikeUtilityEstimator extends BikeUtilityEstimator {
 	private final LeedsModeParameters parameters;
 	private final LeedsSpatialPredictor spatialPredictor;
+	private final LeedsPersonPredictor predictor;
 
 	@Inject
 	public LeedsBikeUtilityEstimator(LeedsModeParameters parameters,
 			LeedsSpatialPredictor spatialPredictor, PersonPredictor personPredictor,
-			BikePredictor bikePredictor) {
+			LeedsPersonPredictor predictor, BikePredictor bikePredictor) {
 		super(parameters, personPredictor, bikePredictor);
 
 		this.parameters = parameters;
 		this.spatialPredictor = spatialPredictor;
+		this.predictor = predictor;
 	}
 
 	protected double estimateUrbanUtility(LeedsSpatialVariables variables) {
@@ -38,15 +42,27 @@ public class LeedsBikeUtilityEstimator extends BikeUtilityEstimator {
 		return utility;
 	}
 
+	protected double estimateGenderUtility(LeedsPersonVariables variables) {
+		double utility = 0.0;
+
+		if (variables.isMale) {
+			utility += parameters.leedsBike.betaMale;
+		}
+
+		return utility;
+	}
+
 	@Override
 	public double estimateUtility(Person person, DiscreteModeChoiceTrip trip,
 			List<? extends PlanElement> elements) {
 		LeedsSpatialVariables variables = spatialPredictor.predictVariables(person, trip, elements);
+		LeedsPersonVariables variables_person = predictor.predictVariables(person, trip, elements);
 
 		double utility = 0.0;
 
 		utility += super.estimateUtility(person, trip, elements);
 		utility += estimateUrbanUtility(variables);
+		utility += estimateGenderUtility(variables_person);
 
 		return utility;
 	}
