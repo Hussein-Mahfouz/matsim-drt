@@ -52,6 +52,16 @@ public class LeedsBikeUtilityEstimator extends BikeUtilityEstimator {
 		return utility;
 	}
 
+	protected double estimateStudentUtility(LeedsPersonVariables variables) {
+		double utility = 0.0;
+
+		if (variables.isStudent) {
+			utility += parameters.leedsBike.betaStudent;
+		}
+
+		return utility;
+	}
+
 	@Override
 	public double estimateUtility(Person person, DiscreteModeChoiceTrip trip,
 			List<? extends PlanElement> elements) {
@@ -63,6 +73,7 @@ public class LeedsBikeUtilityEstimator extends BikeUtilityEstimator {
 		utility += super.estimateUtility(person, trip, elements);
 		utility += estimateUrbanUtility(variables);
 		utility += estimateGenderUtility(variables_person);
+		utility += estimateStudentUtility(variables_person);
 
 		return utility;
 	}

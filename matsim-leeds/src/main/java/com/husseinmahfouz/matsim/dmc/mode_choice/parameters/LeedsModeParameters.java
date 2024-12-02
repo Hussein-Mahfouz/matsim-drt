@@ -11,6 +11,7 @@ public class LeedsModeParameters extends ModeParameters {
 	public class LeedsBikeParameters {
 		public double betaInsideUrbanArea;
 		public double betaMale;
+		public double betaStudent;
 	}
 
 	public final LeedsCarParameters leedsCar = new LeedsCarParameters();
@@ -48,6 +49,7 @@ public class LeedsModeParameters extends ModeParameters {
 
 		parameters.leedsBike.betaInsideUrbanArea = 1.5;
 		parameters.leedsBike.betaMale = 1.1047;
+		parameters.leedsBike.betaStudent = 1.1559;
 
 		// Walk
 		parameters.walk.alpha_u = 1.43;
