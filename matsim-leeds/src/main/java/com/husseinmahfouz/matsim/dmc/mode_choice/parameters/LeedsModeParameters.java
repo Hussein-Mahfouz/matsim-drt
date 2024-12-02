@@ -6,16 +6,32 @@ public class LeedsModeParameters extends ModeParameters {
 	public class LeedsCarParameters {
 		public double betaInsideUrbanArea;
 		public double betaCrossingUrbanArea;
+		public double lambdaIVT;
+		public double shiftCommuting;
 	}
 
 	public class LeedsBikeParameters {
 		public double betaInsideUrbanArea;
 		public double betaMale;
 		public double betaStudent;
+		public double lambdaIVT;
 	}
+
+	public class LeedsPTParameters {
+		public double lambdaIVT;
+		public double lambdaOVT;
+	}
+
+
+	public class LeedsWalkParameters {
+		public double lambdaIVT;
+	}
+
 
 	public final LeedsCarParameters leedsCar = new LeedsCarParameters();
 	public final LeedsBikeParameters leedsBike = new LeedsBikeParameters();
+	public final LeedsPTParameters leedsPT = new LeedsPTParameters();
+	public final LeedsWalkParameters leedsWalk = new LeedsWalkParameters();
 
 	public static LeedsModeParameters buildDefault() {
 		LeedsModeParameters parameters = new LeedsModeParameters();
@@ -34,6 +50,8 @@ public class LeedsModeParameters extends ModeParameters {
 
 		parameters.leedsCar.betaInsideUrbanArea = -0.5;
 		parameters.leedsCar.betaCrossingUrbanArea = -1.0;
+		parameters.leedsCar.lambdaIVT = 0.5424;
+		parameters.leedsCar.shiftCommuting = -0.1478;
 
 		// PT
 		parameters.pt.alpha_u = 0.0;
@@ -41,6 +59,10 @@ public class LeedsModeParameters extends ModeParameters {
 		parameters.pt.betaInVehicleTime_u_min = -0.017;
 		parameters.pt.betaWaitingTime_u_min = -0.0484;
 		parameters.pt.betaAccessEgressTime_u_min = -0.0804;
+
+		parameters.leedsPT.lambdaIVT = 0.5424;
+		parameters.leedsPT.lambdaOVT = 0.1452; // Box-cox lambda parameter for OVT
+
 
 		// Bike
 		parameters.bike.alpha_u = -2.0;
@@ -50,10 +72,15 @@ public class LeedsModeParameters extends ModeParameters {
 		parameters.leedsBike.betaInsideUrbanArea = 1.5;
 		parameters.leedsBike.betaMale = 1.1047;
 		parameters.leedsBike.betaStudent = 1.1559;
+		parameters.leedsBike.lambdaIVT = 0.5424;
+
 
 		// Walk
 		parameters.walk.alpha_u = 1.43;
 		parameters.walk.betaTravelTime_u_min = -0.15;
+
+		parameters.leedsWalk.lambdaIVT = 0.5424;
+
 
 		return parameters;
 	}
