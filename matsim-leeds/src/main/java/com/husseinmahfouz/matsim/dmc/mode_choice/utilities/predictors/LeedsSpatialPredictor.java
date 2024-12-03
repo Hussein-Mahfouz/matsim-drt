@@ -19,8 +19,8 @@ public class LeedsSpatialPredictor extends CachedVariablePredictor<LeedsSpatialV
 		boolean hasUrbanDestination =
 				LeedsPredictorUtils.isUrbanArea(trip.getDestinationActivity());
 		// is this a commuting trip?
-		boolean isCommuting = LeedsPredictorUtils.isCommutingTrip(trip.getOriginActivity());
-
+		boolean isCommuting = LeedsPredictorUtils.isCommutingTrip(trip.getOriginActivity(),
+				trip.getDestinationActivity());
 
 		return new LeedsSpatialVariables(hasUrbanOrigin, hasUrbanDestination, isCommuting);
 	}

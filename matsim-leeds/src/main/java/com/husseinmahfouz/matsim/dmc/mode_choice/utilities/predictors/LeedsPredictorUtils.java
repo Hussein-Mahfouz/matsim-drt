@@ -16,8 +16,11 @@ public class LeedsPredictorUtils {
 	}
 
 	// Check if a trip is a commuting trip
-	static public boolean isCommutingTrip(Activity activity) {
-		String type = (String) activity.getAttributes().getAttribute("type");
-		return "work".equals(type);
-	}
+    static public boolean isCommutingTrip(Activity originActivity, Activity destinationActivity) {
+        String originType = originActivity.getType();
+        String destinationType = destinationActivity.getType();
+
+        return ("home".equals(originType) && "work".equals(destinationType)) ||
+               ("work".equals(originType) && "home".equals(destinationType));
+    }
 }
