@@ -30,23 +30,23 @@ public class LeedsCarUtilityEstimator extends CarUtilityEstimator {
 		this.carPredictor = carPredictor;
 	}
 
-	protected double estimateUrbanUtility(LeedsSpatialVariables variables) {
-		double utility = 0.0;
+	// protected double estimateUrbanUtility(LeedsSpatialVariables variables) {
+	// double utility = 0.0;
 
-		if (variables.hasUrbanOrigin && variables.hasUrbanDestination) {
-			utility += parameters.leedsCar.betaInsideUrbanArea;
-		}
+	// if (variables.hasUrbanOrigin && variables.hasUrbanDestination) {
+	// utility += parameters.leedsCar.betaInsideUrbanArea;
+	// }
 
-		if (variables.hasUrbanOrigin || variables.hasUrbanDestination) {
-			utility += parameters.leedsCar.betaCrossingUrbanArea;
-		}
+	// if (variables.hasUrbanOrigin || variables.hasUrbanDestination) {
+	// utility += parameters.leedsCar.betaCrossingUrbanArea;
+	// }
 
-		return utility;
-	}
+	// return utility;
+	// }
 
 	@Override
 	protected double estimateTravelTimeUtility(CarVariables variables) {
-		double lambda = parameters.leedsCar.lambdaIVT;
+		double lambda = parameters.leedsCar.lambdaTravelTime;
 		// box-cox transformation
 		return parameters.car.betaTravelTime_u_min
 				* ((Math.pow(variables.travelTime_min, lambda) - 1) / lambda);
@@ -72,7 +72,8 @@ public class LeedsCarUtilityEstimator extends CarUtilityEstimator {
 		double utility = 0.0;
 
 		// utility += super.estimateUtility(person, trip, elements);
-		utility += estimateUrbanUtility(spatialVariables);
+		// utility += estimateUrbanUtility(spatialVariables);
+		utility += estimateConstantUtility();
 		utility += estimateTravelTimeUtility(carVariables);
 		utility += estimateMonetaryCostUtility(carVariables);
 		utility += estimateCommutingUtility(spatialVariables);

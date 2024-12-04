@@ -36,6 +36,8 @@ public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 
 	public static final String CAR_ESTIMATOR_NAME = "LeedsCarUtilityEstimator";
 	public static final String BIKE_ESTIMATOR_NAME = "LeedsBikeUtilityEstimator";
+	// public static final String WALK_ESTIMATOR_NAME = "LeedsWalkUtilityEstimator";
+	// public static final String PT_ESTIMATOR_NAME = "LeedsPTUtilityEstimator";
 
 	public static final String ISOLATED_OUTSIDE_TOUR_FINDER_NAME = "IsolatedOutsideTrips";
 

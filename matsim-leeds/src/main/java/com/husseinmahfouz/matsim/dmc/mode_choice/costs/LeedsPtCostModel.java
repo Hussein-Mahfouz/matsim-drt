@@ -80,12 +80,15 @@ public class LeedsPtCostModel implements CostModel {
 
 		LeedsSpatialVariables spatialVariables =
 				spatialPredictor.predictVariables(person, trip, elements);
-		boolean isWithinParis =
-				spatialVariables.hasUrbanOrigin && spatialVariables.hasUrbanDestination;
+		// boolean isWithinLeeds =
+		// spatialVariables.hasUrbanOrigin && spatialVariables.hasUrbanDestination;
 
 		boolean isOnlyMetroOrBus = isOnlyMetroOrBus(elements);
 
-		if (isOnlyMetroOrBus || isWithinParis) {
+		// if (isOnlyMetroOrBus || isWithinParis) {
+		// return 1.8;
+		// }
+		if (isOnlyMetroOrBus) {
 			return 1.8;
 		}
 

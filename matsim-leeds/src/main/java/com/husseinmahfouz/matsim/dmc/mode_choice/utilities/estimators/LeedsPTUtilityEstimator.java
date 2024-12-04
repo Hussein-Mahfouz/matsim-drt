@@ -2,7 +2,6 @@ package com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators;
 
 import java.util.List;
 
-import org.eqasim.core.simulation.mode_choice.utilities.estimators.EstimatorUtils;
 import org.eqasim.core.simulation.mode_choice.utilities.estimators.PtUtilityEstimator;
 import org.eqasim.core.simulation.mode_choice.utilities.predictors.PersonPredictor;
 import org.eqasim.core.simulation.mode_choice.utilities.predictors.PtPredictor;
@@ -32,7 +31,7 @@ public class LeedsPTUtilityEstimator extends PtUtilityEstimator {
 
 	@Override
 	protected double estimateInVehicleTimeUtility(PtVariables variables) {
-		double lambda = parameters.leedsPT.lambdaIVT;
+		double lambda = parameters.leedsPT.lambdaTravelTime;
 		// box-cox transformation
 		return parameters.pt.betaInVehicleTime_u_min
 				* ((Math.pow(variables.inVehicleTime_min, lambda) - 1) / lambda);
