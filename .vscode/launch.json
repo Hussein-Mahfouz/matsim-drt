@@ -19,18 +19,18 @@
         },
         {
             "type": "java",
-            "name": "Run OSM Converter",
+            "name": "RunOSMConverter",
             "request": "launch",
-            "mainClass": "com.husseinmahfouz.matsim.dmc.pt2matsim.RunOSMConverter",
+            "mainClass": "com.husseinmahfouz.matsim.pt2matsim.RunOSMConverter",
             "projectName": "matsim-leeds",
             "cwd": "${workspaceFolder}/matsim-leeds",
             "args": "src/main/resources/config_pt2matsim.xml"
         },
         {
             "type": "java",
-            "name": "Run GTFS to Transit Schedule",
+            "name": "RunPTConverter",
             "request": "launch",
-            "mainClass": "com.husseinmahfouz.matsim.dmc.pt2matsim.RunPTConverter",
+            "mainClass": "com.husseinmahfouz.matsim.pt2matsim.RunPTConverter",
             "cwd": "${workspaceFolder}/matsim-leeds",
             "args": [
                 "data/external/study_area_gtfs_bus.zip",
@@ -42,16 +42,16 @@
         },
         {
             "type": "java",
-            "name": "Run PT Mapper",
+            "name": "RunPTMapper",
             "request": "launch",
-            "mainClass": "com.husseinmahfouz.matsim.dmc.pt2matsim.RunPTMapper",
+            "mainClass": "com.husseinmahfouz.matsim.pt2matsim.RunPTMapper",
             "projectName": "matsim-leeds",
             "cwd": "${workspaceFolder}/matsim-leeds",
             "args": "src/main/resources/config_pt2matsim.xml"
         },
         {
             "type": "java",
-            "name": "Create Default MATSim Config",
+            "name": "RunCreateDefaultConfig",
             "request": "launch",
             "mainClass": "com.husseinmahfouz.matsim.dmc.RunCreateDefaultConfig",
             "projectName": "matsim-leeds",
@@ -60,9 +60,9 @@
         },
         {
             "type": "java",
-            "name": "Create Sample from Population",
+            "name": "CreatePopulationSample",
             "request": "launch",
-            "mainClass": "com.husseinmahfouz.matsim.dmc.sample.CreatePopulationSample",
+            "mainClass": "com.husseinmahfouz.matsim.sample.CreatePopulationSample",
             "projectName": "matsim-leeds",
             "cwd": "${workspaceFolder}/matsim-leeds",
             "args": [
@@ -72,7 +72,7 @@
         },
         {
             "type": "java",
-            "name": "Run simulation with specified config",
+            "name": "RunSimulation",
             "request": "launch",
             "mainClass": "com.husseinmahfouz.matsim.dmc.RunSimulation",
             "projectName": "matsim-leeds",
@@ -81,7 +81,7 @@
         },
         {
             "type": "java",
-            "name": "Create Network Vehicles (Eqasim)",
+            "name": "NetworkVehicleInserter",
             "request": "launch",
             "mainClass": "com.husseinmahfouz.matsim.dmc.NetworkVehicleInserter",
             "projectName": "matsim-leeds",
@@ -91,6 +91,18 @@
                 "scenarios/test/plans.xml",
                 "scenarios/test/network_vehicles.xml",
                 "scenarios/test/plans_eqasim.xml"
+            ]
+        },
+        {
+            "type": "java",
+            "name": "RunNetworkFixer",
+            "request": "launch",
+            "mainClass": "com.husseinmahfouz.matsim.dmc.scenario.RunNetworkFixer",
+            "projectName": "matsim-leeds",
+            "cwd": "${workspaceFolder}/matsim-leeds",
+            "args": [
+                "scenarios/test/network.xml",
+                "scenarios/test/network_fixed.xml"
             ]
         },
         {
