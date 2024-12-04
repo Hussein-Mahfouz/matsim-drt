@@ -67,8 +67,6 @@ public class LeedsModeParameters extends ModeParameters {
 		parameters.leedsPT.lambdaOVT = 0.1452; // Box-cox lambda parameter for OVT
 		parameters.leedsPT.OutofVehicleTime_u_min = -1.1484;
 
-
-
 		// Bike
 		parameters.bike.alpha_u = -2.0;
 		parameters.bike.betaTravelTime_u_min = -0.05;
