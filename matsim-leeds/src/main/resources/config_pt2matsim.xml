@@ -226,7 +226,7 @@
 		<param name="maxTravelCostFactor" value="5.0" />
 		<!-- All links that do not have a transit route on them are removed, except the ones 
 		listed in this set (typically only car). Separated by comma. -->
-		<param name="modesToKeepOnCleanUp" value="car" />
+		<param name="modesToKeepOnCleanUp" value="car,car_passenger,taxi" />
 		<!-- Number of link candidates considered for all stops, depends on accuracy of stops and desired 
 		performance. Somewhere between 4 and 10 seems reasonable for bus stops, depending on the
 		accuracy of the stop facility coordinates and performance desires. Default: 6 -->
