@@ -13,6 +13,11 @@ public class LeedsPersonPredictor extends CachedVariablePredictor<LeedsPersonVar
 	protected LeedsPersonVariables predict(Person person, DiscreteModeChoiceTrip trip,
 			List<? extends PlanElement> elements) {
 		boolean hasSubscription = LeedsPredictorUtils.hasSubscription(person);
-		return new LeedsPersonVariables(hasSubscription);
+		double hhIncome = (double) person.getAttributes().getAttribute("hhIncome");
+		double age = (double) person.getAttributes().getAttribute("age");
+		boolean isStudent = (boolean) person.getAttributes().getAttribute("isStudent");
+		boolean isMale = "male".equals(person.getAttributes().getAttribute("gender"));
+
+		return new LeedsPersonVariables(hasSubscription, hhIncome, age, isStudent, isMale);
 	}
 }

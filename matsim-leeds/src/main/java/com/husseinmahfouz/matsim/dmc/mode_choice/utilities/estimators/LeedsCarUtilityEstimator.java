@@ -4,9 +4,11 @@ import java.util.List;
 
 import org.eqasim.core.simulation.mode_choice.utilities.estimators.CarUtilityEstimator;
 import org.eqasim.core.simulation.mode_choice.utilities.predictors.CarPredictor;
+import org.eqasim.core.simulation.mode_choice.utilities.variables.CarVariables;
 import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsModeParameters;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsSpatialPredictor;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.LeedsSpatialVariables;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsPredictorUtils;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.PlanElement;
 import org.matsim.contribs.discrete_mode_choice.model.DiscreteModeChoiceTrip;
@@ -16,6 +18,7 @@ import com.google.inject.Inject;
 public class LeedsCarUtilityEstimator extends CarUtilityEstimator {
 	private final LeedsModeParameters parameters;
 	private final LeedsSpatialPredictor spatialPredictor;
+	private final CarPredictor carPredictor;
 
 	@Inject
 	public LeedsCarUtilityEstimator(LeedsModeParameters parameters,
@@ -24,6 +27,7 @@ public class LeedsCarUtilityEstimator extends CarUtilityEstimator {
 
 		this.parameters = parameters;
 		this.spatialPredictor = spatialPredictor;
+		this.carPredictor = carPredictor;
 	}
 
 	protected double estimateUrbanUtility(LeedsSpatialVariables variables) {
@@ -41,14 +45,37 @@ public class LeedsCarUtilityEstimator extends CarUtilityEstimator {
 	}
 
 	@Override
+	protected double estimateTravelTimeUtility(CarVariables variables) {
+		double lambda = parameters.leedsCar.lambdaIVT;
+		// box-cox transformation
+		return parameters.car.betaTravelTime_u_min
+				* ((Math.pow(variables.travelTime_min, lambda) - 1) / lambda);
+	}
+
+	@Override
+	protected double estimateMonetaryCostUtility(CarVariables variables) {
+		return parameters.betaCost_u_MU * Math.log(variables.cost_MU);
+	}
+
+	protected double estimateCommutingUtility(LeedsSpatialVariables variables) {
+		return variables.isCommuting ? parameters.leedsCar.shiftCommuting : 0.0;
+	}
+
+
+	@Override
 	public double estimateUtility(Person person, DiscreteModeChoiceTrip trip,
 			List<? extends PlanElement> elements) {
-		LeedsSpatialVariables variables = spatialPredictor.predictVariables(person, trip, elements);
+		CarVariables carVariables = carPredictor.predictVariables(person, trip, elements);
+		LeedsSpatialVariables spatialVariables =
+				spatialPredictor.predictVariables(person, trip, elements);
 
 		double utility = 0.0;
 
-		utility += super.estimateUtility(person, trip, elements);
-		utility += estimateUrbanUtility(variables);
+		// utility += super.estimateUtility(person, trip, elements);
+		utility += estimateUrbanUtility(spatialVariables);
+		utility += estimateTravelTimeUtility(carVariables);
+		utility += estimateMonetaryCostUtility(carVariables);
+		utility += estimateCommutingUtility(spatialVariables);
 
 		return utility;
 	}

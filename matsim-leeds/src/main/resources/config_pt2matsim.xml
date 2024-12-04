@@ -16,7 +16,7 @@
 		<param name="keepWaysWithPublicTransit" value="true" />
 		<param name="maxLinkLength" value="500.0" />
 		<!-- The path to the osm file. -->
-		<param name="osmFile" value="data/supply/network.osm.bz2" />
+		<param name="osmFile" value="data/external/network.osm.bz2" />
 		<!-- Output coordinate system. EPSG:* codes are supported and recommended.
 		Use 'WGS84' for no transformation (though this may lead to errors with PT mapping). -->
 		<param name="outputCoordinateSystem" value="EPSG:3857" />
@@ -33,6 +33,14 @@
 		<parameterset type="routableSubnetwork">
 			<param name="allowedTransportModes" value="car" />
 			<param name="subnetworkMode" value="car" />
+		</parameterset>
+		<parameterset type="routableSubnetwork">
+			<param name="allowedTransportModes" value="car" />
+			<param name="subnetworkMode" value="car_passenger" />
+		</parameterset>
+		<parameterset type="routableSubnetwork">
+			<param name="allowedTransportModes" value="car" />
+			<param name="subnetworkMode" value="taxi" />
 		</parameterset>
 		<parameterset type="routableSubnetwork">
 			<param name="allowedTransportModes" value="bus,car" />
@@ -207,7 +215,7 @@
 		<!-- Path to the input network file. Not needed if PTMapper is called within another class. -->
 		<param name="inputNetworkFile" value="data/supply/network.xml" />
 		<!-- Path to the input schedule file. Not needed if PTMapper is called within another class. -->
-		<param name="inputScheduleFile" value="data/schedule_unmapped.xml.gz" />
+		<param name="inputScheduleFile" value="data/supply/schedule_unmapped.xml.gz" />
 		<!-- The maximal distance [meter] a link candidate is allowed to have from the stop facility.
 		No link candidates beyond this distance are added. -->
 		<param name="maxLinkCandidateDistance" value="90.0" />
@@ -218,7 +226,7 @@
 		<param name="maxTravelCostFactor" value="5.0" />
 		<!-- All links that do not have a transit route on them are removed, except the ones 
 		listed in this set (typically only car). Separated by comma. -->
-		<param name="modesToKeepOnCleanUp" value="car" />
+		<param name="modesToKeepOnCleanUp" value="car,car_passenger,taxi" />
 		<!-- Number of link candidates considered for all stops, depends on accuracy of stops and desired 
 		performance. Somewhere between 4 and 10 seems reasonable for bus stops, depending on the
 		accuracy of the stop facility coordinates and performance desires. Default: 6 -->
