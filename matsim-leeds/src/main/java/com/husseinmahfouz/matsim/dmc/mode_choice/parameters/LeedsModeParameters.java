@@ -20,11 +20,13 @@ public class LeedsModeParameters extends ModeParameters {
 	public class LeedsPTParameters {
 		public double lambdaIVT;
 		public double lambdaOVT;
+		public double OutofVehicleTime_u_min;
 	}
 
 
 	public class LeedsWalkParameters {
 		public double lambdaIVT;
+		public double betaStudent;
 	}
 
 
@@ -37,7 +39,7 @@ public class LeedsModeParameters extends ModeParameters {
 		LeedsModeParameters parameters = new LeedsModeParameters();
 
 		// Cost
-		parameters.betaCost_u_MU = -0.206;
+		parameters.betaCost_u_MU = -0.8362;
 		parameters.lambdaCostEuclideanDistance = -0.4;
 		parameters.referenceEuclideanDistance_km = 40.0;
 
@@ -62,6 +64,8 @@ public class LeedsModeParameters extends ModeParameters {
 
 		parameters.leedsPT.lambdaIVT = 0.5424;
 		parameters.leedsPT.lambdaOVT = 0.1452; // Box-cox lambda parameter for OVT
+		parameters.leedsPT.OutofVehicleTime_u_min = -1.1484;
+
 
 
 		// Bike

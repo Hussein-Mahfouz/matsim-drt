@@ -4,17 +4,19 @@ import org.eqasim.core.simulation.mode_choice.utilities.variables.BaseVariables;
 
 public class LeedsPersonVariables implements BaseVariables {
 	public final boolean hasSubscription;
-	public final double hhIncome;
-	public final double age;
+	public final double hhlIncome;
+	public final int age;
 	public final boolean isStudent;
 	public final boolean isMale;
+	public final boolean isPassenger;
 
-	public LeedsPersonVariables(boolean hasSubscription, double hhIncome, double age,
-			boolean isStudent, boolean isMale) {
+	public LeedsPersonVariables(boolean hasSubscription, double hhlIncome, int age,
+			boolean isStudent, boolean isMale, boolean isPassenger) {
 		this.hasSubscription = hasSubscription;
-		this.hhIncome = hhIncome;
+		this.hhlIncome = hhlIncome;
 		this.age = age;
 		this.isStudent = isStudent;
 		this.isMale = isMale;
+		this.isPassenger = isPassenger;
 	}
 }
