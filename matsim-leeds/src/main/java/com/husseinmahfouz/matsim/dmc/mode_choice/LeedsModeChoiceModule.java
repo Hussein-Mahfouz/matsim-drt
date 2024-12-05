@@ -15,6 +15,8 @@ import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsCostParameters;
 import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsModeParameters;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsBikeUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsCarUtilityEstimator;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsPTUtilityEstimator;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsWalkUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsPersonPredictor;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsSpatialPredictor;
 import org.matsim.contribs.discrete_mode_choice.components.tour_finder.ActivityTourFinder;
@@ -56,6 +58,8 @@ public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 
 		bindUtilityEstimator(CAR_ESTIMATOR_NAME).to(LeedsCarUtilityEstimator.class);
 		bindUtilityEstimator(BIKE_ESTIMATOR_NAME).to(LeedsBikeUtilityEstimator.class);
+		bindUtilityEstimator(WALK_ESTIMATOR_NAME).to(LeedsWalkUtilityEstimator.class);
+		bindUtilityEstimator(PT_ESTIMATOR_NAME).to(LeedsPTUtilityEstimator.class);
 		bind(LeedsSpatialPredictor.class);
 
 		bind(ModeParameters.class).to(LeedsModeParameters.class);
