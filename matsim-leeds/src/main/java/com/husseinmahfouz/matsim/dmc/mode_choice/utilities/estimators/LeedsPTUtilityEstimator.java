@@ -38,11 +38,12 @@ public class LeedsPTUtilityEstimator extends PtUtilityEstimator {
 	}
 
 	protected double estimateOutOfVehicleTimeUtility(PtVariables variables) {
-		double lambda = parameters.leedsPT.lambdaOVT;
+		double lambda = parameters.leedsPT.lambdaOutofVehicleTime;
 		// OVT is sum of accessEgressTime_min and waitingTime_min
 		double OVT = variables.accessEgressTime_min + variables.waitingTime_min;
 		// box-cox transformation
-		return parameters.leedsPT.OutofVehicleTime_u_min * ((Math.pow(OVT, lambda) - 1) / lambda);
+		return parameters.leedsPT.betaOutofVehicleTime_u_min
+				* ((Math.pow(OVT, lambda) - 1) / lambda);
 	}
 
 	@Override
@@ -61,8 +62,9 @@ public class LeedsPTUtilityEstimator extends PtUtilityEstimator {
 		utility += estimateConstantUtility();
 		utility += estimateInVehicleTimeUtility(variables_pt);
 		utility += estimateOutOfVehicleTimeUtility(variables_pt);
-		// utility += estimateLineSwitchUtility(variables_pt);
 		utility += estimateMonetaryCostUtility(variables_pt);
+
+		// utility += estimateLineSwitchUtility(variables_pt);
 		// if (variables.hhlIncome == 0.0)
 		// utility += estimateMonetaryCostUtility(variables_pt)
 		// * (parameters.spAvgHHLIncome.avg_hhl_income / parameters.spAvgHHLIncome.avg_hhl_income);

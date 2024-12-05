@@ -37,13 +37,13 @@ public class LeedsBikeUtilityEstimator extends BikeUtilityEstimator {
 	}
 
 	// protected double estimateUrbanUtility(LeedsSpatialVariables variables) {
-	// 	double utility = 0.0;
+	// double utility = 0.0;
 
-	// 	if (variables.hasUrbanOrigin && variables.hasUrbanDestination) {
-	// 		utility += parameters.leedsBike.betaInsideUrbanArea;
-	// 	}
+	// if (variables.hasUrbanOrigin && variables.hasUrbanDestination) {
+	// utility += parameters.leedsBike.betaInsideUrbanArea;
+	// }
 
-	// 	return utility;
+	// return utility;
 	// }
 
 	@Override
@@ -85,10 +85,12 @@ public class LeedsBikeUtilityEstimator extends BikeUtilityEstimator {
 		double utility = 0.0;
 
 		utility += estimateConstantUtility();
-		// utility += estimateUrbanUtility(variables);
 		utility += estimateTravelTimeUtility(bikeVariables);
 		utility += estimateGenderUtility(variables_person);
 		utility += estimateStudentUtility(variables_person);
+
+		// utility += estimateUrbanUtility(variables);
+
 
 		return utility;
 	}
