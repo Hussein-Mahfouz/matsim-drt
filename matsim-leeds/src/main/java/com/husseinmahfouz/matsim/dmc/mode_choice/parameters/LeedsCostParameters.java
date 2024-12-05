@@ -5,7 +5,7 @@ import org.eqasim.core.simulation.mode_choice.ParameterDefinition;
 public class LeedsCostParameters implements ParameterDefinition {
 	public double carCost_EUR_km;
 	public double busFare;
-	public double railFare;
+	// public double railFare;
 
 	public static LeedsCostParameters buildDefault() {
 		LeedsCostParameters parameters = new LeedsCostParameters();
