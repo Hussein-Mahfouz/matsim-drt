@@ -54,9 +54,7 @@ public class LeedsCarUtilityEstimator extends CarUtilityEstimator {
 
 	@Override
 	protected double estimateMonetaryCostUtility(CarVariables variables) {
-		// add 0.1 to avoid log(0)
-		double travel_cost = (variables.euclideanDistance_km + 0.1) * variables.cost_MU;
-		return parameters.betaCost_u_MU * Math.log(travel_cost);
+		return parameters.betaCost_u_MU * Math.log(variables.cost_MU);
 	}
 
 	protected double estimateCommutingUtility(LeedsSpatialVariables variables) {
@@ -78,7 +76,7 @@ public class LeedsCarUtilityEstimator extends CarUtilityEstimator {
 
 		utility += estimateConstantUtility();
 		utility += estimateTravelTimeUtility(carVariables);
-		// utility += estimateMonetaryCostUtility(carVariables);
+		utility += estimateMonetaryCostUtility(carVariables);
 		utility += estimateCommutingUtility(spatialVariables);
 
 		return utility;
