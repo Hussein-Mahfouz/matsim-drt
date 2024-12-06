@@ -30,6 +30,11 @@ public class LeedsModeAvailability implements ModeAvailability {
 		if ("none".equals((String) person.getAttributes().getAttribute("carAvailability"))) {
 			carAvailability = false;
 		}
+		// No one below 17 should be driving
+		Integer age = PersonUtils.getAge(person);
+		if (age != null && age < 17) {
+			carAvailability = false;
+		}
 
 		if (carAvailability) {
 			modes.add(TransportMode.car);
