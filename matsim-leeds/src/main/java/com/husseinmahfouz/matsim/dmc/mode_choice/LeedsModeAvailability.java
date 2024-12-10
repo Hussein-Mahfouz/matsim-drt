@@ -11,6 +11,7 @@ import org.matsim.contribs.discrete_mode_choice.model.mode_availability.ModeAvai
 import org.matsim.core.population.PersonUtils;
 
 public class LeedsModeAvailability implements ModeAvailability {
+
 	@Override
 	public Collection<String> getAvailableModes(Person person, List<DiscreteModeChoiceTrip> trips) {
 		Collection<String> modes = new HashSet<>();
@@ -23,13 +24,17 @@ public class LeedsModeAvailability implements ModeAvailability {
 		// Check car availability
 		boolean carAvailability = true;
 
-		if ("no".equals(PersonUtils.getLicense(person))) {
+		Boolean hasLicence = (Boolean) person.getAttributes().getAttribute("hasLicence");
+		if (!hasLicence) {
 			carAvailability = false;
 		}
 
-		if ("none".equals((String) person.getAttributes().getAttribute("carAvailability"))) {
+		// currently I use "yes", "no", "some", with some being for people who aren't main driver of
+		// household car
+		if ("no".equals((String) person.getAttributes().getAttribute("CarAvailability"))) {
 			carAvailability = false;
 		}
+
 		// No one below 17 should be driving
 		Integer age = PersonUtils.getAge(person);
 		if (age != null && age < 17) {
@@ -43,7 +48,7 @@ public class LeedsModeAvailability implements ModeAvailability {
 		// Check bike availability
 		boolean bikeAvailability = true;
 
-		if ("none".equals((String) person.getAttributes().getAttribute("bikeAvailability"))) {
+		if ("no".equals((String) person.getAttributes().getAttribute("BicycleAvailability"))) {
 			bikeAvailability = false;
 		}
 

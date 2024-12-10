@@ -12,7 +12,7 @@ public class LeedsCostParameters implements ParameterDefinition {
 
 		parameters.carCost_EUR_km = 0.15;
 
-		parameters.busFare = 3.0;
+		parameters.busFare = 2.0;
 		// parameters.railFare = 5.0;
 
 		return parameters;

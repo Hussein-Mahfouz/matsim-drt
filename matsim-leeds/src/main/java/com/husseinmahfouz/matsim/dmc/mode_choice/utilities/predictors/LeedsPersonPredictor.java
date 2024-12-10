@@ -18,7 +18,11 @@ public class LeedsPersonPredictor extends CachedVariablePredictor<LeedsPersonVar
 		boolean isStudent = (boolean) person.getAttributes().getAttribute("isStudent");
 		boolean isMale = "male".equals(person.getAttributes().getAttribute("gender"));
 		boolean isPassenger = (boolean) person.getAttributes().getAttribute("isPassenger");
+		boolean hasLicence = (boolean) person.getAttributes().getAttribute("hasLicence");
+		String carAvailability = (String) person.getAttributes().getAttribute("CarAvailability");
+		String bikeAvailability = (String) person.getAttributes().getAttribute("BikeAvailability");
 
-		return new LeedsPersonVariables(hasSubscription, hhlIncome, age, isStudent, isMale, isPassenger);
+		return new LeedsPersonVariables(hasSubscription, hhlIncome, age, isStudent, isMale,
+				isPassenger, hasLicence, carAvailability, bikeAvailability);
 	}
 }
