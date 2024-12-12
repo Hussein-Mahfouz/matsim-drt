@@ -31,11 +31,22 @@ public class LeedsModeParameters extends ModeParameters {
 		public double lambdaTravelTime;
 	}
 
+	public class LeedsTaxiParameters {
+		public double alpha_u;
+		public double beta_TravelTime_u_min;
+		public double beta_AmPeak;
+		public double beta_PmPeak;
+		public double beta_Age18to24;
+		public double beta_Age25to29;
+
+	}
+
 
 	public final LeedsCarParameters leedsCar = new LeedsCarParameters();
 	public final LeedsBikeParameters leedsBike = new LeedsBikeParameters();
 	public final LeedsPTParameters leedsPT = new LeedsPTParameters();
 	public final LeedsWalkParameters leedsWalk = new LeedsWalkParameters();
+	public final LeedsTaxiParameters leedsTaxi = new LeedsTaxiParameters();
 
 	public static LeedsModeParameters buildDefault() {
 		LeedsModeParameters parameters = new LeedsModeParameters();
@@ -89,6 +100,15 @@ public class LeedsModeParameters extends ModeParameters {
 
 		parameters.leedsWalk.betaStudent = 0.6964;
 		parameters.leedsWalk.lambdaTravelTime = 0.5424;
+
+		// Taxi
+		parameters.leedsTaxi.alpha_u = -1.8075;
+		parameters.leedsTaxi.betaTravelTime_u_min = -0.4525;
+		parameters.leedsTaxi.betaAmPeak = -0.1709;
+		parameters.leedsTaxi.betaPmPeak = -0.1423;
+		parameters.leedsTaxi.betaAge18to24 = 1.5014;
+		parameters.leedsTaxi.betaAge25to29 = 0.9324;
+
 
 		return parameters;
 	}

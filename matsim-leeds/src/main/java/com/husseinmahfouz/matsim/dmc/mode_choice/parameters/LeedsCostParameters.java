@@ -6,14 +6,22 @@ public class LeedsCostParameters implements ParameterDefinition {
 	public double carCost_EUR_km;
 	public double busFare;
 	// public double railFare;
+	public double taxi_inititalCharge;
+	public double taxiCostPerMinute;
+	public double taxiCostPerKm;
 
 	public static LeedsCostParameters buildDefault() {
 		LeedsCostParameters parameters = new LeedsCostParameters();
-
+        // car
 		parameters.carCost_EUR_km = 0.15;
-
+        // bus
 		parameters.busFare = 2.0;
 		// parameters.railFare = 5.0;
+
+		// taxi
+		parameters.taxi_inititalCharge = 2.5;
+		parameters.taxiCostPerMinute = 0.2;
+		parameters.taxiCostPerKm = 0.5;
 
 		return parameters;
 	}
