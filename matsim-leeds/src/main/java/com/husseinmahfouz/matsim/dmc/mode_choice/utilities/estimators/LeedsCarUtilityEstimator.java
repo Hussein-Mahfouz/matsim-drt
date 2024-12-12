@@ -8,7 +8,6 @@ import org.eqasim.core.simulation.mode_choice.utilities.variables.CarVariables;
 import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsModeParameters;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsSpatialPredictor;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.LeedsSpatialVariables;
-import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsPredictorUtils;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.PlanElement;
 import org.matsim.contribs.discrete_mode_choice.model.DiscreteModeChoiceTrip;
@@ -61,6 +60,14 @@ public class LeedsCarUtilityEstimator extends CarUtilityEstimator {
 		return variables.isCommuting ? parameters.leedsCar.betaCommuting : 0.0;
 	}
 
+	protected double estimateAmPeakUtility(LeedsSpatialVariables variables) {
+		return variables.isAMPeak ? parameters.leedsCar.betaAmPeak : 0.0;
+	}
+
+	protected double estimatePmPeakUtility(LeedsSpatialVariables variables) {
+		return variables.isPMPeak ? parameters.leedsCar.betaPmPeak : 0.0;
+	}
+
 
 	@Override
 	public double estimateUtility(Person person, DiscreteModeChoiceTrip trip,
@@ -78,6 +85,8 @@ public class LeedsCarUtilityEstimator extends CarUtilityEstimator {
 		utility += estimateTravelTimeUtility(carVariables);
 		utility += estimateMonetaryCostUtility(carVariables);
 		utility += estimateCommutingUtility(spatialVariables);
+		utility += estimateAmPeakUtility(spatialVariables);
+		utility += estimatePmPeakUtility(spatialVariables);
 
 		return utility;
 	}

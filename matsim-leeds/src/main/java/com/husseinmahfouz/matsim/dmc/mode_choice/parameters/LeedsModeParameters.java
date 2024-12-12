@@ -7,6 +7,8 @@ public class LeedsModeParameters extends ModeParameters {
 		// public double betaInsideUrbanArea;
 		// public double betaCrossingUrbanArea;
 		public double betaCommuting;
+		public double betaAmPeak;
+		public double betaPmPeak;
 		public double lambdaTravelTime;
 	}
 
@@ -14,6 +16,7 @@ public class LeedsModeParameters extends ModeParameters {
 		public double betaOutofVehicleTime_u_min;
 		public double lambdaTravelTime;
 		public double lambdaOutofVehicleTime;
+		public double betaAmPmPeak;
 	}
 
 	public class LeedsBikeParameters {
@@ -54,6 +57,8 @@ public class LeedsModeParameters extends ModeParameters {
 		// parameters.leedsCar.betaCrossingUrbanArea = -1.0;
 		parameters.leedsCar.lambdaTravelTime = 0.5424;
 		parameters.leedsCar.betaCommuting = -0.1478;
+		parameters.leedsCar.betaAmPeak = -0.1637;
+		parameters.leedsCar.betaPmPeak = 0.1282;
 
 		// PT
 		parameters.pt.alpha_u = -0.0929;
@@ -63,6 +68,7 @@ public class LeedsModeParameters extends ModeParameters {
 		// parameters.pt.betaAccessEgressTime_u_min = -0.0804;
 
 		parameters.leedsPT.betaOutofVehicleTime_u_min = -1.1484;
+		parameters.leedsPT.betaAmPmPeak = -0.0998;
 		parameters.leedsPT.lambdaTravelTime = 0.5424;
 		parameters.leedsPT.lambdaOutofVehicleTime = 0.1452; // Box-cox lambda parameter for OVT
 

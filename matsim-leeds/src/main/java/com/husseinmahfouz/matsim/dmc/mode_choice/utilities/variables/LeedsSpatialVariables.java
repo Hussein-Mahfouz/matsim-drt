@@ -6,12 +6,16 @@ public class LeedsSpatialVariables implements BaseVariables {
 	// public final boolean hasUrbanOrigin;
 	// public final boolean hasUrbanDestination;
 	public final boolean isCommuting;
+	public final boolean isAMPeak;
+	public final boolean isPMPeak;
 
 	public LeedsSpatialVariables(
 			// boolean hasUrbanOrigin, boolean hasUrbanDestination,
-			boolean isCommuting) {
+			boolean isCommuting, boolean isAMPeak, boolean isPMPeak) {
 		// this.hasUrbanOrigin = hasUrbanOrigin;
 		// this.hasUrbanDestination = hasUrbanDestination;
 		this.isCommuting = isCommuting;
+		this.isAMPeak = isAMPeak;
+		this.isPMPeak = isPMPeak;
 	}
 }

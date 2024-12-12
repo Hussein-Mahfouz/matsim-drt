@@ -22,8 +22,13 @@ public class LeedsSpatialPredictor extends CachedVariablePredictor<LeedsSpatialV
 		boolean isCommuting = LeedsPredictorUtils.isCommutingTrip(trip.getOriginActivity(),
 				trip.getDestinationActivity());
 
+		// is it an AM peak hour trip?
+		boolean isAMPeak = LeedsPredictorUtils.isAmPeakTrip(trip);
+		// is it a PM peak hour trip?
+		boolean isPMPeak = LeedsPredictorUtils.isPmPeakTrip(trip);
+
 		return new LeedsSpatialVariables(
 				// hasUrbanOrigin, hasUrbanDestination,
-				isCommuting);
+				isCommuting, isAMPeak, isPMPeak);
 	}
 }
