@@ -20,7 +20,7 @@
 		<!-- Default=0. First Iteration of a simulation. -->
 		<param name="firstIteration" value="0" />
 		<!-- Default=1000. Last Iteration of a simulation. -->
-		<param name="lastIteration" value="10" />
+		<param name="lastIteration" value="30" />
 		<!-- Defines the interval for printing memory usage to the log in [seconds]. Must be positive. Defaults to 60. -->
 		<param name="memoryObserverInterval" value="60" />
 		<!-- Defines which mobility simulation will be used. Currently supported: [qsim, JDEQSim, hermes]
@@ -428,19 +428,19 @@
 			<!-- Free-speed factor for a teleported mode. Travel time = teleportedModeFreespeedFactor * <freespeed car travel time>. Insert a line like this for every such mode. Please do not set teleportedModeFreespeedFactor as well as teleportedModeSpeed for the same mode, but if you do, +teleportedModeFreespeedFactor wins over teleportedModeSpeed. -->
 			<param name="teleportedModeFreespeedFactor" value="null" />
 			<!-- Speed for a teleported mode. Travel time = (<beeline distance> * beelineDistanceFactor) / teleportedModeSpeed. Insert a line like this for every such mode. -->
-			<param name="teleportedModeSpeed" value="4.166666666666667" />
+			<param name="teleportedModeSpeed" value="4.2" />
 		</parameterset>
 		<parameterset type="teleportedModeParameters">
 			<param name="beelineDistanceFactor" value="1.3" />
 			<param name="mode" value="walk" />
 			<param name="teleportedModeFreespeedFactor" value="null" />
-			<param name="teleportedModeSpeed" value="0.8333333333333333" />
+			<param name="teleportedModeSpeed" value="1.8" />
 		</parameterset>
 		<parameterset type="teleportedModeParameters">
 			<param name="beelineDistanceFactor" value="1.3" />
 			<param name="mode" value="non_network_walk" />
 			<param name="teleportedModeFreespeedFactor" value="null" />
-			<param name="teleportedModeSpeed" value="0.8333333333333333" />
+			<param name="teleportedModeSpeed" value="1.8" />
 		</parameterset>
 		<parameterset type="teleportedModeParameters">
 			<param name="beelineDistanceFactor" value="1.3" />
