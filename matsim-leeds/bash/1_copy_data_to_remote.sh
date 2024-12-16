@@ -15,7 +15,7 @@ LOCAL_DIR="$(pwd)"
 echo "Current Local Directory: $LOCAL_DIR"
 
 # List of files and directories to copy (can include both files and directories)
-FILES_AND_DIRS=("$LOCAL_DIR/data" "$LOCAL_DIR/scenarios" "$LOCAL_DIR/bash" "$LOCAL_DIR/target/matsim-leeds-1.0.jar")
+FILES_AND_DIRS=("$LOCAL_DIR/data" "$LOCAL_DIR/scenarios" "$LOCAL_DIR/target/matsim-leeds-1.0.jar")
 
 # Loop through each item (file or subdirectory) and run rsync for each
 for ITEM in "${FILES_AND_DIRS[@]}"; do
