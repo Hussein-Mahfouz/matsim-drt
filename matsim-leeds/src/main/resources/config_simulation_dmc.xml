@@ -29,7 +29,7 @@
 		<param name="mobsim" value="qsim" />
 		<param name="outputDirectory" value="scenarios/test/results_dmc" />
 		<!-- Possible values: failIfDirectoryExists,overwriteExistingFiles,deleteDirectoryIfExists -->
-		<param name="overwriteFiles" value="failIfDirectoryExists" />
+		<param name="overwriteFiles" value="deleteDirectoryIfExists" />
 		<!-- The type of routing (least cost path) algorithm used, may have the values: [Dijkstra, AStarLandmarks, SpeedyALT] -->
 		<param name="routingAlgorithmType" value="SpeedyALT" />
 		<!-- An identifier for the current run which is used as prefix for output files and mentioned in output xml files etc. -->
