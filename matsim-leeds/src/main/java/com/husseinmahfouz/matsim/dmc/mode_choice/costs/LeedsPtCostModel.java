@@ -3,6 +3,7 @@ package com.husseinmahfouz.matsim.dmc.mode_choice.costs;
 import java.util.List;
 
 import org.eqasim.core.simulation.mode_choice.cost.CostModel;
+import org.eqasim.core.simulation.mode_choice.utilities.predictors.PredictorUtils;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsPersonPredictor;
 // import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsSpatialPredictor;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.LeedsPersonVariables;
@@ -38,7 +39,7 @@ public class LeedsPtCostModel implements CostModel {
 	}
 
 	private int getNumberOfBusVehicles(List<? extends PlanElement> elements) {
-		int busCount = 0;
+		int count = 0;
 		for (PlanElement element : elements) {
 			if (element instanceof Leg) {
 				Leg leg = (Leg) element;
@@ -47,12 +48,30 @@ public class LeedsPtCostModel implements CostModel {
 					String transportMode = transitSchedule.getTransitLines().get(route.getLineId())
 							.getRoutes().get(route.getRouteId()).getTransportMode();
 					if (transportMode.equals("bus")) {
-						busCount++;
+						count++;
 					}
 				}
 			}
 		}
-		return busCount;
+		return count;
+	}
+
+	private int getNumberOfRailVehicles(List<? extends PlanElement> elements) {
+		int count = 0;
+		for (PlanElement element : elements) {
+			if (element instanceof Leg) {
+				Leg leg = (Leg) element;
+				if (leg.getMode().equals(TransportMode.pt)) {
+					TransitPassengerRoute route = (TransitPassengerRoute) leg.getRoute();
+					String transportMode = transitSchedule.getTransitLines().get(route.getLineId())
+							.getRoutes().get(route.getRouteId()).getTransportMode();
+					if (transportMode.equals("rail")) {
+						count++;
+					}
+				}
+			}
+		}
+		return count;
 	}
 
 	@Override
@@ -67,8 +86,24 @@ public class LeedsPtCostModel implements CostModel {
 		}
 
 		int n_VehiclesBus = getNumberOfBusVehicles(elements);
+		int n_VehiclesRail = getNumberOfRailVehicles(elements);
+		// if rail fare based on distance.
+		// TODO: edit this to get distance of the rail trip only
+		double euclideanDistance_km = PredictorUtils.calculateEuclideanDistance_km(trip);
 
-		return n_VehiclesBus * parameters.busFare;
+		if (n_VehiclesBus == 0 && n_VehiclesRail == 0) {
+			return 0.0;
+		} else if (n_VehiclesBus > 0 && n_VehiclesRail == 0) {
+			return n_VehiclesBus * parameters.busFare;
+		} else if (n_VehiclesBus == 0 && n_VehiclesRail > 0) {
+			return n_VehiclesRail * parameters.railFareBase
+					+ euclideanDistance_km * parameters.railFarePerKm;
+		} else if (n_VehiclesBus > 0 && n_VehiclesRail > 0) {
+			return n_VehiclesBus * parameters.busFare + n_VehiclesRail * parameters.railFareBase
+					+ euclideanDistance_km * parameters.railFarePerKm;
+		} else {
+			throw new IllegalStateException("This should not happen.");
+		}
 
 	}
 }

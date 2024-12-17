@@ -20,7 +20,7 @@
 		<!-- Default=0. First Iteration of a simulation. -->
 		<param name="firstIteration" value="0" />
 		<!-- Default=1000. Last Iteration of a simulation. -->
-		<param name="lastIteration" value="30" />
+		<param name="lastIteration" value="10" />
 		<!-- Defines the interval for printing memory usage to the log in [seconds]. Must be positive. Defaults to 60. -->
 		<param name="memoryObserverInterval" value="60" />
 		<!-- Defines which mobility simulation will be used. Currently supported: [qsim, JDEQSim, hermes]
