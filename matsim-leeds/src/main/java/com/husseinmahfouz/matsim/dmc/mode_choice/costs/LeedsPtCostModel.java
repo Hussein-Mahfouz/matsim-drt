@@ -30,12 +30,11 @@ public class LeedsPtCostModel implements CostModel {
 
 	@Inject
 	public LeedsPtCostModel(LeedsPersonPredictor personPredictor, LeedsCostParameters parameters,
-			// LeedsSpatialPredictor spatialPredictor,
 			TransitSchedule transitSchedule) {
 		this.personPredictor = personPredictor;
-		// this.spatialPredictor = spatialPredictor;
 		this.transitSchedule = transitSchedule;
 		this.parameters = parameters;
+
 	}
 
 	private int getNumberOfBusVehicles(List<? extends PlanElement> elements) {
@@ -85,25 +84,16 @@ public class LeedsPtCostModel implements CostModel {
 			return 0.0;
 		}
 
-		int n_VehiclesBus = getNumberOfBusVehicles(elements);
-		int n_VehiclesRail = getNumberOfRailVehicles(elements);
-		// if rail fare based on distance.
-		// TODO: edit this to get distance of the rail trip only
 		double euclideanDistance_km = PredictorUtils.calculateEuclideanDistance_km(trip);
 
-		if (n_VehiclesBus == 0 && n_VehiclesRail == 0) {
-			return 0.0;
-		} else if (n_VehiclesBus > 0 && n_VehiclesRail == 0) {
-			return n_VehiclesBus * parameters.busFare;
-		} else if (n_VehiclesBus == 0 && n_VehiclesRail > 0) {
-			return n_VehiclesRail * parameters.railFareBase
-					+ euclideanDistance_km * parameters.railFarePerKm;
-		} else if (n_VehiclesBus > 0 && n_VehiclesRail > 0) {
-			return n_VehiclesBus * parameters.busFare + n_VehiclesRail * parameters.railFareBase
-					+ euclideanDistance_km * parameters.railFarePerKm;
-		} else {
-			throw new IllegalStateException("This should not happen.");
-		}
+		int n_VehiclesBus = getNumberOfBusVehicles(elements);
+		int n_VehiclesRail = getNumberOfRailVehicles(elements);
+		// TODO: if rail fare based on distance, get distance travelled by rail
+
+		double busCost = n_VehiclesBus * parameters.busFare;
+		double railCost = n_VehiclesRail * parameters.railFareBase
+				+ (parameters.railFarePerKm * euclideanDistance_km);
+		return busCost + railCost;
 
 	}
 }
