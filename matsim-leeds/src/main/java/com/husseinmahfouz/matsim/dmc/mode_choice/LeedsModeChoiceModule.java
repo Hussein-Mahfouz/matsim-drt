@@ -15,10 +15,11 @@ import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsCostParameters;
 import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsModeParameters;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsBikeUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsCarUtilityEstimator;
-import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsPTUtilityEstimator;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsPtUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsWalkUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsPersonPredictor;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsSpatialPredictor;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsPtPredictor;
 import org.matsim.contribs.discrete_mode_choice.components.tour_finder.ActivityTourFinder;
 import org.matsim.contribs.discrete_mode_choice.modules.config.ActivityTourFinderConfigGroup;
 import org.matsim.contribs.discrete_mode_choice.modules.config.DiscreteModeChoiceConfigGroup;
@@ -39,7 +40,7 @@ public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 	public static final String CAR_ESTIMATOR_NAME = "LeedsCarUtilityEstimator";
 	public static final String BIKE_ESTIMATOR_NAME = "LeedsBikeUtilityEstimator";
 	public static final String WALK_ESTIMATOR_NAME = "LeedsWalkUtilityEstimator";
-	public static final String PT_ESTIMATOR_NAME = "LeedsPTUtilityEstimator";
+	public static final String PT_ESTIMATOR_NAME = "LeedsPtUtilityEstimator";
 
 	public static final String ISOLATED_OUTSIDE_TOUR_FINDER_NAME = "IsolatedOutsideTrips";
 
@@ -59,8 +60,10 @@ public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 		bindUtilityEstimator(CAR_ESTIMATOR_NAME).to(LeedsCarUtilityEstimator.class);
 		bindUtilityEstimator(BIKE_ESTIMATOR_NAME).to(LeedsBikeUtilityEstimator.class);
 		bindUtilityEstimator(WALK_ESTIMATOR_NAME).to(LeedsWalkUtilityEstimator.class);
-		bindUtilityEstimator(PT_ESTIMATOR_NAME).to(LeedsPTUtilityEstimator.class);
+		bindUtilityEstimator(PT_ESTIMATOR_NAME).to(LeedsPtUtilityEstimator.class);
 		bind(LeedsSpatialPredictor.class);
+		bind(LeedsPtPredictor.class);
+
 
 		bind(ModeParameters.class).to(LeedsModeParameters.class);
 

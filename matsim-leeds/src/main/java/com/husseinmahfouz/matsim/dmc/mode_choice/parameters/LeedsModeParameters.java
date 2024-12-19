@@ -13,10 +13,16 @@ public class LeedsModeParameters extends ModeParameters {
 	}
 
 	public class LeedsPTParameters {
-		public double betaOutofVehicleTime_u_min;
+		public double alpha_u_Bus;
+		public double alpha_u_Rail;
+		public double betaInVehicleTimeBus_u_min;
+		public double betaInVehicleTimeRail_u_min;
+		public double betaOutofVehicleTimeBus_u_min;
+		public double betaOutofVehicleTimeRail_u_min;
+		public double betaAmPmPeakBus;
+		public double betaAmPmPeakRail;
 		public double lambdaTravelTime;
 		public double lambdaOutofVehicleTime;
-		public double betaAmPmPeak;
 	}
 
 	public class LeedsBikeParameters {
@@ -61,14 +67,20 @@ public class LeedsModeParameters extends ModeParameters {
 		parameters.leedsCar.betaPmPeak = 0.1282;
 
 		// PT
-		parameters.pt.alpha_u = -0.0929;
-		parameters.pt.betaInVehicleTime_u_min = -0.1281;
+		// parameters.pt.alpha_u = -0.0929;
+		// parameters.pt.betaInVehicleTime_u_min = -0.1281;
 		// parameters.pt.betaLineSwitch_u = -0.17;
 		// parameters.pt.betaWaitingTime_u_min = -0.0484;
 		// parameters.pt.betaAccessEgressTime_u_min = -0.0804;
 
-		parameters.leedsPT.betaOutofVehicleTime_u_min = -1.1484;
-		parameters.leedsPT.betaAmPmPeak = -0.0998;
+		parameters.leedsPT.alpha_u_Bus = -0.0929;
+		parameters.leedsPT.alpha_u_Rail = 2.4421;
+		parameters.leedsPT.betaInVehicleTimeBus_u_min = -0.1281;
+		parameters.leedsPT.betaInVehicleTimeRail_u_min = -0.0080;
+		parameters.leedsPT.betaOutofVehicleTimeBus_u_min = -1.1484;
+		parameters.leedsPT.betaOutofVehicleTimeRail_u_min = -1.7365;
+		parameters.leedsPT.betaAmPmPeakBus = -0.0998;
+		parameters.leedsPT.betaAmPmPeakRail = -0.0327;
 		parameters.leedsPT.lambdaTravelTime = 0.5424;
 		parameters.leedsPT.lambdaOutofVehicleTime = 0.1452; // Box-cox lambda parameter for OVT
 
