@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.eqasim.core.simulation.mode_choice.utilities.estimators.EstimatorUtils;
 import org.eqasim.core.simulation.mode_choice.utilities.estimators.PtUtilityEstimator;
+import org.eqasim.core.simulation.mode_choice.utilities.variables.CarVariables;
 import org.eqasim.core.simulation.mode_choice.utilities.variables.PtVariables;
 import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsModeParameters;
 
@@ -21,14 +22,14 @@ import org.matsim.contribs.discrete_mode_choice.model.DiscreteModeChoiceTrip;
 
 import com.google.inject.Inject;
 
-public class LeedsPTUtilityEstimator extends PtUtilityEstimator {
+public class LeedsPtUtilityEstimator extends PtUtilityEstimator {
 	private final LeedsModeParameters parameters;
 	private final LeedsPersonPredictor personPredictor;
 	private final LeedsPtPredictor ptPredictor;
 	private final LeedsSpatialPredictor spatialPredictor;
 
 	@Inject
-	public LeedsPTUtilityEstimator(LeedsModeParameters parameters, LeedsPtPredictor ptPredictor,
+	public LeedsPtUtilityEstimator(LeedsModeParameters parameters, LeedsPtPredictor ptPredictor,
 			LeedsPersonPredictor personPredictor, LeedsSpatialPredictor spatialPredictor) {
 		super(parameters, ptPredictor.delegate);
 		this.parameters = parameters;
@@ -88,7 +89,13 @@ public class LeedsPTUtilityEstimator extends PtUtilityEstimator {
 
 	@Override
 	protected double estimateMonetaryCostUtility(PtVariables variables) {
-		return parameters.betaCost_u_MU * Math.log(variables.cost_MU);
+		double utility = 0.0;
+		double cost = variables.cost_MU;
+		// this avoids log(0) which is undefined
+		if (cost > 0) {
+			utility += parameters.betaCost_u_MU * Math.log(cost);
+		}
+		return utility;
 	}
 
 	protected double estimateAmPmPeakUtility(LeedsSpatialVariables variables,
