@@ -188,7 +188,7 @@
 			<param name="mode" value="car" />
 		</parameterset>
 		<parameterset type="estimator">
-			<param name="estimator" value="PtUtilityEstimator" />
+			<param name="estimator" value="LeedsPtUtilityEstimator" />
 			<param name="mode" value="pt" />
 		</parameterset>
 		<parameterset type="estimator">
@@ -196,7 +196,7 @@
 			<param name="mode" value="bike" />
 		</parameterset>
 		<parameterset type="estimator">
-			<param name="estimator" value="WalkUtilityEstimator" />
+			<param name="estimator" value="LeedsWalkUtilityEstimator" />
 			<param name="mode" value="walk" />
 		</parameterset>
 		<parameterset type="estimator">
