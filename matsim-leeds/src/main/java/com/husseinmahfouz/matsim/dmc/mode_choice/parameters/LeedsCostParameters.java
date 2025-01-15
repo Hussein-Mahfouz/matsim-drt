@@ -7,6 +7,7 @@ public class LeedsCostParameters implements ParameterDefinition {
 	public double busFare;
 	public double railFareBase;
 	public double railFarePerKm;
+	public double drtCost_EUR_km;
 
 	public static LeedsCostParameters buildDefault() {
 		LeedsCostParameters parameters = new LeedsCostParameters();
@@ -16,6 +17,9 @@ public class LeedsCostParameters implements ParameterDefinition {
 		parameters.busFare = 2.0;
 		parameters.railFareBase = 3.0;
 		parameters.railFarePerKm = 1.0;
+
+		//drt
+		parameters.drtCost_EUR_km = 0.5;
 
 		return parameters;
 	}

@@ -102,6 +102,12 @@ public class LeedsModeParameters extends ModeParameters {
 		parameters.leedsWalk.betaStudent = 0.6964;
 		parameters.leedsWalk.lambdaTravelTime = 0.5424;
 
+		// DRT (taken from bus for now)
+		parameters.drt.alpha_u = -0.0929;
+		parameters.drt.betaTravelTime_u_min = -0.1281;
+		parameters.drt.betaWaitingTime_u_min = -1.1484;
+		parameters.drt.betaAccessEgressTime_u_min = -1.1484;
+
 		return parameters;
 	}
 }
