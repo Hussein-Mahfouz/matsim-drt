@@ -11,12 +11,12 @@ networkModes="car"
 
 # Define the different sets of arguments
 declare -a argsArray=(
-    "drt_fleet_1 data/supply/drt/pt_wkday_06_30_scenario_3 100 4 0 86400 data/supply/drt/drt_fleet_1.xml"
-    "drt_fleet_2 data/supply/drt/pt_wkday_06_30_scenario_3.shp 150 6 0 86400 data/supply/drt/drt_fleet_2.xml"
-    "drt_fleet_3 data/supply/drt/pt_wkday_06_30_scenario_3.shp 200 8 0 86400 data/supply/drt/drt_fleet_3.xml"
+    "drt_fleet_1_ data/supply/drt/oa_leeds1.shp 100 4 0 86400 data/supply/drt/drt_fleet_1.xml"
+    "drt_fleet_2_ data/supply/drt/oa_leeds2.shp 150 6 0 86400 data/supply/drt/drt_fleet_2.xml"
+    "drt_fleet_3_ data/supply/drt/oa_leeds1.shp 200 8 0 86400 data/supply/drt/drt_fleet_3.xml"
 )
 
-# Get the classpath for all dependencies and append target/classes
+# Get the classpath for all dependencies and append target/classes (the former has core functionality e.g. core eqasim, the latter has the classes I wrote and compile
 mvn dependency:build-classpath -Dmdep.outputFile=cp.txt
 CLASSPATH=$(cat cp.txt):target/classes
 
