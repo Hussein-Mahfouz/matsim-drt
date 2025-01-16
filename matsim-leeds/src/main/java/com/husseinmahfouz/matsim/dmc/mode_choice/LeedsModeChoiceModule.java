@@ -34,7 +34,7 @@ import com.google.inject.Singleton;
 public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 	private final CommandLine commandLine;
 
-	public static final String MODE_AVAILABILITY_NAME = "LeedsModeAvailability";
+	public static final String MODE_AVAILABILITY_NAME = "LeedsDrtModeAvailability";
 
 	public static final String CAR_COST_MODEL_NAME = "LeedsCarCostModel";
 	public static final String PT_COST_MODEL_NAME = "LeedsPtCostModel";
@@ -56,7 +56,7 @@ public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 
 	@Override
 	protected void installEqasimExtension() {
-		bindModeAvailability(MODE_AVAILABILITY_NAME).to(LeedsModeAvailability.class);
+		bindModeAvailability(MODE_AVAILABILITY_NAME).to(LeedsDrtModeAvailability.class);
 
 		bind(LeedsPersonPredictor.class);
 

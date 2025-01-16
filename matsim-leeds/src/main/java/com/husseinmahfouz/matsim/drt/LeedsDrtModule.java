@@ -15,11 +15,14 @@ import com.husseinmahfouz.matsim.dmc.mode_choice.costs.LeedsDrtCostModel;
 import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsCostParameters;
 // import org.eqasim.core.simulation.modes.drt.mode_choice.utilities.estimators.DrtUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsDrtUtilityEstimator;
+import org.matsim.contrib.drt.estimator.DrtEstimator;
+import org.matsim.contrib.drt.optimizer.DrtOptimizer;
 import org.matsim.core.config.CommandLine;
 
 import com.google.inject.Provider;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
+import com.google.inject.multibindings.MapBinder;
 import com.google.inject.name.Named;
 
 public class LeedsDrtModule extends AbstractEqasimExtension {
@@ -32,7 +35,7 @@ public class LeedsDrtModule extends AbstractEqasimExtension {
 	@Override
 	protected void installEqasimExtension() {
 		// Configure mode availability
-		bindModeAvailability(LeedsDrtModeAvailability.NAME).to(LeedsDrtModeAvailability.class);
+		// bindModeAvailability(LeedsDrtModeAvailability.NAME).to(LeedsDrtModeAvailability.class);
 
 		// Configure choice alternative for DRT
 		bindUtilityEstimator("drt").to(LeedsDrtUtilityEstimator.class);
