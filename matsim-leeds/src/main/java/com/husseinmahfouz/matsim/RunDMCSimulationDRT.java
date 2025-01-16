@@ -14,6 +14,15 @@ import com.husseinmahfouz.matsim.dmc.LeedsConfigurator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.LeedsModeChoiceModule;
 import com.husseinmahfouz.matsim.drt.LeedsDrtModule;
 import org.matsim.api.core.v01.Scenario;
+import org.matsim.contrib.drt.optimizer.constraints.DefaultDrtOptimizationConstraintsSet;
+import org.matsim.contrib.drt.optimizer.insertion.DrtInsertionSearchParams;
+import org.matsim.contrib.drt.optimizer.insertion.selective.SelectiveInsertionSearchParams;
+import org.matsim.contrib.drt.routing.DrtRoute;
+import org.matsim.contrib.drt.routing.DrtRouteFactory;
+import org.matsim.contrib.drt.run.DrtConfigGroup;
+import org.matsim.contrib.drt.run.DrtConfigGroup.OperationalScheme;
+import org.matsim.contrib.drt.run.DrtConfigs;
+import org.matsim.contrib.drt.run.MultiModeDrtConfigGroup;
 import org.matsim.contrib.dvrp.run.DvrpQSimComponents;
 // import org.matsim.contrib.drt.optimizer.constraints.DefaultDrtOptimizationConstraintsSet;
 // import org.matsim.contrib.drt.optimizer.insertion.DrtInsertionSearchParams;
@@ -31,6 +40,7 @@ import org.matsim.core.config.CommandLine;
 import org.matsim.core.config.CommandLine.ConfigurationException;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
+import org.matsim.core.config.groups.QSimConfigGroup.StarttimeInterpretation;
 // import org.matsim.core.config.groups.QSimConfigGroup.StarttimeInterpretation;
 // import org.matsim.core.config.groups.ScoringConfigGroup.ModeParams;
 import org.matsim.core.controler.Controler;
@@ -49,6 +59,35 @@ public class RunDMCSimulationDRT {
         Config config = ConfigUtils.loadConfig(cmd.getOptionStrict("config-path"));
         configurator.updateConfig(config);
 
+        // MultiModeDrtConfigGroup multiModeDrtConfig = new MultiModeDrtConfigGroup();
+
+        // { // Configure DRT
+        // config.addModule(multiModeDrtConfig);
+
+        // DrtConfigGroup drtConfig = new DrtConfigGroup();
+        // drtConfig.mode = "drt";
+        // drtConfig.operationalScheme = OperationalScheme.door2door;
+        // drtConfig.stopDuration = 15.0;
+        // DefaultDrtOptimizationConstraintsSet defaultDrtOptimizationConstraintsSet = new
+        // DefaultDrtOptimizationConstraintsSet();
+        // defaultDrtOptimizationConstraintsSet.maxWaitTime = 3600;
+        // defaultDrtOptimizationConstraintsSet.maxTravelTimeAlpha = 3;
+        // defaultDrtOptimizationConstraintsSet.maxTravelTimeBeta = 3600;
+        // drtConfig.addOrGetDrtOptimizationConstraintsParams().addParameterSet(defaultDrtOptimizationConstraintsSet);
+        // drtConfig.vehiclesFile = "../../../data/supply/drt/drt_fleet_1.xml";
+
+        // DrtInsertionSearchParams searchParams = new SelectiveInsertionSearchParams();
+        // drtConfig.setDrtInsertionSearchParams(searchParams);
+
+        // multiModeDrtConfig.addParameterSet(drtConfig);
+        // DrtConfigs.adjustMultiModeDrtConfig(multiModeDrtConfig, config.scoring(),
+        // config.routing());
+
+        // // Additional requirements
+        // config.qsim().setStartTime(0.0);
+        // config.qsim().setSimStarttimeInterpretation(StarttimeInterpretation.onlyUseStarttime);
+        // }
+
         cmd.applyConfiguration(config);
 
         // PolicyExtension policies = new PolicyExtension();
@@ -56,6 +95,11 @@ public class RunDMCSimulationDRT {
 
         Scenario scenario = ScenarioUtils.createScenario(config);
         configurator.configureScenario(scenario);
+
+        { // Add DRT route factory (in case input population has DRT in it)
+            scenario.getPopulation().getFactory().getRouteFactories()
+                    .setRouteFactory(DrtRoute.class, new DrtRouteFactory());
+        }
 
         ScenarioUtils.loadScenario(scenario);
         configurator.adjustScenario(scenario);
@@ -67,6 +111,17 @@ public class RunDMCSimulationDRT {
         controller.addOverridingModule(new LeedsModeChoiceModule(cmd));
         // controller.addOverridingModule(policies);
 
+        MultiModeDrtConfigGroup multiModeDrtConfig = (MultiModeDrtConfigGroup) config.getModules()
+                .get(MultiModeDrtConfigGroup.GROUP_NAME);
+
+        { // Configure controller for DRT
+            controller.configureQSimComponents(components -> {
+                DvrpQSimComponents.activateAllModes(multiModeDrtConfig).configure(components);
+
+                // Need to re-do this as now it is combined with DRT
+                EqasimTransitQSimModule.configure(components, config);
+            });
+        }
 
         { // Add overrides for Leeds + DRT
             controller.addOverridingModule(new LeedsDrtModule(cmd));
