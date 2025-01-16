@@ -207,7 +207,7 @@
 		</parameterset>
 		<parameterset type="cost_model">
 			<param name="mode" value="drt" />
-			<param name="model" value="ZeroCostModel" />
+			<param name="model" value="LeedsDrtCostModel" />
 		</parameterset>
 		<parameterset type="estimator">
 			<param name="estimator" value="LeedsCarUtilityEstimator" />
@@ -283,7 +283,7 @@
 		<param name="defaultDelimiter" value=";" />
 		<param name="insistingOnDeprecatedConfigVersion" value="true" />
 		<!-- "global" number of threads.  This number is used, e.g., for replanning, but NOT in QSim.  This can typically be set to as many cores as you have available, or possibly even slightly more. -->
-		<param name="numberOfThreads" value="2" />
+		<param name="numberOfThreads" value="8" />
 		<param name="randomSeed" value="4711" />
 	</module>
 	<module name="hermes">
@@ -336,7 +336,7 @@
 			<!-- Specifies the duration (seconds) a vehicle needs to be idle in order to get send back to the depot.Please be aware, that returnToDepotEvaluationInterval describes the minimal time a vehicle will be idle before it gets send back to depot. -->
 			<param name="returnToDepotTimeout" value="60.0" />
 			<!-- Whether full simulation drt is employed -->
-			<param name="simulationType" value="estimateAndTeleport" />
+			<param name="simulationType" value="fullSimulation" />
 			<!-- Minimum vehicle stop duration. Must be positive. -->
 			<param name="stopDuration" value="15.0" />
 			<!-- Store planned unshared drt route as a link sequence -->
@@ -356,7 +356,7 @@
 			<parameterset type="drtOptimizationConstraints">
 				<parameterset type="drtOptimizationConstraintsSet">
 					<!-- Time before reaching a planned dropoff from which it is not allowed to insert new detours for new requests. I.e., if set to 180, then a vehicle will not divert to pickup or dropoff a new passenger once a boarded passenger is only 3 minutes away from her destination, even though her time window would allow it. Delayed detours just before arrival are usually perceived very negatively. -->
-					<param name="lateDiversionthreshold" value="0.0" />
+					<param name="lateDiversionthreshold" value="180" />
 					<!-- Defines the maximum allowed absolute detour in seconds. Note that the detour is computed from the latest promised pickup time. To enable the max detour constraint, maxAllowedPickupDelay has to be specified. maxAbsoluteDetour should not be smaller than 0, and should be higher than the offset maxDetourBeta. By default, this limit is disabled (i.e. set to Inf) -->
 					<param name="maxAbsoluteDetour" value="Infinity" />
 					<!-- Defines the maximum delay allowed from the initial scheduled pick up time. Once the initial pickup time is offered, the latest promisedpickup time is calculated based on initial scheduled pickup time + maxAllowedPickupDelay. By default, this limit is disabled. If enabled, a value between 0 and 240 is a good choice. -->
@@ -372,7 +372,7 @@
 					<!-- Max wait time for the bus to come (optimisation constraint). -->
 					<param name="maxWaitTime" value="600.0" />
 					<!-- Maximum beeline distance (in meters) to next stop location in stopbased system for access/egress walk leg to/from drt. If no stop can be found within this maximum distance will return null (in most cases caught by fallback routing module). -->
-					<param name="maxWalkDistance" value="1.7976931348623157E308" />
+					<param name="maxWalkDistance" value="500" />
 					<!-- name of optimization params -->
 					<param name="name" value="default" />
 					<!-- If true, the max travel and wait times of a submitted request are considered hard constraints (the request gets rejected if one of the constraints is violated). If false, the max travel and wait times are considered soft constraints (insertion of a request that violates one of the constraints is allowed, but its cost is increased by additional penalty to make it relatively less attractive). Penalisation of insertions can be customised by injecting a customised InsertionCostCalculator.PenaltyCalculator -->
@@ -396,7 +396,7 @@
 				<param name="zoneTargetLinkSelection" value="mostCentral" />
 				<parameterset type="SquareGridZoneSystem">
 					<!-- size of square cells used for demand aggregation. Depends on demand, supply and network. Often used with values in the range of 500 - 2000 m -->
-					<param name="cellSize" value="500.0" />
+					<param name="cellSize" value="5000.0" />
 				</parameterset>
 			</parameterset>
 		</parameterset>
@@ -450,7 +450,7 @@
 		<!-- Shortens a link in the visualization, i.e. its start and end point are moved into towards the center. Does not affect traffic flow.  -->
 		<param name="nodeOffset" value="0.0" />
 		<!-- Number of threads used for the QSim.  Note that this setting is independent from the "global" threads setting.  In contrast to earlier versions, the non-parallel special version is no longer there. -->
-		<param name="numberOfThreads" value="1" />
+		<param name="numberOfThreads" value="8" />
 		<!-- Boolean. `true': stuck vehicles are removed, aborting the plan; `false': stuck vehicles are forced into the next link. `false' is probably the better choice. -->
 		<param name="removeStuckVehicles" value="false" />
 		<!-- If link dynamics is set as SeepageQ, set a seep mode. Default is bike. -->
