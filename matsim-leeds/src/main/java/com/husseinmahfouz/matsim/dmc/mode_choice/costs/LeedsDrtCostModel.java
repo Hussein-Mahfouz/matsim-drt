@@ -23,6 +23,6 @@ public class LeedsDrtCostModel extends AbstractCostModel {
 	public double calculateCost_MU(Person person, DiscreteModeChoiceTrip trip,
 			List<? extends PlanElement> elements) {
 		double tripDistance_km = getInVehicleDistance_km(elements);
-		return costParameters.drtCost_EUR_km * tripDistance_km;
+		return costParameters.drtCost_EUR_km * tripDistance_km + 0.1;
 	}
 }

@@ -107,6 +107,7 @@ public class LeedsModeParameters extends ModeParameters {
 		parameters.drt.betaTravelTime_u_min = -0.1281;
 		parameters.drt.betaWaitingTime_u_min = -1.1484;
 		parameters.drt.betaAccessEgressTime_u_min = -1.1484;
+		// parameters.drt.betaOutofVehicleTime_u_min = -1.1484;
 
 		return parameters;
 	}

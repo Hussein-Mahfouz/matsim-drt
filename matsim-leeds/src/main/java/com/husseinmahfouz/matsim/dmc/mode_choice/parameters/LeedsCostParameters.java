@@ -18,8 +18,8 @@ public class LeedsCostParameters implements ParameterDefinition {
 		parameters.railFareBase = 3.0;
 		parameters.railFarePerKm = 1.0;
 
-		//drt
-		parameters.drtCost_EUR_km = 0.5;
+		// drt
+		parameters.drtCost_EUR_km = 0.1;
 
 		return parameters;
 	}
