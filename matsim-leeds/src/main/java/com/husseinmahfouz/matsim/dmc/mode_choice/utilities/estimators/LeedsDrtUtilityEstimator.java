@@ -38,7 +38,7 @@ public class LeedsDrtUtilityEstimator extends DrtUtilityEstimator {
     protected double estimateTravelTimeUtility(DrtVariables variables) {
         double utility = 0.0;
 
-        utility += parameters.leedsPT.betaInVehicleTimeBus_u_min * variables.travelTime_min;
+        utility += parameters.drt.betaTravelTime_u_min * variables.travelTime_min;
 
         return utility;
     }
@@ -60,7 +60,7 @@ public class LeedsDrtUtilityEstimator extends DrtUtilityEstimator {
         utility += estimateTravelTimeUtility(drtVariables);
         utility += estimateWaitingTimeUtility(drtVariables);
         utility += estimateAccessEgressTimeUtility(drtVariables);
-
+        utility += estimateMonetaryCostUtility(drtVariables);
 
         return utility;
     }
