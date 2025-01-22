@@ -10,6 +10,7 @@ import org.eqasim.core.simulation.mode_choice.ParameterDefinition;
 import org.eqasim.core.simulation.mode_choice.cost.CostModel;
 import org.eqasim.core.simulation.modes.drt.mode_choice.predictors.DefaultDrtPredictor;
 import org.eqasim.core.simulation.modes.drt.mode_choice.predictors.DrtPredictor;
+import org.eqasim.core.simulation.modes.feeder_drt.mode_choice.utilities.estimator.DefaultFeederDrtUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.LeedsDrtModeAvailability;
 import com.husseinmahfouz.matsim.dmc.mode_choice.costs.LeedsDrtCostModel;
 import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsCostParameters;
@@ -41,6 +42,9 @@ public class LeedsDrtModule extends AbstractEqasimExtension {
 		bindUtilityEstimator("drt").to(LeedsDrtUtilityEstimator.class);
 		bindCostModel("drt").to(LeedsDrtCostModel.class);
 		bind(DrtPredictor.class).to(DefaultDrtPredictor.class);
+
+		bindUtilityEstimator("feederDrt").to(DefaultFeederDrtUtilityEstimator.class);
+		
 
 		// Define filter for trip analysis
 		// bind(PersonAnalysisFilter.class).to(DrtPersonAnalysisFilter.class);

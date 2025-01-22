@@ -6,6 +6,13 @@
     "configurations": [
         {
             "type": "java",
+            "name": "RunAdaptConfigForDrt",
+            "request": "launch",
+            "mainClass": "com.husseinmahfouz.matsim.drt.RunAdaptConfigForDrt",
+            "projectName": "matsim-leeds"
+        },
+        {
+            "type": "java",
             "name": "Current File",
             "request": "launch",
             "mainClass": "${file}"
@@ -121,7 +128,13 @@
             "mainClass": "com.husseinmahfouz.matsim.RunDMCSimulationDRT",
             "projectName": "matsim-leeds",
             "cwd": "${workspaceFolder}/matsim-leeds",
-            "args": "--config-path src/main/resources/config_simulation_dmc_drt_basic.xml"
+            "args": [
+                "--config-path",
+                "src/main/resources/config_simulation_dmc_drt_feeder.xml",
+                "--use-rejection-constraint",
+                "true"
+            ],
+            "vmArgs": "-Xmx32G"
         }
     ]
 }

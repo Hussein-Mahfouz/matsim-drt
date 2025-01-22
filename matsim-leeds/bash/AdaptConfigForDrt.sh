@@ -12,7 +12,7 @@ outputConfigPath="src/main/resources/config_simulation_dmc_drt.xml"
 
 # Define the different sets of arguments
 declare -a argsArray=(
-    "data/supply/drt/drt_fleet_1.xml,data/supply/drt/drt_fleet_2.xml drtA,drtB door2door,serviceAreaBased true,false"
+    "data/supply/drt/drt_fleet_1.xml,data/supply/drt/drt_fleet_2.xml drtA,drtB door2door,serviceAreaBased true,true"
    #"data/supply/drt/drt_fleet_1.xml,data/supply/drt/drt_fleet_2.xml door2door,serviceAreaBased true,false"
 
 )
@@ -35,6 +35,6 @@ for args in "${argsArray[@]}"; do
         --vehicles-paths $vehiclesPaths \
         --mode-names $modeNames \
         --operational-schemes $operationalSchemes \
-        --add-leg-time-constraint $addLegTimeConstraint
+        --add-leg-time-constraint $addLegTimeConstraint # only set to false if you want to check demand out of the specified fleet operating times. You will have a lot of rejections
 done
 

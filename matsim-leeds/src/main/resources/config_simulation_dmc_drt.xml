@@ -12,7 +12,7 @@
 		<!-- Defines how home activities are identified. Built-in choices: FirstActivity, ActivityBased -->
 		<param name="homeFinder" value="EqasimHomeFinder" />
 		<!-- Defines which ModeAvailability component to use. Built-in choices: Default, Car -->
-		<param name="modeAvailability" value="LeedsModeAvailability" />
+		<param name="modeAvailability" value="LeedsDrtModeAvailability" />
 		<!-- Main model type: Trip, Tour -->
 		<param name="modelType" value="Tour" />
 		<!-- Defines whether the DiscreteModeChoice strategy should be followed by a rerouting of all trips. If the estimator returns alternatives with routes attached this is not necessary. -->
@@ -207,11 +207,11 @@
 		</parameterset>
 		<parameterset type="cost_model">
 			<param name="mode" value="drtB" />
-			<param name="model" value="ZeroCostModel" />
+			<param name="model" value="LeedsDrtCostModel" />
 		</parameterset>
 		<parameterset type="cost_model">
 			<param name="mode" value="drtA" />
-			<param name="model" value="ZeroCostModel" />
+			<param name="model" value="LeedsDrtCostModel" />
 		</parameterset>
 		<parameterset type="estimator">
 			<param name="estimator" value="LeedsCarUtilityEstimator" />
@@ -238,11 +238,11 @@
 			<param name="mode" value="car_passenger" />
 		</parameterset>
 		<parameterset type="estimator">
-			<param name="estimator" value="DrtUtilityEstimator" />
+			<param name="estimator" value="LeedsDrtUtilityEstimator" />
 			<param name="mode" value="drtB" />
 		</parameterset>
 		<parameterset type="estimator">
-			<param name="estimator" value="DrtUtilityEstimator" />
+			<param name="estimator" value="LeedsDrtUtilityEstimator" />
 			<param name="mode" value="drtA" />
 		</parameterset>
 	</module>
@@ -307,7 +307,7 @@
 		<param name="defaultDelimiter" value=";" />
 		<param name="insistingOnDeprecatedConfigVersion" value="true" />
 		<!-- "global" number of threads.  This number is used, e.g., for replanning, but NOT in QSim.  This can typically be set to as many cores as you have available, or possibly even slightly more. -->
-		<param name="numberOfThreads" value="2" />
+		<param name="numberOfThreads" value="8" />
 		<param name="randomSeed" value="4711" />
 	</module>
 	<module name="hermes">
@@ -360,7 +360,7 @@
 			<!-- Specifies the duration (seconds) a vehicle needs to be idle in order to get send back to the depot.Please be aware, that returnToDepotEvaluationInterval describes the minimal time a vehicle will be idle before it gets send back to depot. -->
 			<param name="returnToDepotTimeout" value="60.0" />
 			<!-- Whether full simulation drt is employed -->
-			<param name="simulationType" value="estimateAndTeleport" />
+			<param name="simulationType" value="fullSimulation" />
 			<!-- Minimum vehicle stop duration. Must be positive. -->
 			<param name="stopDuration" value="15.0" />
 			<!-- Store planned unshared drt route as a link sequence -->
@@ -524,7 +524,7 @@
 		<!-- Shortens a link in the visualization, i.e. its start and end point are moved into towards the center. Does not affect traffic flow.  -->
 		<param name="nodeOffset" value="0.0" />
 		<!-- Number of threads used for the QSim.  Note that this setting is independent from the "global" threads setting.  In contrast to earlier versions, the non-parallel special version is no longer there. -->
-		<param name="numberOfThreads" value="1" />
+		<param name="numberOfThreads" value="8" />
 		<!-- Boolean. `true': stuck vehicles are removed, aborting the plan; `false': stuck vehicles are forced into the next link. `false' is probably the better choice. -->
 		<param name="removeStuckVehicles" value="false" />
 		<!-- If link dynamics is set as SeepageQ, set a seep mode. Default is bike. -->

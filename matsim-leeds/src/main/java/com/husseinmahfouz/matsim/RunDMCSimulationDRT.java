@@ -1,5 +1,10 @@
 package com.husseinmahfouz.matsim;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
+// import org.eqasim.core.components.config.EqasimConfigGroup;
 import org.eqasim.core.components.transit.EqasimTransitQSimModule;
 // import org.eqasim.core.components.config.EqasimConfigGroup;
 // import org.eqasim.core.components.transit.EqasimTransitQSimModule;
@@ -8,22 +13,23 @@ import org.eqasim.core.simulation.mode_choice.EqasimModeChoiceModule;
 import org.eqasim.core.simulation.modes.drt.analysis.DrtAnalysisModule;
 // import com.husseinmahfouz.matsim.dmc.mode_choice.LeedsDrtModeAvailability;
 
-// import org.eqasim.examples.corsica_drt.rejections.RejectionConstraint;
-// import org.eqasim.examples.corsica_drt.rejections.RejectionModule;
+import com.husseinmahfouz.matsim.drt.rejections.RejectionConstraint;
+import com.husseinmahfouz.matsim.drt.rejections.RejectionModule;
 import com.husseinmahfouz.matsim.dmc.LeedsConfigurator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.LeedsModeChoiceModule;
 import com.husseinmahfouz.matsim.drt.LeedsDrtModule;
 import org.matsim.api.core.v01.Scenario;
-import org.matsim.contrib.drt.optimizer.constraints.DefaultDrtOptimizationConstraintsSet;
-import org.matsim.contrib.drt.optimizer.insertion.DrtInsertionSearchParams;
-import org.matsim.contrib.drt.optimizer.insertion.selective.SelectiveInsertionSearchParams;
+// import org.matsim.contrib.drt.optimizer.constraints.DefaultDrtOptimizationConstraintsSet;
+// import org.matsim.contrib.drt.optimizer.insertion.DrtInsertionSearchParams;
+// import org.matsim.contrib.drt.optimizer.insertion.selective.SelectiveInsertionSearchParams;
 import org.matsim.contrib.drt.routing.DrtRoute;
 import org.matsim.contrib.drt.routing.DrtRouteFactory;
-import org.matsim.contrib.drt.run.DrtConfigGroup;
-import org.matsim.contrib.drt.run.DrtConfigGroup.OperationalScheme;
-import org.matsim.contrib.drt.run.DrtConfigs;
+// import org.matsim.contrib.drt.run.DrtConfigGroup;
+// import org.matsim.contrib.drt.run.DrtConfigGroup.OperationalScheme;
+// import org.matsim.contrib.drt.run.DrtConfigs;
 import org.matsim.contrib.drt.run.MultiModeDrtConfigGroup;
 import org.matsim.contrib.dvrp.run.DvrpQSimComponents;
+import org.matsim.contribs.discrete_mode_choice.modules.config.DiscreteModeChoiceConfigGroup;
 // import org.matsim.contrib.drt.optimizer.constraints.DefaultDrtOptimizationConstraintsSet;
 // import org.matsim.contrib.drt.optimizer.insertion.DrtInsertionSearchParams;
 // import org.matsim.contrib.drt.optimizer.insertion.selective.SelectiveInsertionSearchParams;
@@ -45,6 +51,7 @@ import org.matsim.core.config.groups.QSimConfigGroup.StarttimeInterpretation;
 // import org.matsim.core.config.groups.ScoringConfigGroup.ModeParams;
 import org.matsim.core.controler.Controler;
 import org.matsim.core.scenario.ScenarioUtils;
+
 
 public class RunDMCSimulationDRT {
 
@@ -90,6 +97,19 @@ public class RunDMCSimulationDRT {
 
         cmd.applyConfiguration(config);
 
+        { // Edit the DMC config module
+            DiscreteModeChoiceConfigGroup dmcConfig =
+                    DiscreteModeChoiceConfigGroup.getOrCreate(config);
+
+            // Add rejection constraint if specified
+            if (cmd.getOption("use-rejection-constraint").map(Boolean::parseBoolean)
+                    .orElse(false)) {
+                Set<String> tripConstraints = new HashSet<>(dmcConfig.getTripConstraints());
+                tripConstraints.add(RejectionConstraint.NAME);
+                dmcConfig.setTripConstraints(tripConstraints);
+            }
+        }
+
         // PolicyExtension policies = new PolicyExtension();
         // policies.adaptConfiguration(config);
 
@@ -125,7 +145,7 @@ public class RunDMCSimulationDRT {
 
         { // Add overrides for Leeds + DRT
             controller.addOverridingModule(new LeedsDrtModule(cmd));
-            // controller.addOverridingModule(new RejectionModule(Arrays.asList("drt")));
+            controller.addOverridingModule(new RejectionModule(Arrays.asList("drt")));
             controller.addOverridingModule(new DrtAnalysisModule());
         }
         controller.run();
