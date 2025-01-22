@@ -9,6 +9,8 @@ import org.eqasim.core.simulation.mode_choice.AbstractEqasimExtension;
 import org.eqasim.core.simulation.mode_choice.ParameterDefinition;
 import org.eqasim.core.simulation.mode_choice.parameters.ModeParameters;
 import org.eqasim.core.simulation.mode_choice.tour_finder.ActivityTourFinderWithExcludedActivities;
+import org.eqasim.core.simulation.modes.feeder_drt.mode_choice.FeederDrtModeAvailabilityWrapper;
+import org.eqasim.core.simulation.modes.feeder_drt.mode_choice.utilities.estimator.DefaultFeederDrtUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.costs.LeedsCarCostModel;
 import com.husseinmahfouz.matsim.dmc.mode_choice.costs.LeedsPtCostModel;
 import com.husseinmahfouz.matsim.dmc.mode_choice.costs.LeedsDrtCostModel;
@@ -30,11 +32,14 @@ import org.matsim.core.config.CommandLine.ConfigurationException;
 
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
+import org.matsim.core.config.Config;
 
 public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 	private final CommandLine commandLine;
 
-	public static final String MODE_AVAILABILITY_NAME = "LeedsDrtModeAvailability";
+	// public static final String MODE_AVAILABILITY_NAME = "LeedsDrtModeAvailability";
+	public static final String MODE_AVAILABILITY_NAME = "FeederDrtModeAvailabilityWrapper";
+
 
 	public static final String CAR_COST_MODEL_NAME = "LeedsCarCostModel";
 	public static final String PT_COST_MODEL_NAME = "LeedsPtCostModel";
@@ -47,6 +52,7 @@ public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 	public static final String PT_ESTIMATOR_NAME = "LeedsPtUtilityEstimator";
 	// Add DRT
 	public static final String DRT_ESTIMATOR_NAME = "LeedsDrtUtilityEstimator";
+	public static final String FEEDER_DRT_ESTIMATOR_NAME = "DefaultFeederDrtUtilityEstimator";
 
 	public static final String ISOLATED_OUTSIDE_TOUR_FINDER_NAME = "IsolatedOutsideTrips";
 
@@ -56,7 +62,7 @@ public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 
 	@Override
 	protected void installEqasimExtension() {
-		bindModeAvailability(MODE_AVAILABILITY_NAME).to(LeedsDrtModeAvailability.class);
+		bindModeAvailability(MODE_AVAILABILITY_NAME).to(FeederDrtModeAvailabilityWrapper.class);
 
 		bind(LeedsPersonPredictor.class);
 
@@ -71,6 +77,8 @@ public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 		bindUtilityEstimator(PT_ESTIMATOR_NAME).to(LeedsPtUtilityEstimator.class);
 		// Add DRT
 		bindUtilityEstimator(DRT_ESTIMATOR_NAME).to(LeedsDrtUtilityEstimator.class);
+		bindUtilityEstimator(FEEDER_DRT_ESTIMATOR_NAME).to(DefaultFeederDrtUtilityEstimator.class);
+
 
 		bind(LeedsSpatialPredictor.class);
 		bind(LeedsPtPredictor.class);
@@ -94,6 +102,12 @@ public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 
 		ParameterDefinition.applyCommandLine("mode-choice-parameter", commandLine, parameters);
 		return parameters;
+	}
+
+	@Provides
+	@Singleton
+	public FeederDrtModeAvailabilityWrapper provideFeederDrtModeAvailabilityWrapper(Config config) {
+		return new FeederDrtModeAvailabilityWrapper(config, new LeedsModeAvailability());
 	}
 
 	@Provides
