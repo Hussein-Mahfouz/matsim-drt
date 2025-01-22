@@ -9,6 +9,7 @@ import org.eqasim.core.simulation.mode_choice.AbstractEqasimExtension;
 import org.eqasim.core.simulation.mode_choice.ParameterDefinition;
 import org.eqasim.core.simulation.mode_choice.parameters.ModeParameters;
 import org.eqasim.core.simulation.mode_choice.tour_finder.ActivityTourFinderWithExcludedActivities;
+import org.eqasim.core.simulation.modes.drt.mode_choice.DrtModeAvailabilityWrapper;
 import org.eqasim.core.simulation.modes.feeder_drt.mode_choice.FeederDrtModeAvailabilityWrapper;
 import org.eqasim.core.simulation.modes.feeder_drt.mode_choice.utilities.estimator.DefaultFeederDrtUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.costs.LeedsCarCostModel;
@@ -104,10 +105,20 @@ public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 		return parameters;
 	}
 
+	// @Provides
+	// @Singleton
+	// public FeederDrtModeAvailabilityWrapper provideFeederDrtModeAvailabilityWrapper(Config
+	// config) {
+	// return new FeederDrtModeAvailabilityWrapper(config, new LeedsDrtModeAvailability());
+	// }
+
+	// Get DRT modes and then Feeder DRT modes
 	@Provides
 	@Singleton
 	public FeederDrtModeAvailabilityWrapper provideFeederDrtModeAvailabilityWrapper(Config config) {
-		return new FeederDrtModeAvailabilityWrapper(config, new LeedsModeAvailability());
+		DrtModeAvailabilityWrapper drtModeAvailabilityWrapper =
+				new DrtModeAvailabilityWrapper(config, new LeedsModeAvailability());
+		return new FeederDrtModeAvailabilityWrapper(config, drtModeAvailabilityWrapper);
 	}
 
 	@Provides
