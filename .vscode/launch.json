@@ -43,8 +43,8 @@
                 "data/external/study_area_gtfs_merged.zip",
                 "20230814",
                 "EPSG:3857",
-                "data/supply/schedule_unmapped.xml.gz",
-                "data/supply/vehicles_unmapped.xml"
+                "src/main/resources/data/supply/schedule_unmapped.xml.gz",
+                "src/main/resources/data/supply/vehicles_unmapped.xml"
             ]
         },
         {
@@ -74,7 +74,7 @@
             "cwd": "${workspaceFolder}/matsim-leeds",
             "args": [
                 "data/demand/plans.xml",
-                "scenarios/test/plans.xml"
+                "src/main/resources/data/demand/plans_sample.xml"
             ]
         },
         {
@@ -95,9 +95,9 @@
             "cwd": "${workspaceFolder}/matsim-leeds",
             "args": [
                 "src/main/resources/config_simulation_dmc.xml",
-                "scenarios/test/plans.xml",
-                "scenarios/test/network_vehicles.xml",
-                "scenarios/test/plans_eqasim.xml"
+                "src/main/resources/data/demand/plans_sample.xml",
+                "src/main/resources/data/supply/network_vehicles.xml",
+                "src/main/resources/data/demand/plans_sample_eqasim.xml"
             ]
         },
         {
