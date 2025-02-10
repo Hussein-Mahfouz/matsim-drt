@@ -3,22 +3,26 @@ package com.husseinmahfouz.matsim.dmc.mode_choice;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
-
+import java.util.Map;
 import org.eqasim.core.components.config.EqasimConfigGroup;
 import org.eqasim.core.simulation.mode_choice.AbstractEqasimExtension;
 import org.eqasim.core.simulation.mode_choice.ParameterDefinition;
+import org.eqasim.core.simulation.mode_choice.cost.CostModel;
 import org.eqasim.core.simulation.mode_choice.parameters.ModeParameters;
 import org.eqasim.core.simulation.mode_choice.tour_finder.ActivityTourFinderWithExcludedActivities;
 import com.husseinmahfouz.matsim.dmc.mode_choice.costs.LeedsCarCostModel;
 import com.husseinmahfouz.matsim.dmc.mode_choice.costs.LeedsPtCostModel;
+import com.husseinmahfouz.matsim.dmc.mode_choice.costs.LeedsTaxiCostModel;
 import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsCostParameters;
 import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsModeParameters;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsBikeUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsCarUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsPTUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsWalkUtilityEstimator;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsTaxiUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsPersonPredictor;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsSpatialPredictor;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsTaxiPredictor;
 import org.matsim.contribs.discrete_mode_choice.components.tour_finder.ActivityTourFinder;
 import org.matsim.contribs.discrete_mode_choice.modules.config.ActivityTourFinderConfigGroup;
 import org.matsim.contribs.discrete_mode_choice.modules.config.DiscreteModeChoiceConfigGroup;
@@ -27,6 +31,8 @@ import org.matsim.core.config.CommandLine.ConfigurationException;
 
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
+import com.google.inject.Provider;
+import com.google.inject.name.Named;
 
 public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 	private final CommandLine commandLine;
@@ -35,11 +41,13 @@ public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 
 	public static final String CAR_COST_MODEL_NAME = "LeedsCarCostModel";
 	public static final String PT_COST_MODEL_NAME = "LeedsPtCostModel";
+	public static final String TAXI_COST_MODEL_NAME = "LeedsTaxiCostModel";
 
 	public static final String CAR_ESTIMATOR_NAME = "LeedsCarUtilityEstimator";
 	public static final String BIKE_ESTIMATOR_NAME = "LeedsBikeUtilityEstimator";
 	public static final String WALK_ESTIMATOR_NAME = "LeedsWalkUtilityEstimator";
 	public static final String PT_ESTIMATOR_NAME = "LeedsPTUtilityEstimator";
+	public static final String TAXI_ESTIMATOR_NAME = "LeedsTaxiUtilityEstimator";
 
 	public static final String ISOLATED_OUTSIDE_TOUR_FINDER_NAME = "IsolatedOutsideTrips";
 
@@ -55,12 +63,15 @@ public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 
 		bindCostModel(CAR_COST_MODEL_NAME).to(LeedsCarCostModel.class);
 		bindCostModel(PT_COST_MODEL_NAME).to(LeedsPtCostModel.class);
+		bindCostModel(TAXI_COST_MODEL_NAME).to(LeedsTaxiCostModel.class);
 
 		bindUtilityEstimator(CAR_ESTIMATOR_NAME).to(LeedsCarUtilityEstimator.class);
 		bindUtilityEstimator(BIKE_ESTIMATOR_NAME).to(LeedsBikeUtilityEstimator.class);
 		bindUtilityEstimator(WALK_ESTIMATOR_NAME).to(LeedsWalkUtilityEstimator.class);
 		bindUtilityEstimator(PT_ESTIMATOR_NAME).to(LeedsPTUtilityEstimator.class);
+		bindUtilityEstimator(TAXI_ESTIMATOR_NAME).to(LeedsTaxiUtilityEstimator.class);
 		bind(LeedsSpatialPredictor.class);
+		bind(LeedsTaxiPredictor.class);
 
 		bind(ModeParameters.class).to(LeedsModeParameters.class);
 
@@ -102,5 +113,11 @@ public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 		ActivityTourFinderConfigGroup config = dmcConfig.getActivityTourFinderConfigGroup();
 		return new ActivityTourFinderWithExcludedActivities(List.of("outside"),
 				new ActivityTourFinder(config.getActivityTypes()));
+	}
+
+	@Provides
+	@Named("taxi")
+	public CostModel provideTaxiCostModel(Map<String, Provider<CostModel>> factory, EqasimConfigGroup config) {
+		return getCostModel(factory, config, "taxi");
 	}
 }

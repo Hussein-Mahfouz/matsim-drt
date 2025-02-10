@@ -49,3 +49,4 @@ public class LeedsTaxiCostModel extends AbstractCostModel {
 	}
 
 }
+
