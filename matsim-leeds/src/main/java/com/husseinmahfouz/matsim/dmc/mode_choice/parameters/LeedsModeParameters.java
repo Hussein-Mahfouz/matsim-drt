@@ -116,7 +116,6 @@ public class LeedsModeParameters extends ModeParameters {
 		parameters.leedsTaxi.lambdaTravelTime = 0.5424;
 
 
-
 		return parameters;
 	}
 }

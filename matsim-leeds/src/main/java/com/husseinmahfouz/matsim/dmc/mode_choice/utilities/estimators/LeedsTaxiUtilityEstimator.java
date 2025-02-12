@@ -76,9 +76,12 @@ public class LeedsTaxiUtilityEstimator implements UtilityEstimator {
 
 	protected double estimateTravelTimeUtility(TaxiVariables variables) {
 		double lambda = parameters.leedsTaxi.lambdaTravelTime;
+		// in our choice model, there is only one beta (total travel time)
+		double totalTravelTime = variables.travelTime_min + variables.accessEgressTime_min
+				+ variables.waitingTime_min;
 		// box-cox transformation
 		return parameters.leedsTaxi.betaTravelTime_u_min
-				* ((Math.pow(variables.travelTime_min, lambda) - 1) / lambda);
+				* ((Math.pow(totalTravelTime, lambda) - 1) / lambda);
 	}
 
 	protected double estimateAmPeakUtility(LeedsSpatialVariables variables) {

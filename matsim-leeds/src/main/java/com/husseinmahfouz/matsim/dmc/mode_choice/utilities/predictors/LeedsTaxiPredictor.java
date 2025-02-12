@@ -19,22 +19,24 @@ import com.google.inject.name.Named;
 
 public class LeedsTaxiPredictor extends CachedVariablePredictor<TaxiVariables> {
 	private final CostModel costModel;
-	
 
 	@Inject
 	public LeedsTaxiPredictor(@Named("taxi") CostModel costModel) {
 		this.costModel = costModel;
-		
+
 	}
 
 	@Override
-	public TaxiVariables predict(Person person, DiscreteModeChoiceTrip trip, List<? extends PlanElement> elements) {
-		
+	public TaxiVariables predict(Person person, DiscreteModeChoiceTrip trip,
+			List<? extends PlanElement> elements) {
+
 		double taxiTravelTime_min = 0;
 		double accessEgressTime_min = 0;
-		
+		// TODO: See https://github.com/Hussein-Mahfouz/matsim-drt/issues/33#issuecomment-2639537703
+		double waitingTime_min = 7.0;
+
 		boolean foundTaxi = false;
-		
+
 		for (Leg leg : TripStructureUtils.getLegs(elements)) {
 			if (leg.getMode().equals(TransportMode.taxi)) {
 				Verify.verify(!foundTaxi);
@@ -46,11 +48,12 @@ public class LeedsTaxiPredictor extends CachedVariablePredictor<TaxiVariables> {
 			}
 		}
 
-		
+
 		double cost_MU = costModel.calculateCost_MU(person, trip, elements);
 		double euclideanDistance_km = PredictorUtils.calculateEuclideanDistance_km(trip);
-		
 
-		return new TaxiVariables(taxiTravelTime_min, cost_MU, euclideanDistance_km, accessEgressTime_min);
+
+		return new TaxiVariables(taxiTravelTime_min, cost_MU, euclideanDistance_km,
+				accessEgressTime_min, waitingTime_min);
 	}
 }
