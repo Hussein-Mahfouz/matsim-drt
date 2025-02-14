@@ -33,7 +33,7 @@
             "mainClass": "com.husseinmahfouz.matsim.pt2matsim.RunPTConverter",
             "cwd": "${workspaceFolder}/matsim-leeds",
             "args": [
-                "data/external/study_area_gtfs_bus.zip",
+                "data/external/study_area_gtfs_merged.zip",
                 "20230814",
                 "EPSG:3857",
                 "data/supply/schedule_unmapped.xml.gz",

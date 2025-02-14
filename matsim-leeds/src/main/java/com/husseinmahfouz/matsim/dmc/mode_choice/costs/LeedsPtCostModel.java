@@ -3,6 +3,7 @@ package com.husseinmahfouz.matsim.dmc.mode_choice.costs;
 import java.util.List;
 
 import org.eqasim.core.simulation.mode_choice.cost.CostModel;
+import org.eqasim.core.simulation.mode_choice.utilities.predictors.PredictorUtils;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsPersonPredictor;
 // import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsSpatialPredictor;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.LeedsPersonVariables;
@@ -29,16 +30,15 @@ public class LeedsPtCostModel implements CostModel {
 
 	@Inject
 	public LeedsPtCostModel(LeedsPersonPredictor personPredictor, LeedsCostParameters parameters,
-			// LeedsSpatialPredictor spatialPredictor,
 			TransitSchedule transitSchedule) {
 		this.personPredictor = personPredictor;
-		// this.spatialPredictor = spatialPredictor;
 		this.transitSchedule = transitSchedule;
 		this.parameters = parameters;
+
 	}
 
 	private int getNumberOfBusVehicles(List<? extends PlanElement> elements) {
-		int busCount = 0;
+		int count = 0;
 		for (PlanElement element : elements) {
 			if (element instanceof Leg) {
 				Leg leg = (Leg) element;
@@ -47,12 +47,30 @@ public class LeedsPtCostModel implements CostModel {
 					String transportMode = transitSchedule.getTransitLines().get(route.getLineId())
 							.getRoutes().get(route.getRouteId()).getTransportMode();
 					if (transportMode.equals("bus")) {
-						busCount++;
+						count++;
 					}
 				}
 			}
 		}
-		return busCount;
+		return count;
+	}
+
+	private int getNumberOfRailVehicles(List<? extends PlanElement> elements) {
+		int count = 0;
+		for (PlanElement element : elements) {
+			if (element instanceof Leg) {
+				Leg leg = (Leg) element;
+				if (leg.getMode().equals(TransportMode.pt)) {
+					TransitPassengerRoute route = (TransitPassengerRoute) leg.getRoute();
+					String transportMode = transitSchedule.getTransitLines().get(route.getLineId())
+							.getRoutes().get(route.getRouteId()).getTransportMode();
+					if (transportMode.equals("rail")) {
+						count++;
+					}
+				}
+			}
+		}
+		return count;
 	}
 
 	@Override
@@ -66,9 +84,16 @@ public class LeedsPtCostModel implements CostModel {
 			return 0.0;
 		}
 
-		int n_VehiclesBus = getNumberOfBusVehicles(elements);
+		double euclideanDistance_km = PredictorUtils.calculateEuclideanDistance_km(trip);
 
-		return n_VehiclesBus * parameters.busFare;
+		int n_VehiclesBus = getNumberOfBusVehicles(elements);
+		int n_VehiclesRail = getNumberOfRailVehicles(elements);
+		// TODO: if rail fare based on distance, get distance travelled by rail
+
+		double busCost = n_VehiclesBus * parameters.busFare;
+		double railCost = n_VehiclesRail * parameters.railFareBase
+				+ (parameters.railFarePerKm * euclideanDistance_km);
+		return busCost + railCost;
 
 	}
 }
