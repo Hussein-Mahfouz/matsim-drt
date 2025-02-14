@@ -71,8 +71,19 @@ public class LeedsTaxiUtilityEstimator implements UtilityEstimator {
 	// protected double estimateEducationUtility(LeedsPersonVariables variables) {
 	// }
 
-	// protected double estimateIncomeUtility(LeedsPersonVariables variables) {
-	// }
+	protected double estimateIncomeUtility(LeedsPersonVariables variables) {
+		double utility = 0.0;
+		double thresholdIncomeLower = 40000.0;
+		double thresholdIncomeUpper = 50000.0;
+
+		if (variables.indIncomeSPC >= thresholdIncomeLower
+				&& variables.indIncomeSPC <= thresholdIncomeUpper) {
+			utility += parameters.leedsTaxi.betaIncome40kto50k;
+		}
+
+		return utility;
+	}
+
 
 	protected double estimateTravelTimeUtility(TaxiVariables variables) {
 		double lambda = parameters.leedsTaxi.lambdaTravelTime;
@@ -117,7 +128,7 @@ public class LeedsTaxiUtilityEstimator implements UtilityEstimator {
 		utility += estimateMonetaryCostUtility(variables_taxi);
 		// TODO:
 		// utility += estimateEducationUtility(variables);
-		// utility += estimateIncomeUtility(variables);
+		utility += estimateIncomeUtility(variables);
 
 		return utility;
 	}

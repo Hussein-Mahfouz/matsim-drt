@@ -40,6 +40,7 @@ public class LeedsModeParameters extends ModeParameters {
 		public double betaMale;
 		public double betaAge18to24;
 		public double betaAge25to29;
+		public double betaIncome40kto50k;
 		public double lambdaTravelTime;
 
 	}
@@ -113,6 +114,7 @@ public class LeedsModeParameters extends ModeParameters {
 		parameters.leedsTaxi.betaMale = -0.6434;
 		parameters.leedsTaxi.betaAge18to24 = 1.5014;
 		parameters.leedsTaxi.betaAge25to29 = 0.9324;
+		parameters.leedsTaxi.betaIncome40kto50k = -0.7975;
 		parameters.leedsTaxi.lambdaTravelTime = 0.5424;
 
 
