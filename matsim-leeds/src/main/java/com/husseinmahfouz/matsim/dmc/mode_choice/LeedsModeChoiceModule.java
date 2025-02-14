@@ -47,7 +47,7 @@ public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 	public static final String CAR_ESTIMATOR_NAME = "LeedsCarUtilityEstimator";
 	public static final String BIKE_ESTIMATOR_NAME = "LeedsBikeUtilityEstimator";
 	public static final String WALK_ESTIMATOR_NAME = "LeedsWalkUtilityEstimator";
-	public static final String PT_ESTIMATOR_NAME = "LeedsPTUtilityEstimator";
+	public static final String PT_ESTIMATOR_NAME = "LeedsPtUtilityEstimator";
 	public static final String TAXI_ESTIMATOR_NAME = "LeedsTaxiUtilityEstimator";
 
 	public static final String ISOLATED_OUTSIDE_TOUR_FINDER_NAME = "IsolatedOutsideTrips";
@@ -69,9 +69,10 @@ public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 		bindUtilityEstimator(CAR_ESTIMATOR_NAME).to(LeedsCarUtilityEstimator.class);
 		bindUtilityEstimator(BIKE_ESTIMATOR_NAME).to(LeedsBikeUtilityEstimator.class);
 		bindUtilityEstimator(WALK_ESTIMATOR_NAME).to(LeedsWalkUtilityEstimator.class);
-		bindUtilityEstimator(PT_ESTIMATOR_NAME).to(LeedsPTUtilityEstimator.class);
+		bindUtilityEstimator(PT_ESTIMATOR_NAME).to(LeedsPtUtilityEstimator.class);
 		bindUtilityEstimator(TAXI_ESTIMATOR_NAME).to(LeedsTaxiUtilityEstimator.class);
 		bind(LeedsSpatialPredictor.class);
+		bind(LeedsPtPredictor.class);
 		bind(LeedsTaxiPredictor.class);
 
 		bind(ModeParameters.class).to(LeedsModeParameters.class);
@@ -118,7 +119,8 @@ public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 
 	@Provides
 	@Named("taxi")
-	public CostModel provideTaxiCostModel(Map<String, Provider<CostModel>> factory, EqasimConfigGroup config) {
+	public CostModel provideTaxiCostModel(Map<String, Provider<CostModel>> factory,
+			EqasimConfigGroup config) {
 		return getCostModel(factory, config, "taxi");
 	}
 }

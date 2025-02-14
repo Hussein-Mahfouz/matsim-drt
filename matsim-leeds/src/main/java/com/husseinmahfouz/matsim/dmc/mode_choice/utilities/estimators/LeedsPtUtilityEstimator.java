@@ -102,13 +102,24 @@ public class LeedsPtUtilityEstimator extends PtUtilityEstimator {
 			LeedsPtVariables variables_pt) {
 		double utility = 0.0;
 
-
-
 		if (variables.isAMPeak || variables.isPMPeak) {
 			if (variables_pt.railTravelTime_min > 0) {
 				utility += parameters.leedsPT.betaAmPmPeakRail;
 			} else if (variables_pt.busTravelTime_min > 0) {
 				utility += parameters.leedsPT.betaAmPmPeakBus;
+			}
+		}
+		return utility;
+	}
+
+
+	// income shift specified for bus only. We check if main mode is bus using travel time
+	protected double estimateIncomeUtility(LeedsPtVariables ptVariables,
+			LeedsPersonVariables variables) {
+		double utility = 0.0;
+		if (ptVariables.busTravelTime_min > ptVariables.railTravelTime_min) {
+			if (variables.indIncomeSPC > 50.000) {
+				utility += parameters.leedsPT.betaIncome50k;
 			}
 		}
 		return utility;
@@ -129,6 +140,7 @@ public class LeedsPtUtilityEstimator extends PtUtilityEstimator {
 		utility += estimateOutOfVehicleTimeUtility(ptVariables);
 		utility += estimateMonetaryCostUtility(ptVariables);
 		utility += estimateAmPmPeakUtility(spatialVariables, ptVariables);
+		utility += estimateIncomeUtility(ptVariables, variables);
 
 		// utility += estimateLineSwitchUtility(variables_pt);
 		// if (variables.hhlIncome == 0.0)
