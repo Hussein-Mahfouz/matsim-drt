@@ -55,6 +55,17 @@ public class LeedsWalkUtilityEstimator extends WalkUtilityEstimator {
         return utility;
     }
 
+    protected double estimateAgeUtility(LeedsPersonVariables variables) {
+		double utility = 0.0;
+
+		// Example logic based on age
+		if (variables.age >= 18 && variables.age <= 29) {
+			utility += parameters.leedsWalk.betaAge18to29;
+		}
+
+		return utility;
+	}
+
     @Override
     public double estimateUtility(Person person, DiscreteModeChoiceTrip trip,
             List<? extends PlanElement> elements) {

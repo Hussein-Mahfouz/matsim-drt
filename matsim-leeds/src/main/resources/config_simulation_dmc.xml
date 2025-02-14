@@ -20,7 +20,7 @@
 		<!-- Default=0. First Iteration of a simulation. -->
 		<param name="firstIteration" value="0" />
 		<!-- Default=1000. Last Iteration of a simulation. -->
-		<param name="lastIteration" value="10" />
+		<param name="lastIteration" value="50" />
 		<!-- Defines the interval for printing memory usage to the log in [seconds]. Must be positive. Defaults to 60. -->
 		<param name="memoryObserverInterval" value="60" />
 		<!-- Defines which mobility simulation will be used. Currently supported: [qsim, JDEQSim, hermes]
@@ -70,7 +70,7 @@
 	<module name="DiscreteModeChoice">
 		<param name="accumulateEstimationDelays" value="true" />
 		<!-- Trips tested with the modes listed here will be cached for each combination of trip and agent during one replanning pass. -->
-		<param name="cachedModes" value="pt, car, car_passenger, walk, bike" />
+		<param name="cachedModes" value="pt, car, car_passenger, walk, bike, taxi" />
 		<!-- Defines whether to run a runtime check that verifies that everything is set up correctl for a 'mode-choice-in-the-loop' setup. -->
 		<param name="enforceSinglePlan" value="true" />
 		<!-- Defines what happens if there is no feasible choice alternative for an agent: IGNORE_AGENT, INITIAL_CHOICE, EXCEPTION -->
@@ -105,11 +105,11 @@
 		</parameterset>
 		<parameterset type="modeAvailability:Car">
 			<!-- Defines which modes are avialable to the agents. -->
-			<param name="availableModes" value="pt, car, walk, bike, car_passenger" />
+			<param name="availableModes" value="pt, car, walk, bike, car_passenger, taxi" />
 		</parameterset>
 		<parameterset type="modeAvailability:Default">
 			<!-- Defines which modes are avialable to the agents. -->
-			<param name="availableModes" value="pt, car, walk, bike, car_passenger" />
+			<param name="availableModes" value="pt, car, walk, bike, car_passenger, taxi" />
 		</parameterset>
 		<parameterset type="selector:MultinomialLogit">
 			<!-- Defines whether candidates with a utility lower than the minimum utility should be filtered out. -->
@@ -183,6 +183,10 @@
 			<param name="mode" value="pt" />
 			<param name="model" value="LeedsPtCostModel" />
 		</parameterset>
+		<parameterset type="cost_model">
+			<param name="mode" value="taxi" />
+			<param name="model" value="LeedsTaxiCostModel" />
+		</parameterset>
 		<parameterset type="estimator">
 			<param name="estimator" value="LeedsCarUtilityEstimator" />
 			<param name="mode" value="car" />
@@ -198,6 +202,10 @@
 		<parameterset type="estimator">
 			<param name="estimator" value="LeedsWalkUtilityEstimator" />
 			<param name="mode" value="walk" />
+		</parameterset>
+		<parameterset type="estimator">
+			<param name="estimator" value="LeedsTaxiUtilityEstimator" />
+			<param name="mode" value="taxi" />
 		</parameterset>
 		<parameterset type="estimator">
 			<param name="estimator" value="ZeroUtilityEstimator" />
@@ -417,7 +425,7 @@
 		<!-- Some typical teleportation routing params are set by default, such as for walk and bike.  Setting this switch to "true" will clear them.  Note that this will also clear settings for helper modes such as for non_network_walk -->
 		<param name="clearDefaultTeleportedModeParams" value="false" />
 		<!-- All the modes for which the router is supposed to generate network routes (like car) -->
-		<param name="networkModes" value="car, car_passenger" />
+		<param name="networkModes" value="car, car_passenger, taxi" />
 		<!-- Defines whether the network consistency should be checked. -->
 		<param name="networkRouteConsistencyCheck" value="abortOnInconsistency" />
 		<!-- strength of the randomness for the utility of money in routing under toll.  Leads to Pareto-optimal route with randomly drawn money-vs-other-attributes tradeoff. Technically the width parameter of a log-normal distribution. 3.0 seems to be a good value.  -->
@@ -737,6 +745,15 @@
 				<param name="mode" value="car_passenger" />
 				<param name="monetaryDistanceRate" value="0.0" />
 			</parameterset>
+			<parameterset type="modeParams">
+				<param name="constant" value="0.0" />
+				<param name="dailyMonetaryConstant" value="0.0" />
+				<param name="dailyUtilityConstant" value="0.0" />
+				<param name="marginalUtilityOfDistance_util_m" value="0.0" />
+				<param name="marginalUtilityOfTraveling_util_hr" value="-6.0" />
+				<param name="mode" value="taxi" />
+				<param name="monetaryDistanceRate" value="0.0" />
+			</parameterset>
 		</parameterset>
 	</module>
 	<module name="subtourModeChoice">
@@ -749,7 +766,7 @@
 		<!-- If greater than 0, activities that are closer than coordDistance, to each other, will be considered part of the same subtour.i.e. if two activities are close to each other, the agent is allowed to use the same 'chain-based' vehicle for both subtours. -->
 		<param name="coordDistance" value="0.0" />
 		<!-- Defines all the modes available, including chain-based modes, seperated by commas -->
-		<param name="modes" value="car,pt,bike,walk,car_passenger" />
+		<param name="modes" value="car,pt,bike,walk,car_passenger,taxi" />
 		<!-- Defines the probability of changing a single trip for a unchained mode instead of subtour. -->
 		<param name="probaForRandomSingleTripMode" value="0.0" />
 	</module>
@@ -799,7 +816,7 @@
 	</module>
 	<module name="travelTimeCalculator">
 		<!-- (only for backwards compatibility; only used if separateModes==false && + filterModes==true)  Transport modes that will be respected by the travel time collector. 'car' is default which includes also buses from the pt simulation module. -->
-		<param name="analyzedModes" value="car, car_passenger" />
+		<param name="analyzedModes" value="car, car_passenger, taxi" />
 		<param name="calculateLinkToLinkTravelTimes" value="false" />
 		<param name="calculateLinkTravelTimes" value="true" />
 		<!-- (only for backwards compatiblity; only used if separateModes==false)  Only modes included in analyzedModes are included. -->
