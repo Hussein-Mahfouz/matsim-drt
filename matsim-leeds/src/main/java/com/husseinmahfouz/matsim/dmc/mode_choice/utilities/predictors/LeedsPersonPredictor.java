@@ -13,6 +13,18 @@ public class LeedsPersonPredictor extends CachedVariablePredictor<LeedsPersonVar
 	protected LeedsPersonVariables predict(Person person, DiscreteModeChoiceTrip trip,
 			List<? extends PlanElement> elements) {
 		boolean hasSubscription = LeedsPredictorUtils.hasSubscription(person);
-		return new LeedsPersonVariables(hasSubscription);
+		double hhlIncomeSPC = (double) person.getAttributes().getAttribute("hhlIncomeSPC");
+		double indIncomeSPC = (double) person.getAttributes().getAttribute("indIncomeSPC");
+		int age = (int) person.getAttributes().getAttribute("age");
+		boolean isStudent = (boolean) person.getAttributes().getAttribute("isStudent");
+		boolean isMale = "male".equals(person.getAttributes().getAttribute("gender"));
+		boolean isPassenger = (boolean) person.getAttributes().getAttribute("isPassenger");
+		boolean hasLicence = (boolean) person.getAttributes().getAttribute("hasLicence");
+		String carAvailability = (String) person.getAttributes().getAttribute("CarAvailability");
+		String bikeAvailability = (String) person.getAttributes().getAttribute("BikeAvailability");
+		int householdID = (int) person.getAttributes().getAttribute("hid");
+
+		return new LeedsPersonVariables(hasSubscription, hhlIncomeSPC, indIncomeSPC, age, isStudent, isMale,
+				isPassenger, hasLicence, carAvailability, bikeAvailability, householdID);
 	}
 }

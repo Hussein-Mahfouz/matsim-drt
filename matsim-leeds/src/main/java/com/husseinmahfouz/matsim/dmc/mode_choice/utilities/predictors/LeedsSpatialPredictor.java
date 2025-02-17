@@ -15,10 +15,20 @@ public class LeedsSpatialPredictor extends CachedVariablePredictor<LeedsSpatialV
 	@Override
 	protected LeedsSpatialVariables predict(Person person, DiscreteModeChoiceTrip trip,
 			List<? extends PlanElement> elements) {
-		boolean hasUrbanOrigin = LeedsPredictorUtils.isUrbanArea(trip.getOriginActivity());
-		boolean hasUrbanDestination =
-				LeedsPredictorUtils.isUrbanArea(trip.getDestinationActivity());
+		// boolean hasUrbanOrigin = LeedsPredictorUtils.isUrbanArea(trip.getOriginActivity());
+		// boolean hasUrbanDestination =
+		// LeedsPredictorUtils.isUrbanArea(trip.getDestinationActivity());
+		// is this a commuting trip?
+		boolean isCommuting = LeedsPredictorUtils.isCommutingTrip(trip.getOriginActivity(),
+				trip.getDestinationActivity());
 
-		return new LeedsSpatialVariables(hasUrbanOrigin, hasUrbanDestination);
+		// is it an AM peak hour trip?
+		boolean isAMPeak = LeedsPredictorUtils.isAmPeakTrip(trip);
+		// is it a PM peak hour trip?
+		boolean isPMPeak = LeedsPredictorUtils.isPmPeakTrip(trip);
+
+		return new LeedsSpatialVariables(
+				// hasUrbanOrigin, hasUrbanDestination,
+				isCommuting, isAMPeak, isPMPeak);
 	}
 }
