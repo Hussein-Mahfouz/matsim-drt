@@ -23,7 +23,7 @@
 		<!-- CSV file containing the full geometry (including start end end node) for each link.
 		This file can be used for visualization purposes in Simunto Via or GIS software. -->
 		<param name="outputDetailedLinkGeometryFile" value="null" />
-		<param name="outputNetworkFile" value="data/supply/network.xml" />
+		<param name="outputNetworkFile" value="src/main/resources/data/supply/network.xml" />
 		<!-- If true: OSM turn restrictions are parsed and written as disallowedNextLinks attribute to the first link. -->
 		<param name="parseTurnRestrictions" value="false" />
 		<!-- In case the speed limit allowed does not represent the speed a vehicle can actually realize, 
@@ -234,12 +234,12 @@
 		<!-- Defines the number of numOfThreads that should be used for pseudoRouting. Default: 2. -->
 		<param name="numOfThreads" value="2" />
 		<!-- Path to the output network file. Not needed if PTMapper is used within another class. -->
-		<param name="outputNetworkFile" value="data/supply/network_mapped.xml.gz" />
+		<param name="outputNetworkFile" value="src/main/resources/data/supply/network_mapped.xml.gz" />
 		<!-- Path to the output schedule file. Not needed if PTMapper is used within another class. -->
-		<param name="outputScheduleFile" value="data/supply/schedule_mapped.xml.gz" />
+		<param name="outputScheduleFile" value="src/main/resources/data/supply/schedule_mapped.xml.gz" />
 		<!-- Path to the output car only network file. The input multimodal map is filtered. 
 		Not needed if PTMapper is used within another class. -->
-		<param name="outputStreetNetworkFile" value="data/supply/network_mapped_car.xml.gz" />
+		<param name="outputStreetNetworkFile" value="src/main/resources/data/supply/network_mapped_car.xml.gz" />
 		<!-- If true, stop facilities that are not used by any transit route are removed from the schedule. Default: true -->
 		<param name="removeNotUsedStopFacilities" value="true" />
 		<!-- The travel cost of a link candidate can be increased according to its distance to the

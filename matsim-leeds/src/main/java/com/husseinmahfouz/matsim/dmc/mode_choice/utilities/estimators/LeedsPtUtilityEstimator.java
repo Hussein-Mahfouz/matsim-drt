@@ -4,7 +4,6 @@ import java.util.List;
 
 import org.eqasim.core.simulation.mode_choice.utilities.estimators.EstimatorUtils;
 import org.eqasim.core.simulation.mode_choice.utilities.estimators.PtUtilityEstimator;
-import org.eqasim.core.simulation.mode_choice.utilities.variables.CarVariables;
 import org.eqasim.core.simulation.mode_choice.utilities.variables.PtVariables;
 import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsModeParameters;
 
