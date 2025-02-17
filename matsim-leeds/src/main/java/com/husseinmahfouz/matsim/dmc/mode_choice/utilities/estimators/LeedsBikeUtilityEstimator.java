@@ -74,6 +74,18 @@ public class LeedsBikeUtilityEstimator extends BikeUtilityEstimator {
 		return utility;
 	}
 
+	protected double estimateIncomeUtility(LeedsPersonVariables variables) {
+		double utility = 0.0;
+
+		if (variables.indIncomeSPC >= 10000.0 && variables.indIncomeSPC <= 20000.0) {
+			utility += parameters.leedsBike.betaIncome10kto20k;
+		} else if (variables.indIncomeSPC >= 75000.0 && variables.indIncomeSPC <= 100000.0) {
+			utility += parameters.leedsBike.betaIncome75kto100k;
+		}
+
+		return utility;
+	}
+
 	@Override
 	public double estimateUtility(Person person, DiscreteModeChoiceTrip trip,
 			List<? extends PlanElement> elements) {
@@ -88,6 +100,7 @@ public class LeedsBikeUtilityEstimator extends BikeUtilityEstimator {
 		utility += estimateTravelTimeUtility(bikeVariables);
 		utility += estimateGenderUtility(variables_person);
 		utility += estimateStudentUtility(variables_person);
+		utility += estimateIncomeUtility(variables_person);
 
 		// utility += estimateUrbanUtility(variables);
 

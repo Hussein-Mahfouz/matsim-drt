@@ -21,6 +21,7 @@ public class LeedsModeAvailability implements ModeAvailability {
 		modes.add(TransportMode.pt);
 		// modes.add(TransportMode.taxi);
 		// modes.add(TransportMode.drt);
+		modes.add(TransportMode.taxi);
 
 		// Check car availability
 		boolean carAvailability = true;
