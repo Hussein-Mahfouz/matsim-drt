@@ -67,6 +67,8 @@ print(names(drt_zones_data))
 # drt_zones_data[["pt_wkday_06_30_scenario_3_cluster_drt_zones"]]
 
 
+
+
 # --------------- Extract Clusters
 
 # Cluster numbers are not consistent across time, as there is no way to trace a cluster
@@ -204,6 +206,14 @@ map_clusters = function(cluster_sf,
     tm_facets(by = "time",
               free.coords = FALSE) +
 
+    # --- Manually Add Legend for All Bus Routes
+    tm_add_legend(type = "line",
+                  title = "All Bus Routes",
+                  is.portrait = FALSE,
+                  col = "grey55",
+                  lwd = 2,
+                  alpha = 0.5) +
+
     # --- Layout & Title
     tm_layout(fontfamily = 'Georgia',
               main.title = geographic_area,
@@ -279,4 +289,374 @@ clusters_ne_drt_map
 
 
 
+save_clusters_as_shapefiles <- function(cluster_sf, output_dir, crs = NULL) {
+  #' Save each row of an sf object as a separate Shapefile with optional reprojection
+  #'
+  #' @param cluster_sf An sf object with a "time" column
+  #' @param output_dir Directory where Shapefiles will be saved
+  #' @param crs Optional EPSG code or CRS string to reproject the geometries
+  #'
+  #' @return Saves separate Shapefiles, overwriting old ones if they exist
+
+  # Create the directory if it does not exist
+  if (!dir.exists(output_dir)) {
+    dir.create(output_dir, recursive = TRUE)
+  }
+
+  # Reproject if CRS is provided
+  if (!is.null(crs)) {
+    cluster_sf <- st_transform(cluster_sf, crs)
+  }
+
+  # Loop over each row in the sf object and save it as a Shapefile
+  for (i in 1:nrow(cluster_sf)) {
+    time_label <- gsub("[: -]", "_", cluster_sf$time[i])  # Replace unsafe filename characters
+    filename <- file.path(output_dir, paste0("cluster_", time_label, ".shp"))
+
+    st_write(cluster_sf[i, ], filename, driver = "ESRI Shapefile", delete_layer = TRUE)
+  }
+}
+
+
+save_clusters_as_shapefiles(clusters_ne_drt, "shapefiles/north_east/", crs = 3857)
+save_clusters_as_shapefiles(clusters_nw_drt, "shapefiles/north_west/", crs = 3857)
+
+
+
+
+
+
+
+# ----------------------------------- Focus on intermodality
+
+# ---------------- Read in raw gtfs feeds in order to get bus frequency per stop
+gtfs_bus_stops = tidytransit::read_gtfs("../../../drt-potential/data/interim/gtfs_freq/study_area_gtfs_bus_f.zip")
+
+gtfs_bus_stops = tidytransit::read_gtfs("../../../drt-potential/data/interim/study_area_gtfs_bus.zip")
+
+
+# Ensure direction_id exists (tidytransit::get_Stop_frequency) does not work without it
+if (!"direction_id" %in% names(gtfs_bus_stops$trips)) {
+  gtfs_bus_stops$trips$direction_id <- 1  # Create column with default value 1
+}
+
+times = c("05:00:00", "08:00:00", "11:00:00", "14:00:00", "17:00:00", "20:00:00")
+
+
+# ----------------------- Compute stop frequencies
+#' Compute Stop Frequencies for Multiple Time Ranges
+#'
+#' This function calculates stop-level frequency statistics for a GTFS dataset over multiple time periods.
+#' The results are returned as a list of `sf` objects with spatial information. One sf for each time period
+#' The function is a wrapper around tidytransit::get_stop_frequency
+#'
+#' @param gtfs_obj A GTFS object containing stop and trip information.
+#' @param times A vector of time strings (e.g., `"05:00:00"`, `"08:00:00"`, etc.). The function loops over consecutive pairs to define time intervals.
+#' @param stops_crs The coordinate reference system (CRS) for the stop locations (e.g., `4326` for WGS 84).
+#'
+#' @return A list of `sf` objects, each representing stop frequencies for a specific time range.
+#'
+#' @export
+get_stop_frequency_by_time <- function(gtfs_obj, times, stops_crs) {
+  if (length(times) < 2) stop("times must have at least two values")
+
+  # Convert stops to sf object with specified CRS
+  stops_sf <- tidytransit::stops_as_sf(gtfs_obj$stops, crs = stops_crs) %>%
+    dplyr::select(stop_id)
+
+  results <- vector("list", length(times) - 1)
+
+  for (i in seq_len(length(times) - 1)) {
+    start_time <- times[i]
+    end_time <- times[i + 1]
+
+    # just for row labeling (to be consistent with polygon layers above)
+    start_time_hh_mm <- str_sub(start_time, 1, 5)
+    end_time_hh_mm <- str_sub(end_time, 1, 5)
+
+
+    message(paste("Processing time range:", start_time, "-", end_time))
+
+    result <- tidytransit::get_stop_frequency(
+      gtfs_obj,
+      start_time = start_time,
+      end_time = end_time,
+      service_ids = NULL,
+      by_route = FALSE
+    )
+
+    # Add time range column
+    result$time_range <- paste(start_time_hh_mm, "-", end_time_hh_mm)
+
+    # Merge with stop spatial data
+    result <- dplyr::left_join(result, stops_sf, by = "stop_id")
+    result <- sf::st_as_sf(result)
+
+    results[[i]] <- result
+  }
+
+  names(results) <- paste0("Range_", seq_along(results))  # Name list items
+
+  return(results)
+}
+
+
+# ------------ Apply the function
+times <- c("05:00:00", "08:00:00", "11:00:00", "14:00:00", "17:00:00", "20:00:00")
+
+stop_frequency_results <- get_stop_frequency_by_time(
+  gtfs_bus_stops,
+  times = times,
+  stops_crs = 3857
+)
+
+# ----- Convert result list to one sf
+stop_frequency_results_sf = bind_rows(stop_frequency_results)
+
+
+
+# ----------------------- Identify which stops are inside each polygon (considering temporal aspect also)
+
+
+# This function compares the polygon at each time step to its corresponding stop layer.
+
+get_stops_in_polygons <- function(stops_sf, polygons_sf) {
+  # Ensure CRS matches
+  stops_sf <- st_transform(stops_sf, st_crs(polygons_sf))
+
+
+  # Create an empty list to store results
+  results_list <- list()
+
+  # Loop through each polygon
+  for (i in seq_len(nrow(polygons_sf))) {
+    polygon <- polygons_sf[i, ]  # Extract polygon
+    polygon_time <- polygon$time  # Time range for this polygon
+
+    # Filter stops that match the time range and fall within the polygon
+    stops_in_polygon <- stops_sf %>%
+      filter(time_range == polygon_time) %>%
+      st_filter(polygon, .predicate = st_within)
+
+    # If there are matching stops, store them
+    if (nrow(stops_in_polygon) > 0) {
+      stops_in_polygon$polygon_id <- i  # Label stops with polygon index
+      results_list[[i]] <- stops_in_polygon
+    }
+  }
+
+  # Combine results into a single sf object
+  intersected_stops_sf <- do.call(rbind, results_list)
+
+  return(intersected_stops_sf)
+}
+
+# --- Apply the function
+
+# Entire polygons
+clusters_nw_poly_stops <- get_stops_in_polygons(stop_frequency_results_sf, clusters_nw_poly)
+clusters_ne_poly_stops <- get_stops_in_polygons(stop_frequency_results_sf, clusters_ne_poly)
+
+
+# DRT Zones
+clusters_nw_drt_stops <- get_stops_in_polygons(stop_frequency_results_sf, clusters_nw_drt)
+clusters_ne_drt_stops <- get_stops_in_polygons(stop_frequency_results_sf, clusters_ne_drt)
+
+
+
+
+# ---------- Save output as list (for use in matsim drt extension)
+
+#' Save Filtered Stop IDs as Text Files
+#'
+#' This function filters a stops dataset based on a minimum departure frequency and saves the stop IDs as text files.
+#' It can either create separate files for each `time_range` or a single file for the entire dataset.
+#'
+#' @param stops_layer A spatial dataframe (sf object) containing stop locations with columns `stop_id`, `n_departures`, and `time_range`.
+#' @param min_frequency An integer specifying the minimum number of departures required to include a stop in the output.
+#' @param output_name A string used as the base name for output files.
+#' @param per_time_range A logical (`TRUE` or `FALSE`). If `TRUE` (default), creates separate files for each `time_range`.
+#' If `FALSE`, applies the filter to the whole dataset and saves a single file.
+#'
+#' @return No return value, but writes one or more text files to the `stops/` directory.
+#'
+#' @examples
+#' # Save separate files for each time range
+#' save_high_freq_stops_as_list(clusters_nw_drt_stops, min_frequency = 3, output_name = "clusters_nw_drt_stops", per_time_range = TRUE)
+#'
+#' # Save a single file for all stops
+#' save_high_freq_stops_as_list(clusters_nw_drt_stops, min_frequency = 3, output_name = "clusters_nw_drt_stops", per_time_range = FALSE)
+#'
+save_high_freq_stops_as_list = function(stops_layer, min_frequency, output_name, per_time_range = TRUE) {
+
+  # Ensure output directory exists
+  dir.create("stops", showWarnings = FALSE)
+
+  if (per_time_range) {
+    # Get unique time ranges
+    time_ranges = unique(stops_layer$time_range)
+
+    # Iterate over time ranges
+    for (time in time_ranges) {
+      stops_layer_filtered = stops_layer %>%
+        filter(time_range == time, n_departures >= min_frequency)
+
+      if (nrow(stops_layer_filtered) > 0) {
+        stop_ids = unique(stops_layer_filtered$stop_id)
+
+        # Clean time range for filename (replace spaces and colons)
+        safe_time = gsub("[: ]", "_", time)
+        output_file = paste0("stops/", output_name, "_", safe_time, "_min_", min_frequency, "_departures.txt")
+
+        writeLines(stop_ids, con = output_file)
+      }
+    }
+  } else {
+    # Apply filter to the whole dataset
+    stops_layer_filtered = stops_layer %>%
+      filter(n_departures >= min_frequency)
+
+    if (nrow(stops_layer_filtered) > 0) {
+      stop_ids = unique(stops_layer_filtered$stop_id)
+      output_file = paste0("stops/", output_name, "_min_", min_frequency, "_departures.txt")
+
+      writeLines(stop_ids, con = output_file)
+    }
+  }
+}
+
+
+# --- North West
+
+# drt zone
+save_high_freq_stops_as_list(clusters_nw_drt_stops, min_frequency = 3, output_name = "clusters_nw_drt_stops", per_time_range = TRUE)
+save_high_freq_stops_as_list(clusters_nw_drt_stops, min_frequency = 3, output_name = "clusters_nw_drt_stops", per_time_range = FALSE)
+
+# entire polygon
+save_high_freq_stops_as_list(clusters_nw_poly_stops, min_frequency = 3, output_name = "clusters_nw_poly_stops", per_time_range = TRUE)
+save_high_freq_stops_as_list(clusters_nw_poly_stops, min_frequency = 3, output_name = "clusters_nw_poly_stops", per_time_range = FALSE)
+
+# --- North East
+
+# drt zone
+save_high_freq_stops_as_list(clusters_ne_drt_stops, min_frequency = 3, output_name = "clusters_ne_drt_stops", per_time_range = TRUE)
+save_high_freq_stops_as_list(clusters_ne_drt_stops, min_frequency = 3, output_name = "clusters_ne_drt_stops", per_time_range = FALSE)
+# entire polygon
+save_high_freq_stops_as_list(clusters_ne_poly_stops, min_frequency = 3, output_name = "clusters_ne_poly_stops", per_time_range = TRUE)
+save_high_freq_stops_as_list(clusters_ne_poly_stops, min_frequency = 3, output_name = "clusters_ne_poly_stops", per_time_range = FALSE)
+
+
+
+# ----------------- Plot the clusters with stops overlayed
+
+
+map_clusters_with_stops = function(
+    cluster_sf,
+    stops_sf,
+    headway_threshold_bus = 1800,
+    departures_threshold_stop = 3,
+    geographic_area) {
+
+
+  tm_shape(study_area) +
+    tm_borders() +
+    tm_shape(study_area) +
+    tm_fill(col = "grey75",
+            alpha = 0.5) +
+    # --- Public Transport (All bus lines)
+  tm_shape(gtfs_bus) +
+    tm_lines(col = "grey55",
+             alpha = 0.5) +
+    tm_facets(by = "time",
+              free.coords = FALSE,
+              nrow = 2) +
+
+    # --- High-Frequency Bus Lines
+  tm_shape(gtfs_bus %>%
+               filter(headway_secs <= headway_threshold_bus)) +
+    tm_lines(col = "red",
+             lwd = "veh / hour",
+             scale = 2,
+             title.lwd = paste0("Buses / Hour \n(All routes with >= ", round(3600/headway_threshold_bus) ," buses / hr)")) +
+    tm_facets(by = "time",
+              free.coords = FALSE) +
+  tm_shape(cluster_sf) +
+    tm_borders(col = "darkgreen",
+               lwd = 3) +
+    tm_facets(by = "time",
+              free.coords = FALSE) +
+    tm_shape(cluster_sf) +
+    tm_fill(col = "darkgreen",
+            alpha = 0.2) +
+    tm_facets(by = "time",
+              free.coords = FALSE) +
+   tm_shape(stops_sf %>%
+               filter(n_departures >= departures_threshold_stop)) +
+    tm_dots(col = "n_departures",
+            size = "n_departures",
+            legend.size.show = FALSE,
+            title = "Number of bus departures in time window",
+            palette = "Purples",
+            legend.is.portrait = FALSE) +
+    tm_facets(by = "time_range",
+              free.coords = FALSE) +
+    tm_layout(fontfamily = 'Georgia',
+              main.title = geographic_area,
+              main.title.size = 1.1,
+              main.title.color = "azure4",
+              main.title.position = "left",
+              legend.outside = TRUE,
+              legend.outside.position = "bottom",
+              legend.stack = "horizontal",
+              bg.color = "#faf9f6",
+              frame = FALSE) -> plot
+
+  return(plot)
+
+}
+
+
+# --- Plot
+
+# ----- North West
+clusters_nw_drt_stops_map = map_clusters_with_stops(
+  cluster_sf = clusters_nw_drt,
+  stops_sf = clusters_nw_drt_stops,
+  headway_threshold_bus = 1800,
+  departures_threshold_stop = 6,
+  geographic_area = "North West (DRT Zones)")
+
+clusters_nw_drt_stops_map
+
+
+clusters_nw_poly_stops_map = map_clusters_with_stops(
+  cluster_sf = clusters_nw_poly,
+  stops_sf = clusters_nw_poly_stops,
+  headway_threshold_bus = 1800,
+  departures_threshold_stop = 6,
+  geographic_area = "North West (Entire Cluster)")
+
+clusters_nw_poly_stops_map
+
+
+
+# ----- North East
+clusters_ne_drt_stops_map = map_clusters_with_stops(
+  cluster_sf = clusters_ne_drt,
+  stops_sf = clusters_ne_drt_stops,
+  headway_threshold_bus = 1800,
+  departures_threshold_stop = 6,
+  geographic_area = "North East (DRT Zones)")
+
+clusters_ne_drt_stops_map
+
+
+clusters_ne_poly_stops_map = map_clusters_with_stops(
+  cluster_sf = clusters_ne_poly,
+  stops_sf = clusters_ne_poly_stops,
+  headway_threshold_bus = 1800,
+  departures_threshold_stop = 6,
+  geographic_area = "North East (Entire Cluster)")
+
+clusters_ne_poly_stops_map
 
