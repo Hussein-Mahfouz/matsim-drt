@@ -4,15 +4,21 @@ library(fs) # reading in data
 library(tmap)
 
 
+crs_to_use = 3857
+plots_path = "plots/"
+
 # ---------------- Read in study area
 study_area = st_read("../../../drt-potential/data/interim/study_area_boundary.geojson") %>%
-  st_union()
+  st_union() %>%
+  st_transform(crs_to_use)
 
 # ---------------- Read in gtfs feeds
-gtfs_bus = st_read("../../../drt-potential/data/interim/gtfs_freq/gtfs_bus_sf_temporal.geojson")
+gtfs_bus = st_read("../../../drt-potential/data/interim/gtfs_freq/gtfs_bus_sf_temporal.geojson") %>%
+  st_transform(crs_to_use)
+
 
 gtfs_bus = gtfs_bus %>%
-  mutate(`veh / hour` = 3600 / headway_secs)
+  mutate(`veh / hour` = round(3600 / headway_secs))
 
 gtfs_bus = gtfs_bus %>%
   filter(startsWith(scenario, "pt_wkday")) %>%
@@ -27,13 +33,15 @@ gtfs_bus = gtfs_bus %>%
     )
   )
 
-gtfs_rail = st_read("../../../drt-potential/data/interim/gtfs_freq/gtfs_rail_sf_temporal.geojson")
+gtfs_rail = st_read("../../../drt-potential/data/interim/gtfs_freq/gtfs_rail_sf_temporal.geojson") %>%
+  st_transform(crs_to_use)
+
 
 gtfs_rail = gtfs_rail %>%
   st_filter(study_area, .predicate = st_intersects)
 
 gtfs_rail = gtfs_rail %>%
-  mutate(`veh / hour` = 3600 / headway_secs)
+  mutate(`veh / hour` = round(3600 / headway_secs))
 
 gtfs_rail = gtfs_rail %>%
   filter(startsWith(scenario, "pt_wkday")) %>%
@@ -181,7 +189,9 @@ map_clusters = function(cluster_sf,
     tm_lines(col = "red",
              lwd = "veh / hour",
              scale = 2,
-             title.lwd = "Buses / Hour \n(All routes with >= 3 buses / hour)") +
+             legend.lwd.show = FALSE,
+             # title.lwd = paste0("Buses / Hour \n(All routes with >= ", round(3600/headway_threshold_bus), " buses / hour)")
+             n = 3) +
     tm_facets(by = "time",
               free.coords = FALSE) +
 
@@ -206,13 +216,26 @@ map_clusters = function(cluster_sf,
     tm_facets(by = "time",
               free.coords = FALSE) +
 
-    # --- Manually Add Legend for All Bus Routes
+    # --- Manually Add Legends
     tm_add_legend(type = "line",
                   title = "All Bus Routes",
-                  is.portrait = FALSE,
+                  # is.portrait = FALSE,
                   col = "grey55",
                   lwd = 2,
                   alpha = 0.5) +
+    tm_add_legend(type = "line",
+                  title = paste0("Routes with >= ", round(3600/headway_threshold_bus), "\nbuses / hour)"),
+                  # is.portrait = FALSE,
+                  col = "red",
+                  lwd = 2,
+                  alpha = 0.5) +
+    tm_add_legend(type = "fill",
+                  title = paste0("Cluster"),
+                  # is.portrait = FALSE,
+                  col = "darkgreen",
+                  border.col = "darkgreen",
+                  border.lwd = 3,
+                  alpha = 0.2) +
 
     # --- Layout & Title
     tm_layout(fontfamily = 'Georgia',
@@ -222,7 +245,7 @@ map_clusters = function(cluster_sf,
               main.title.position = "left",
               legend.outside = TRUE,
               legend.outside.position = "bottom",
-              legend.stack = "horizontal",
+              # legend.stack = "horizontal",
               frame = FALSE) -> cluster_map
 
   return(cluster_map)
@@ -241,9 +264,12 @@ clusters_nw_poly <- extract_clusters(
 )
 
 clusters_nw_poly_map = map_clusters(clusters_nw_poly,
-                                    headway_threshold_bus = 1800,
+                                    headway_threshold_bus = 1200,
                                     geographic_area = "North West (Entire Cluster)")
 clusters_nw_poly_map
+
+tmap_save(tm = clusters_nw_poly_map, filename = paste0(plots_path, "clusters_nw_poly.png"), width = 12, dpi = 1080, asp = 0)
+
 
 # b) DRT zones
 clusters_nw_drt <- extract_clusters(
@@ -252,10 +278,12 @@ clusters_nw_drt <- extract_clusters(
   union_or_largest = list("06_30" = "union", "09_30" = "union", "12_30" = "union", "15_30" = "union", "18_30" = "union")
 )
 
-clusters_nw_poly_map = map_clusters(clusters_nw_drt,
-                                    headway_threshold_bus = 1800,
+clusters_nw_drt_map = map_clusters(clusters_nw_drt,
+                                    headway_threshold_bus = 1200,
                                     geographic_area = "North West (DRT Zone)")
-clusters_nw_poly_map
+clusters_nw_drt_map
+
+tmap_save(tm = clusters_nw_drt_map, filename = paste0(plots_path, "clusters_nw_drt_zone.png"), width = 12, dpi = 1080, asp = 0)
 
 
 
@@ -269,10 +297,13 @@ clusters_ne_poly <- extract_clusters(
 )
 
 clusters_ne_poly_map = map_clusters(clusters_ne_poly,
-                                    headway_threshold_bus = 1800,
+                                    headway_threshold_bus = 1200,
                                     geographic_area = "North East (Entire Cluster)")
 
 clusters_ne_poly_map
+
+tmap_save(tm = clusters_ne_poly_map, filename = paste0(plots_path, "clusters_ne_poly.png"), width = 12, dpi = 1080, asp = 0)
+
 
 # b) DRT zones
 clusters_ne_drt <- extract_clusters(
@@ -283,11 +314,129 @@ clusters_ne_drt <- extract_clusters(
 )
 
 clusters_ne_drt_map = map_clusters(clusters_ne_drt,
-                                   headway_threshold_bus = 1800,
+                                   headway_threshold_bus = 1200,
                                    geographic_area = "North East (DRT Zone)")
 clusters_ne_drt_map
 
+tmap_save(tm = clusters_ne_drt_map, filename = paste0(plots_path, "clusters_ne_drt_zone.png"), width = 12, dpi = 1080, asp = 0)
 
+
+
+# ----- same map but both cluster + drt zones together
+
+map_clusters_with_drt_zones = function(
+    cluster_sf,
+    drt_zone_sf,
+    headway_threshold_bus = 1800,
+    headway_threshold_rail,
+    geographic_area){
+
+  tm_shape(study_area) +
+    tm_borders(col = "black") +
+
+    # --- Public Transport (All bus lines)
+    tm_shape(gtfs_bus) +
+    tm_lines(col = "grey55",
+             alpha = 0.5) +
+    tm_facets(by = "time",
+              free.coords = FALSE,
+              nrow = 2) +
+
+    # --- High-Frequency Bus Lines
+    tm_shape(gtfs_bus %>%
+               filter(headway_secs <= headway_threshold_bus)) +
+    tm_lines(col = "red",
+             lwd = "veh / hour",
+             scale = 2,
+             legend.lwd.show = FALSE,
+             # title.lwd = paste0("Buses / Hour \n(All routes with >= ", round(3600/headway_threshold_bus), " buses / hour)")
+             n = 3) +
+    tm_facets(by = "time",
+              free.coords = FALSE) +
+
+    # --- Rail
+    # tm_shape(gtfs_rail %>%
+    #            filter(headway_secs <= headway_threshold_rail))  +
+    #   tm_lines(col = "darkblue",
+    #            lwd = "veh / hour",
+    #            legend.lwd.show = FALSE) +
+    #   tm_facets(by = "time",
+    #             free.coords = FALSE) +
+
+    # --- Clusters
+    tm_shape(cluster_sf) +
+    tm_borders(col = "darkgreen",
+               lwd = 3) +
+    tm_facets(by = "time",
+              free.coords = FALSE) +
+    tm_shape(drt_zone_sf) +
+    tm_fill(col = "darkgreen",
+            alpha = 0.2) +
+    tm_facets(by = "time",
+              free.coords = FALSE) +
+
+    # --- Manually Add Legends
+    tm_add_legend(type = "line",
+                  title = "All Bus Routes",
+                  # is.portrait = FALSE,
+                  col = "grey55",
+                  lwd = 2,
+                  alpha = 0.5) +
+    tm_add_legend(type = "line",
+                  title = paste0("Routes with >= ", round(3600/headway_threshold_bus), "\nbuses / hour)"),
+                  # is.portrait = FALSE,
+                  col = "red",
+                  lwd = 2,
+                  alpha = 0.5) +
+    tm_add_legend(type = "line",
+                  title = paste0("Entire Cluster"),
+                  # is.portrait = FALSE,
+                  col = "darkgreen",
+                  lwd = 3) +
+    tm_add_legend(type = "fill",
+                  title = paste0("DRT Zone"),
+                  # is.portrait = FALSE,
+                  col = "darkgreen",
+                  alpha = 0.2) +
+
+    # --- Layout & Title
+    tm_layout(fontfamily = 'Georgia',
+              main.title = geographic_area,
+              main.title.size = 1.1,
+              main.title.color = "azure4",
+              main.title.position = "left",
+              legend.outside = TRUE,
+              legend.outside.position = "bottom",
+              # legend.stack = "horizontal",
+              frame = FALSE) -> cluster_map
+
+  return(cluster_map)
+}
+
+clusters_nw_map = map_clusters_with_drt_zones(
+  clusters_nw_poly,
+  clusters_nw_drt,
+  headway_threshold_bus = 1200,
+  geographic_area = "North West (Entire Cluster + DRT Zone)")
+
+clusters_nw_map
+tmap_save(tm = clusters_nw_map, filename = paste0(plots_path, "clusters_nw_poly_and_drt_zone.png"), width = 12, dpi = 1080, asp = 0)
+
+
+
+clusters_ne_map = map_clusters_with_drt_zones(
+  clusters_ne_poly,
+  clusters_ne_drt,
+  headway_threshold_bus = 1200,
+  geographic_area = "North East (Entire Cluster + DRT Zone)")
+
+clusters_ne_map
+tmap_save(tm = clusters_ne_map, filename = paste0(plots_path, "clusters_ne_poly_and_drt_zone.png"), width = 12, dpi = 1080, asp = 0)
+
+
+
+
+# ------------------ Saving the shapefiles
 
 save_clusters_as_shapefiles <- function(cluster_sf, output_dir, crs = NULL) {
   #' Save each row of an sf object as a separate Shapefile with optional reprojection
@@ -557,7 +706,6 @@ map_clusters_with_stops = function(
     departures_threshold_stop = 3,
     geographic_area) {
 
-
   tm_shape(study_area) +
     tm_borders() +
     tm_shape(study_area) +
@@ -576,8 +724,9 @@ map_clusters_with_stops = function(
                filter(headway_secs <= headway_threshold_bus)) +
     tm_lines(col = "red",
              lwd = "veh / hour",
+             legend.lwd.show = FALSE,
              scale = 2,
-             title.lwd = paste0("Buses / Hour \n(All routes with >= ", round(3600/headway_threshold_bus) ," buses / hr)")) +
+             title.lwd = paste0("Buses / Hour \n(All routes with \n>= ", round(3600/headway_threshold_bus) ,"buses / hr)")) +
     tm_facets(by = "time",
               free.coords = FALSE) +
   tm_shape(cluster_sf) +
@@ -595,9 +744,16 @@ map_clusters_with_stops = function(
     tm_dots(col = "n_departures",
             size = "n_departures",
             legend.size.show = FALSE,
-            title = "Number of bus departures in time window",
-            palette = "Purples",
-            legend.is.portrait = FALSE) +
+            # title = "Number of bus \ndepartures in \ntime window",
+            # title = "Number of bus departures in time window",
+            title = "Number of bus departures \nin time window",
+            palette = "Blues",
+            legend.is.portrait = TRUE) +
+    # tm_dots(col = "darkblue",
+    #         size = "n_departures",
+    #         legend.size.show = TRUE,
+    #         title = "Number of bus departures in time window",
+    #         legend.is.portrait = FALSE) +
     tm_facets(by = "time_range",
               free.coords = FALSE) +
     tm_layout(fontfamily = 'Georgia',
@@ -607,6 +763,7 @@ map_clusters_with_stops = function(
               main.title.position = "left",
               legend.outside = TRUE,
               legend.outside.position = "bottom",
+              legend.title.size = 0.85,
               legend.stack = "horizontal",
               bg.color = "#faf9f6",
               frame = FALSE) -> plot
@@ -623,20 +780,22 @@ clusters_nw_drt_stops_map = map_clusters_with_stops(
   cluster_sf = clusters_nw_drt,
   stops_sf = clusters_nw_drt_stops,
   headway_threshold_bus = 1800,
-  departures_threshold_stop = 6,
+  departures_threshold_stop = 9,
   geographic_area = "North West (DRT Zones)")
 
 clusters_nw_drt_stops_map
+tmap_save(tm = clusters_nw_drt_stops_map, filename = paste0(plots_path, "clusters_nw_drt_high_freq_stops.png"), width = 12, dpi = 1080, asp = 0)
 
 
 clusters_nw_poly_stops_map = map_clusters_with_stops(
   cluster_sf = clusters_nw_poly,
   stops_sf = clusters_nw_poly_stops,
   headway_threshold_bus = 1800,
-  departures_threshold_stop = 6,
+  departures_threshold_stop = 15,
   geographic_area = "North West (Entire Cluster)")
 
 clusters_nw_poly_stops_map
+tmap_save(tm = clusters_nw_poly_stops_map, filename = paste0(plots_path, "clusters_nw_poly_high_freq_stops.png"), width = 12, dpi = 1080, asp = 0)
 
 
 
@@ -649,6 +808,7 @@ clusters_ne_drt_stops_map = map_clusters_with_stops(
   geographic_area = "North East (DRT Zones)")
 
 clusters_ne_drt_stops_map
+tmap_save(tm = clusters_ne_drt_stops_map, filename = paste0(plots_path, "clusters_ne_drt_high_freq_stops.png"), width = 12, dpi = 1080, asp = 0)
 
 
 clusters_ne_poly_stops_map = map_clusters_with_stops(
@@ -659,4 +819,173 @@ clusters_ne_poly_stops_map = map_clusters_with_stops(
   geographic_area = "North East (Entire Cluster)")
 
 clusters_ne_poly_stops_map
+tmap_save(tm = clusters_ne_poly_stops_map, filename = paste0(plots_path, "clusters_ne_poly_high_freq_stops.png"), width = 12, dpi = 1080, asp = 0)
 
+
+
+
+
+
+
+# ----------------------------------- Fleet size analysis
+
+# Fleet size is a function of demand. We use the critical demand density identified
+# in "Feeder transit services: Choosing between fixed and demand responsive policy"
+# (10 - 50) customers / square mile
+
+
+# Read in the demand data from AcBM
+acbm_demand = arrow::read_parquet("../data/demand/legs_with_locations.parquet")
+
+# clean it (remove NAs)
+acbm_demand <- acbm_demand %>%
+  filter(!is.na(start_location_geometry_wkt), grepl("^POINT|^LINESTRING|^POLYGON|^MULTI", start_location_geometry_wkt))
+
+# convert back to sf
+acbm_demand = acbm_demand %>%
+  # mutate(geometry = st_as_sfc(start_location_geometry_wkt, crs = 3857)) %>%  # Set appropriate CRS
+  #  select(-start_location_geometry_wkt) %>%  # Remove original WKT columns
+  st_as_sf(wkt = "start_location_geometry_wkt", crs = crs_to_use, remove = TRUE)
+
+# select useful columns only
+acbm_demand = acbm_demand %>%
+  select(pid, hid, tst, tet, tst_hour, tet_hour)
+
+
+
+#  ---------- Create int columns for trip start and end times
+
+# Get the hour values of the start and end times
+acbm_demand = acbm_demand %>%
+  mutate(
+    tst_hour =  lubridate::hour(lubridate::ymd_hms(tst)),
+    tet_hour =  lubridate::hour(lubridate::ymd_hms(tet))
+  )
+
+
+
+clusters_test = clusters_ne_drt %>%
+  mutate(hour_start = as.integer(str_extract(time, "^\\d+")),
+         hour_end = as.integer(str_extract(time, "(?<=- )\\d+")))
+
+
+
+
+# Spatial join: Find points inside polygons
+joined_data <- st_join(acbm_demand, clusters_test, join = st_within)
+
+joined_data2 <- st_join(acbm_demand, clusters_test, join = st_within) %>%
+  filter(tst_hour >= hour_start & tst_hour <= hour_end)  # Temporal filtering
+
+
+# Count the number of points per polygon
+polygon_counts <- joined_data2 %>%
+  st_drop_geometry() %>%
+  group_by(time) %>%
+  summarise(num_points = n())
+
+
+clusters_test2 = clusters_test %>%
+  left_join(polygon_counts, by = "time")
+
+
+
+
+clusters_test2 %>%
+  mutate(area = st_area(.) / 1000000,
+         area_km2 = units::drop_units(st_area(.) / 1000000),
+         area_mile2 = area_km2 * 0.382,
+         demand_density = (num_points / 3) / area_mile2, # divide by 3 as our time range is 3 hours
+         fleet_size = round(demand_density / 10),
+         fleet_size2 = round(demand_density / 50),
+  )
+
+
+
+
+
+
+library(sf)
+library(dplyr)
+library(stringr)
+library(lubridate)
+library(arrow)
+
+
+# Convert x_sf times to POSIXct (assuming all on the same reference day)
+x_sf <- x_sf %>%
+  mutate(
+    tst = ymd_hms(paste("1900-01-01", tst)),
+    tet = ymd_hms(paste("1900-01-01", tet))
+  )
+
+# Extract start and end times from 'time' column in clusters_nw_drt
+clusters_nw_drt <- clusters_nw_drt %>%
+  mutate(
+    time_start = ymd_hms(paste("1900-01-01", str_extract(time, "^[0-9]{2}:[0-9]{2}"))),
+    time_end   = ymd_hms(paste("1900-01-01", str_extract(time, "[0-9]{2}:[0-9]{2}$")))
+  )
+
+# Perform the spatio-temporal join
+spatio_temporal_join <- clusters_nw_drt %>%
+  rowwise() %>%
+  mutate(
+    matched_points = list(
+      x_sf %>%
+        filter(
+          tst >= time_start & tst < time_end,  # Temporal condition
+          st_within(start_location_geometry_wkt, geometry)  # Spatial condition
+        )
+    )
+  ) %>%
+  unnest(matched_points)  # Unnest to expand the results
+
+# View results
+print(spatio_temporal_join)
+
+
+
+
+
+
+
+
+
+
+library(arrow)
+x = arrow::read_parquet("../data/demand/legs_with_locations.parquet")
+
+x_clean <- x %>%
+  filter(!is.na(start_location_geometry_wkt), grepl("^POINT|^LINESTRING|^POLYGON|^MULTI", start_location_geometry_wkt))
+
+
+x_sf <- x_clean %>%
+ # mutate(geometry = st_as_sfc(start_location_geometry_wkt, crs = 3857)) %>%  # Set appropriate CRS
+#  select(-start_location_geometry_wkt) %>%  # Remove original WKT columns
+  st_as_sf(wkt = "start_location_geometry_wkt", crs = 3857, remove = TRUE)
+
+# Check result
+print(x_sf)
+
+
+x_sf_joined = x_sf %>%
+  st_join(clusters_nw_drt,
+          join = st_within)
+
+x_sf_joined_summary = x_sf_joined %>%
+  st_drop_geometry() %>%
+  group_by(time) %>%
+  summarise(n = n()) %>%
+  left_join(clusters_nw_drt, by = "time") %>%
+  st_as_sf(crs = 3857)
+
+
+
+
+
+x_sf_joined_summary %>%
+  mutate(area = st_area(.) / 1000000,
+         area_km2 = units::drop_units(st_area(.) / 1000000),
+         area_mile2 = area_km2 * 0.382,
+         # 10 customers / mile2 / hour)
+         fleet_size = n / area_mile2 / 3)
