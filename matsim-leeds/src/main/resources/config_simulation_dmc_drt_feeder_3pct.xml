@@ -4,7 +4,7 @@
 	<module name="DiscreteModeChoice">
 		<param name="accumulateEstimationDelays" value="true" />
 		<!-- Trips tested with the modes listed here will be cached for each combination of trip and agent during one replanning pass. -->
-		<param name="cachedModes" value="drtB, pt, drtA, car, car_passenger, walk, bike" />
+		<param name="cachedModes" value="drtB, pt, drtA, car, drtB_feeder, drtA_feeder, car_passenger, walk, bike" />
 		<!-- Defines whether to run a runtime check that verifies that everything is set up correctl for a 'mode-choice-in-the-loop' setup. -->
 		<param name="enforceSinglePlan" value="true" />
 		<!-- Defines what happens if there is no feasible choice alternative for an agent: IGNORE_AGENT, INITIAL_CHOICE, EXCEPTION -->
@@ -12,7 +12,7 @@
 		<!-- Defines how home activities are identified. Built-in choices: FirstActivity, ActivityBased -->
 		<param name="homeFinder" value="EqasimHomeFinder" />
 		<!-- Defines which ModeAvailability component to use. Built-in choices: Default, Car -->
-		<param name="modeAvailability" value="LeedsDrtModeAvailability" />
+		<param name="modeAvailability" value="FeederDrtModeAvailabilityWrapper" />
 		<!-- Main model type: Trip, Tour -->
 		<param name="modelType" value="Tour" />
 		<!-- Defines whether the DiscreteModeChoice strategy should be followed by a rerouting of all trips. If the estimator returns alternatives with routes attached this is not necessary. -->
@@ -28,7 +28,7 @@
 		<!-- Defines which TourFinder component to use. Built-in choices: PlanBased, ActivityBased, HomeBased -->
 		<param name="tourFinder" value="ActivityBased" />
 		<!-- Defines a number of TripConstraint components that should be activated. Built-in choices: VehicleContinuity, ShapeFile, LinkAttribute, TransitWalk -->
-		<param name="tripConstraints" value="PassengerConstraint, LegTimeConstraint, DrtWalkConstraint, OutsideConstraint, TransitWalk" />
+		<param name="tripConstraints" value="PassengerConstraint, FeederConstraint, LegTimeConstraint, DrtWalkConstraint, OutsideConstraint, TransitWalk" />
 		<!-- Defines which TripEstimator component to use. Built-in choices: MATSimTripScoring, Uniform -->
 		<param name="tripEstimator" value="EqasimUtilityEstimator" />
 		<!-- Defines a number of TripFilter components that should be activated. Built-in choices:  -->
@@ -40,11 +40,11 @@
 		</parameterset>
 		<parameterset type="modeAvailability:Car">
 			<!-- Defines which modes are avialable to the agents. -->
-			<param name="availableModes" value="pt, car, car_passenger, walk, bike, drt" />
+			<param name="availableModes" value="pt, car, drt, car_passenger, walk, bike, taxi" />
 		</parameterset>
 		<parameterset type="modeAvailability:Default">
 			<!-- Defines which modes are avialable to the agents. -->
-			<param name="availableModes" value="pt, car, car_passenger, walk, bike, drt" />
+			<param name="availableModes" value="pt, car, drt, car_passenger, walk, bike, taxi" />
 		</parameterset>
 		<parameterset type="selector:MultinomialLogit">
 			<!-- Defines whether candidates with a utility lower than the minimum utility should be filtered out. -->
@@ -157,7 +157,7 @@
 		<!-- Specifies over how many iterations the link volumes should be averaged that are used for the counts comparison. Use 1 or 0 to only use the link volumes of a single iteration. This values cannot be larger than the value specified for writeCountsInterval -->
 		<param name="averageCountsOverIterations" value="5" />
 		<!-- factor by which to re-scale the simulated values.  necessary when simulation runs with something different from 100%.  needs to be adapted manually -->
-		<param name="countsScaleFactor" value="0.01" />
+		<param name="countsScaleFactor" value="0.03" />
 		<!-- distance to distanceFilterCenterNode to include counting stations. The unit of distance is the Euclidean distance implied by the coordinate system -->
 		<param name="distanceFilter" value="null" />
 		<!-- node id for center node of distance filter -->
@@ -194,7 +194,7 @@
 		<!-- Possible values: kilometer,meter,mile,foot -->
 		<param name="distanceUnit" value="meter" />
 		<param name="modeParametersPath" value="null" />
-		<param name="sampleSize" value="0.01" />
+		<param name="sampleSize" value="0.03" />
 		<param name="travelTimeRecordingInterval" value="0" />
 		<param name="useScheduleBasedTransport" value="true" />
 		<parameterset type="cost_model">
@@ -204,6 +204,10 @@
 		<parameterset type="cost_model">
 			<param name="mode" value="pt" />
 			<param name="model" value="LeedsPtCostModel" />
+		</parameterset>
+		<parameterset type="cost_model">
+			<param name="mode" value="taxi" />
+			<param name="model" value="LeedsTaxiCostModel" />
 		</parameterset>
 		<parameterset type="cost_model">
 			<param name="mode" value="drtB" />
@@ -230,6 +234,10 @@
 			<param name="mode" value="walk" />
 		</parameterset>
 		<parameterset type="estimator">
+			<param name="estimator" value="LeedsTaxiUtilityEstimator" />
+			<param name="mode" value="taxi" />
+		</parameterset>
+		<parameterset type="estimator">
 			<param name="estimator" value="ZeroUtilityEstimator" />
 			<param name="mode" value="outside" />
 		</parameterset>
@@ -245,6 +253,14 @@
 			<param name="estimator" value="LeedsDrtUtilityEstimator" />
 			<param name="mode" value="drtA" />
 		</parameterset>
+		<parameterset type="estimator">
+			<param name="estimator" value="DefaultFeederDrtUtilityEstimator" />
+			<param name="mode" value="drtB_feeder" />
+		</parameterset>
+		<parameterset type="estimator">
+			<param name="estimator" value="DefaultFeederDrtUtilityEstimator" />
+			<param name="mode" value="drtA_feeder" />
+		</parameterset>
 	</module>
 	<module name="eqasim:legTimeConstraint">
 		<parameterset type="singleLegTimeConstraintDefinition">
@@ -258,6 +274,15 @@
 				<!-- Begin time of the slot -->
 				<param name="beginTime" value="0.0" />
 				<!-- End time of the slot -->
+				<param name="endTime" value="86400.0" />
+			</parameterset>
+		</parameterset>
+		<parameterset type="singleLegTimeConstraintDefinition">
+			<param name="checkBothDepartureAndArrivalTimes" value="true" />
+			<param name="legMode" value="drtA" />
+			<param name="mainMode" value="drtA_feeder" />
+			<parameterset type="timeSlot">
+				<param name="beginTime" value="0.0" />
 				<param name="endTime" value="86400.0" />
 			</parameterset>
 		</parameterset>
@@ -346,7 +371,7 @@
 			<!-- If true, the startLink is changed to last link in the current schedule, so the taxi starts the next day at the link where it stopped operating the day before. False by default. -->
 			<param name="changeStartLinkToLastLinkInSchedule" value="false" />
 			<!-- Allows to configure a service area per drt mode. Used with serviceArea Operational Scheme -->
-			<param name="drtServiceAreaShapeFile" value="../../../data/supply/drt/oa_leeds2.shp" />
+			<param name="drtServiceAreaShapeFile" value="../resources/data/supply/drt/ne_cluster_08_00_11_00.shp" />
 			<!-- Idle vehicles return to the nearest of all start links. See: DvrpVehicle.getStartLink() -->
 			<param name="idleVehiclesReturnToDepots" value="false" />
 			<!-- Mode which will be handled by PassengerEngine and VrpOptimizer (passengers'/customers' perspective) -->
@@ -370,7 +395,7 @@
 			<!-- Limit the operation of vehicles to links (of the 'dvrp_routing' network) with 'allowedModes' containing this 'mode'. For backward compatibility, the value is set to false by default - this means that the vehicles are allowed to operate on all links of the 'dvrp_routing' network. The 'dvrp_routing' is defined by DvrpConfigGroup.networkModes) -->
 			<param name="useModeFilteredSubnetwork" value="false" />
 			<!-- An XML file specifying the vehicle fleet. The file format according to dvrp_vehicles_v1.dtd If not provided, the vehicle specifications will be created from matsim vehicle file or provided via a custom binding. See FleetModule. -->
-			<param name="vehiclesFile" value="../../../data/supply/drt/drt_fleet_2.xml" />
+			<param name="vehiclesFile" value="../resources/data/supply/drt/drt_fleet_ne_cluster_08_00_11_00.xml" />
 			<!-- Writes out detailed DRT customer stats in each iteration. True by default. -->
 			<param name="writeDetailedCustomerStats" value="true" />
 			<parameterset type="ExtensiveInsertionSearch">
@@ -426,11 +451,11 @@
 		</parameterset>
 		<parameterset type="drt">
 			<param name="changeStartLinkToLastLinkInSchedule" value="false" />
-			<param name="drtServiceAreaShapeFile" value="null" />
+			<param name="drtServiceAreaShapeFile" value="../resources/data/supply/drt/nw_cluster_08_00_11_00.shp" />
 			<param name="idleVehiclesReturnToDepots" value="false" />
 			<param name="mode" value="drtA" />
 			<param name="numberOfThreads" value="8" />
-			<param name="operationalScheme" value="door2door" />
+			<param name="operationalScheme" value="serviceAreaBased" />
 			<param name="returnToDepotEvaluationInterval" value="60.0" />
 			<param name="returnToDepotTimeout" value="60.0" />
 			<param name="simulationType" value="fullSimulation" />
@@ -438,7 +463,7 @@
 			<param name="storeUnsharedPath" value="false" />
 			<param name="transitStopFile" value="null" />
 			<param name="useModeFilteredSubnetwork" value="false" />
-			<param name="vehiclesFile" value="../../../data/supply/drt/drt_fleet_1.xml" />
+			<param name="vehiclesFile" value="../resources/data/supply/drt/drt_fleet_nw_cluster_08_00_11_00.xml" />
 			<param name="writeDetailedCustomerStats" value="true" />
 			<parameterset type="ExtensiveInsertionSearch">
 				<param name="admissibleBeelineSpeedFactor" value="1.0" />
@@ -475,11 +500,41 @@
 			</parameterset>
 		</parameterset>
 	</module>
+	<module name="multiModeFeederDrt">
+		<!-- Whether or not to perform the analysis for feeder drt services. If set to true, will follow the analysis interval specified in the configuration of the eqasim module -->
+		<param name="performAnalysis" value="true" />
+		<parameterset type="feederDrt">
+			<!-- The name of the drt mode to use for access and egress segments -->
+			<param name="accessEgressModeName" value="drtB" />
+			<!-- Possible values: CLOSEST -->
+			<param name="accessEgressStopSelection" value="CLOSEST" />
+			<!-- Mode which will be handled by PassengerEngine and VrpOptimizer (passengers'/customers' perspective) -->
+			<param name="mode" value="drtB_feeder" />
+			<!-- The name by which the pt mode is known to the agents. Most usually pt -->
+			<param name="ptModeName" value="pt" />
+			<!-- A regex that if matches with the from facility id (resp to facility id) will result in an access (resp egress) drt leg not being constructed. Leave empty to consider access and egress segments at all times -->
+			<param name="skipAccessAndEgressAtFacilities" value="^outside*+" />
+			<parameterset type="TransitStopByModeAccessEgressStopSearch">
+				<!-- Comma separated list of PT transit modes (rail, bus...) where intermodality can happen, leave empty to allow intermodality everywhere -->
+				<param name="accessEgressTransitStopModes" value="bus" />
+			</parameterset>
+		</parameterset>
+		<parameterset type="feederDrt">
+			<param name="accessEgressModeName" value="drtA" />
+			<param name="accessEgressStopSelection" value="CLOSEST" />
+			<param name="mode" value="drtA_feeder" />
+			<param name="ptModeName" value="pt" />
+			<param name="skipAccessAndEgressAtFacilities" value="^outside*+" />
+			<parameterset type="TransitStopByModeAccessEgressStopSearch">
+				<param name="accessEgressTransitStopModes" value="bus,rail" />
+			</parameterset>
+		</parameterset>
+	</module>
 	<module name="network">
 		<!-- The Coordinates Reference System in which the coordinates are expressed in the input file. At import, the coordinates will be converted to the coordinate system defined in "global", and willbe converted back at export. If not specified, no conversion happens. -->
 		<param name="inputCRS" value="null" />
 		<param name="inputChangeEventsFile" value="null" />
-		<param name="inputNetworkFile" value="../../../data/supply/network_mapped.xml.gz" />
+		<param name="inputNetworkFile" value="../resources/data/supply/network_mapped.xml.gz" />
 		<param name="laneDefinitionsFile" value="null" />
 		<param name="timeVariantNetwork" value="false" />
 	</module>
@@ -495,7 +550,7 @@
 		<!-- The Coordinates Reference System in which the coordinates are expressed in the input file. At import, the coordinates will be converted to the coordinate system defined in "global", and willbe converted back at export. If not specified, no conversion happens. -->
 		<param name="inputCRS" value="null" />
 		<param name="inputPersonAttributesFile" value="null" />
-		<param name="inputPlansFile" value="../../../scenarios/test/plans_eqasim.xml" />
+		<param name="inputPlansFile" value="../resources/data/demand/plans_sample_eqasim.xml" />
 		<param name="insistingOnUsingDeprecatedPersonAttributeFile" value="false" />
 		<!-- Defines how routes are stored in memory. Currently supported: LinkNetworkRoute, MediumCompressedNetworkRoute, HeavyCompressedNetworkRoute. -->
 		<param name="networkRouteType" value="LinkNetworkRoute" />
@@ -508,7 +563,7 @@
 		<param name="endTime" value="30:00:00" />
 		<!-- If set to withLinkAttributes snapshots will only be generated for links which include generateSnapshotForLink as attribute key. Default is no filtering. -->
 		<param name="filterSnapshots" value="no" />
-		<param name="flowCapacityFactor" value="0.01" />
+		<param name="flowCapacityFactor" value="0.03" />
 		<!-- decides if waiting vehicles enter the network after or before the already driving vehicles were moved. Default: false -->
 		<param name="insertingWaitingVehiclesBeforeDrivingVehicles" value="true" />
 		<!-- If link dynamics is set as SeepageQ, set to false if all seep modes should perform seepage. Default is true (better option). -->
@@ -537,7 +592,7 @@
 		<param name="snapshotStyle" value="queue" />
 		<param name="snapshotperiod" value="00:00:00" />
 		<param name="startTime" value="00:00:00" />
-		<param name="storageCapacityFactor" value="0.01" />
+		<param name="storageCapacityFactor" value="0.03" />
 		<!-- time in seconds.  Time after which the frontmost vehicle on a link is called `stuck' if it does not move. -->
 		<param name="stuckTime" value="10.0" />
 		<param name="timeStepSize" value="00:00:01" />
@@ -597,7 +652,7 @@
 		<!-- Some typical teleportation routing params are set by default, such as for walk and bike.  Setting this switch to "true" will clear them.  Note that this will also clear settings for helper modes such as for non_network_walk -->
 		<param name="clearDefaultTeleportedModeParams" value="false" />
 		<!-- All the modes for which the router is supposed to generate network routes (like car) -->
-		<param name="networkModes" value="car,car_passenger" />
+		<param name="networkModes" value="car,car_passenger, taxi" />
 		<!-- Defines whether the network consistency should be checked. -->
 		<param name="networkRouteConsistencyCheck" value="abortOnInconsistency" />
 		<!-- strength of the randomness for the utility of money in routing under toll.  Leads to Pareto-optimal route with randomly drawn money-vs-other-attributes tradeoff. Technically the width parameter of a log-normal distribution. 3.0 seems to be a good value.  -->
@@ -858,6 +913,30 @@
 				<param name="typicalDuration" value="00:00:01" />
 				<param name="typicalDurationScoreComputation" value="relative" />
 			</parameterset>
+			<parameterset type="activityParams">
+				<param name="activityType" value="drtB_feeder interaction" />
+				<param name="closingTime" value="undefined" />
+				<param name="earliestEndTime" value="undefined" />
+				<param name="latestStartTime" value="undefined" />
+				<param name="minimalDuration" value="undefined" />
+				<param name="openingTime" value="undefined" />
+				<param name="priority" value="1.0" />
+				<param name="scoringThisActivityAtAll" value="false" />
+				<param name="typicalDuration" value="00:00:01" />
+				<param name="typicalDurationScoreComputation" value="relative" />
+			</parameterset>
+			<parameterset type="activityParams">
+				<param name="activityType" value="drtA_feeder interaction" />
+				<param name="closingTime" value="undefined" />
+				<param name="earliestEndTime" value="undefined" />
+				<param name="latestStartTime" value="undefined" />
+				<param name="minimalDuration" value="undefined" />
+				<param name="openingTime" value="undefined" />
+				<param name="priority" value="1.0" />
+				<param name="scoringThisActivityAtAll" value="false" />
+				<param name="typicalDuration" value="00:00:01" />
+				<param name="typicalDurationScoreComputation" value="relative" />
+			</parameterset>
 			<parameterset type="modeParams">
 				<!-- [utils] alternative-specific constant.  Normally per trip, but that is probably buggy for multi-leg trips. -->
 				<param name="constant" value="0.0" />
@@ -933,6 +1012,15 @@
 				<param name="dailyUtilityConstant" value="0.0" />
 				<param name="marginalUtilityOfDistance_util_m" value="0.0" />
 				<param name="marginalUtilityOfTraveling_util_hr" value="-6.0" />
+				<param name="mode" value="taxi" />
+				<param name="monetaryDistanceRate" value="0.0" />
+			</parameterset>
+			<parameterset type="modeParams">
+				<param name="constant" value="0.0" />
+				<param name="dailyMonetaryConstant" value="0.0" />
+				<param name="dailyUtilityConstant" value="0.0" />
+				<param name="marginalUtilityOfDistance_util_m" value="0.0" />
+				<param name="marginalUtilityOfTraveling_util_hr" value="-6.0" />
 				<param name="mode" value="drtB" />
 				<param name="monetaryDistanceRate" value="0.0" />
 			</parameterset>
@@ -957,7 +1045,7 @@
 		<!-- If greater than 0, activities that are closer than coordDistance, to each other, will be considered part of the same subtour.i.e. if two activities are close to each other, the agent is allowed to use the same 'chain-based' vehicle for both subtours. -->
 		<param name="coordDistance" value="0.0" />
 		<!-- Defines all the modes available, including chain-based modes, seperated by commas -->
-		<param name="modes" value="car,pt,bike,walk,car_passenger" />
+		<param name="modes" value="car,pt,bike,walk,car_passenger,taxi" />
 		<!-- Defines the probability of changing a single trip for a unchained mode instead of subtour. -->
 		<param name="probaForRandomSingleTripMode" value="0.0" />
 	</module>
@@ -1004,14 +1092,14 @@
 		<!-- Comma-separated list of transportation modes that are handled as transit. Defaults to 'pt'. -->
 		<param name="transitModes" value="pt" />
 		<!-- Input file containing the transit schedule to be simulated. -->
-		<param name="transitScheduleFile" value="../../../data/supply/schedule_mapped.xml.gz" />
+		<param name="transitScheduleFile" value="../resources/data/supply/schedule_mapped.xml.gz" />
 		<!-- Optional input file containing additional attributes for transit stop facilities, stored as ObjectAttributes. -->
 		<param name="transitStopsAttributesFile" value="null" />
 		<!-- Set this parameter to true if transit should be simulated, false if not. -->
 		<param name="useTransit" value="true" />
 		<param name="usingTransitInMobsim" value="true" />
 		<!-- Input file containing the vehicles used by the departures in the transit schedule. -->
-		<param name="vehiclesFile" value="../../../data/supply/vehicles_unmapped.xml" />
+		<param name="vehiclesFile" value="../resources/data/supply/vehicles_unmapped.xml" />
 	</module>
 	<module name="transitRouter">
 		<!-- additional time the router allocates when a line switch happens. Can be interpreted as a 'safety' time that agents need to safely transfer from one line to another -->
@@ -1027,7 +1115,7 @@
 	</module>
 	<module name="travelTimeCalculator">
 		<!-- (only for backwards compatibility; only used if separateModes==false && + filterModes==true)  Transport modes that will be respected by the travel time collector. 'car' is default which includes also buses from the pt simulation module. -->
-		<param name="analyzedModes" value="car,car_passenger" />
+		<param name="analyzedModes" value="car,car_passenger,taxi" />
 		<param name="calculateLinkToLinkTravelTimes" value="false" />
 		<param name="calculateLinkTravelTimes" value="true" />
 		<!-- (only for backwards compatiblity; only used if separateModes==false)  Only modes included in analyzedModes are included. -->
@@ -1044,7 +1132,7 @@
 		<param name="travelTimeGetter" value="average" />
 	</module>
 	<module name="vehicles">
-		<param name="vehiclesFile" value="../../../scenarios/test/network_vehicles.xml" />
+		<param name="vehiclesFile" value="../resources/data/supply/network_vehicles.xml" />
 	</module>
 	<module name="vspExperimental">
 		<!-- (do not use except of you have to) There was a problem with pt interaction scoring.  Some people solved it by overwriting the parameters of the pt interaction activity type.  Doing this now throws an Exception.  If you still insist on doing this, set the following to true. -->
