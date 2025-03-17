@@ -132,7 +132,9 @@
                 "--config-path",
                 "src/main/resources/config_simulation_dmc_drt_feeder_3pct.xml",
                 "--use-rejection-constraint",
-                "true"
+                "true",
+                "--sample-size",
+                "0.05"
             ],
             "vmArgs": "-Xmx32G"
         }

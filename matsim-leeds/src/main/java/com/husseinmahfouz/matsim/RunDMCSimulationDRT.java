@@ -3,7 +3,7 @@ package com.husseinmahfouz.matsim;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
-
+import org.eqasim.core.components.config.EqasimConfigGroup;
 // import org.eqasim.core.components.config.EqasimConfigGroup;
 import org.eqasim.core.components.transit.EqasimTransitQSimModule;
 // import org.eqasim.core.components.config.EqasimConfigGroup;
@@ -46,6 +46,7 @@ import org.matsim.core.config.CommandLine;
 import org.matsim.core.config.CommandLine.ConfigurationException;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
+import org.matsim.core.config.groups.ControllerConfigGroup;
 import org.matsim.core.config.groups.QSimConfigGroup.StarttimeInterpretation;
 // import org.matsim.core.config.groups.QSimConfigGroup.StarttimeInterpretation;
 // import org.matsim.core.config.groups.ScoringConfigGroup.ModeParams;
@@ -53,12 +54,13 @@ import org.matsim.core.controler.Controler;
 import org.matsim.core.scenario.ScenarioUtils;
 
 
+
 public class RunDMCSimulationDRT {
 
     static public void main(String[] args) throws ConfigurationException {
         CommandLine cmd = new CommandLine.Builder(args) //
                 .requireOptions("config-path") //
-                .allowOptions("use-rejection-constraint") //
+                .allowOptions("use-rejection-constraint", "sample-size") //
                 .allowPrefixes("mode-choice-parameter", "cost-parameter") //
                 .build();
 
@@ -94,6 +96,24 @@ public class RunDMCSimulationDRT {
         // config.qsim().setStartTime(0.0);
         // config.qsim().setSimStarttimeInterpretation(StarttimeInterpretation.onlyUseStarttime);
         // }
+
+        // Update config parameters based on sample size if specified
+        if (cmd.hasOption("sample-size")) {
+
+            // Get the sample size from the command line arguments
+            double sampleSize = Double.parseDouble(cmd.getOptionStrict("sample-size"));
+
+
+            // update the relevant config parameters based on the sample size
+            // Qsim
+            config.qsim().setFlowCapFactor(sampleSize);
+            config.qsim().setStorageCapFactor(sampleSize);
+            // Eqasim
+            EqasimConfigGroup eqasimConfig = EqasimConfigGroup.get(config);
+            eqasimConfig.setSampleSize(sampleSize);
+
+        }
+
 
         cmd.applyConfiguration(config);
 
@@ -149,5 +169,14 @@ public class RunDMCSimulationDRT {
             controller.addOverridingModule(new DrtAnalysisModule());
         }
         controller.run();
+
+        // ----- Save the updated config file to the output directory
+
+        // 1. Retrieve the ControlerConfigGroup
+        ControllerConfigGroup controllerConfigGroup = config.controller();
+        // 2. Get the output directory
+        String outputDirectory = controllerConfigGroup.getOutputDirectory();
+        // 3. Save the configuration to the output directory
+        ConfigUtils.writeConfig(config, outputDirectory + "/config.xml");
     }
 }

@@ -11,11 +11,18 @@ import org.matsim.core.scenario.ScenarioUtils;
 public class CreatePopulationSample {
 
     public static void main(String[] args) {
+        // if (args.length < 3) {
+        //     System.out.println(
+        //             "Usage: CreatePopulationSample <input-population-file> <output-population-file> <sample-size>");
+        //     return;
+        // }
+
         MutableScenario sc = ScenarioUtils.createMutableScenario(ConfigUtils.createConfig());
 
         PopulationReader reader = new PopulationReader(sc);
 
         double sample = 0.01;
+        // double sample = Double.parseDouble(args[2]);
 
         // input population file
         reader.readFile(args[0]);
