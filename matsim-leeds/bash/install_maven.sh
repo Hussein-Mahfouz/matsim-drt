@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define installation directory
-MAVEN_VERSION=3.8.4  
+MAVEN_VERSION=3.9.9  
 INSTALL_DIR="$HOME/maven"
 MAVEN_URL="https://downloads.apache.org/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz"
 
