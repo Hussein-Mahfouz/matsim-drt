@@ -194,7 +194,7 @@
 		<!-- Possible values: kilometer,meter,mile,foot -->
 		<param name="distanceUnit" value="meter" />
 		<param name="modeParametersPath" value="null" />
-		<param name="sampleSize" value="0.001" />
+		<param name="sampleSize" value="0.01" />
 		<param name="travelTimeRecordingInterval" value="0" />
 		<param name="useScheduleBasedTransport" value="true" />
 		<parameterset type="cost_model">

@@ -130,7 +130,7 @@
             "cwd": "${workspaceFolder}/matsim-leeds",
             "args": [
                 "--config-path",
-                "src/main/resources/config_simulation_dmc_drt_feeder.xml",
+                "src/main/resources/config_simulation_dmc_drt_feeder_3pct.xml",
                 "--use-rejection-constraint",
                 "true"
             ],
