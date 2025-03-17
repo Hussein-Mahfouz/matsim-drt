@@ -4,9 +4,10 @@
 set -e
 
 # module load stack/2024-06
-module load gcc/12.2.0
+# module load gcc/12.2.0
+module load gcc/14.2.0
 module load maven/3.8.4
-module load openjdk/21.0.3_9
+module load openjdk/21.0.6
 
 
 # Get the current working directory (assuming you run this script from the matsim-leeds directory)
