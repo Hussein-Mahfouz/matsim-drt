@@ -3,7 +3,7 @@
 # RUN FROM CLUSTER 
 set -e
 
-module load stack/2024-06
+# module load stack/2024-06
 module load gcc/12.2.0
 module load maven/3.8.4
 module load openjdk/21.0.3_9
