@@ -59,15 +59,13 @@ public class RunDMCSimulationDRTCluster {
         CommandLine cmd = new CommandLine.Builder(args) //
                 .requireOptions("config-path") //
                 .allowOptions("use-rejection-constraint", "sample-size", "output-directory",
-                        "input-plans-file", "vehicles-file",
-                        "global-threads", "qsim-threads") //
+                        "input-plans-file", "vehicles-file", "global-threads", "qsim-threads") //
                 .allowPrefixes("mode-choice-parameter", "cost-parameter") //
                 .build();
 
         LeedsConfigurator configurator = new LeedsConfigurator();
         Config config = ConfigUtils.loadConfig(cmd.getOptionStrict("config-path"));
         configurator.updateConfig(config);
-        
 
         // Update config parameters based on sample size if specified
         if (cmd.hasOption("sample-size")) {
