@@ -371,7 +371,7 @@
 			<!-- If true, the startLink is changed to last link in the current schedule, so the taxi starts the next day at the link where it stopped operating the day before. False by default. -->
 			<param name="changeStartLinkToLastLinkInSchedule" value="false" />
 			<!-- Allows to configure a service area per drt mode. Used with serviceArea Operational Scheme -->
-			<param name="drtServiceAreaShapeFile" value="data/supply/drt/ne_cluster_08_00_11_00.shp" />
+			<param name="drtServiceAreaShapeFile" value="../../../data/supply/drt/ne_cluster_08_00_11_00.shp" />
 			<!-- Idle vehicles return to the nearest of all start links. See: DvrpVehicle.getStartLink() -->
 			<param name="idleVehiclesReturnToDepots" value="false" />
 			<!-- Mode which will be handled by PassengerEngine and VrpOptimizer (passengers'/customers' perspective) -->
@@ -395,7 +395,7 @@
 			<!-- Limit the operation of vehicles to links (of the 'dvrp_routing' network) with 'allowedModes' containing this 'mode'. For backward compatibility, the value is set to false by default - this means that the vehicles are allowed to operate on all links of the 'dvrp_routing' network. The 'dvrp_routing' is defined by DvrpConfigGroup.networkModes) -->
 			<param name="useModeFilteredSubnetwork" value="false" />
 			<!-- An XML file specifying the vehicle fleet. The file format according to dvrp_vehicles_v1.dtd If not provided, the vehicle specifications will be created from matsim vehicle file or provided via a custom binding. See FleetModule. -->
-			<param name="vehiclesFile" value="data/supply/drt/drt_fleet_ne_cluster_08_00_11_00.xml" />
+			<param name="vehiclesFile" value="../../../data/supply/drt/drt_fleet_ne_cluster_08_00_11_00.xml" />
 			<!-- Writes out detailed DRT customer stats in each iteration. True by default. -->
 			<param name="writeDetailedCustomerStats" value="true" />
 			<parameterset type="ExtensiveInsertionSearch">
@@ -451,7 +451,7 @@
 		</parameterset>
 		<parameterset type="drt">
 			<param name="changeStartLinkToLastLinkInSchedule" value="false" />
-			<param name="drtServiceAreaShapeFile" value="data/supply/drt/nw_cluster_08_00_11_00.shp" />
+			<param name="drtServiceAreaShapeFile" value="../../../data/supply/drt/nw_cluster_08_00_11_00.shp" />
 			<param name="idleVehiclesReturnToDepots" value="false" />
 			<param name="mode" value="drtA" />
 			<param name="numberOfThreads" value="8" />
@@ -463,7 +463,7 @@
 			<param name="storeUnsharedPath" value="false" />
 			<param name="transitStopFile" value="null" />
 			<param name="useModeFilteredSubnetwork" value="false" />
-			<param name="vehiclesFile" value="data/supply/drt/drt_fleet_nw_cluster_08_00_11_00.xml" />
+			<param name="vehiclesFile" value="../../../data/supply/drt/drt_fleet_nw_cluster_08_00_11_00.xml" />
 			<param name="writeDetailedCustomerStats" value="true" />
 			<parameterset type="ExtensiveInsertionSearch">
 				<param name="admissibleBeelineSpeedFactor" value="1.0" />
@@ -534,7 +534,7 @@
 		<!-- The Coordinates Reference System in which the coordinates are expressed in the input file. At import, the coordinates will be converted to the coordinate system defined in "global", and willbe converted back at export. If not specified, no conversion happens. -->
 		<param name="inputCRS" value="null" />
 		<param name="inputChangeEventsFile" value="null" />
-		<param name="inputNetworkFile" value="data/supply/network_mapped.xml.gz" />
+		<param name="inputNetworkFile" value="../../../data/supply/network_mapped.xml.gz" />
 		<param name="laneDefinitionsFile" value="null" />
 		<param name="timeVariantNetwork" value="false" />
 	</module>
@@ -550,7 +550,7 @@
 		<!-- The Coordinates Reference System in which the coordinates are expressed in the input file. At import, the coordinates will be converted to the coordinate system defined in "global", and willbe converted back at export. If not specified, no conversion happens. -->
 		<param name="inputCRS" value="null" />
 		<param name="inputPersonAttributesFile" value="null" />
-		<param name="inputPlansFile" value="data/demand/plans_sample_eqasim.xml" />
+		<param name="inputPlansFile" value="../../../data/demand/plans_sample_eqasim.xml" />
 		<param name="insistingOnUsingDeprecatedPersonAttributeFile" value="false" />
 		<!-- Defines how routes are stored in memory. Currently supported: LinkNetworkRoute, MediumCompressedNetworkRoute, HeavyCompressedNetworkRoute. -->
 		<param name="networkRouteType" value="LinkNetworkRoute" />
@@ -1092,14 +1092,14 @@
 		<!-- Comma-separated list of transportation modes that are handled as transit. Defaults to 'pt'. -->
 		<param name="transitModes" value="pt" />
 		<!-- Input file containing the transit schedule to be simulated. -->
-		<param name="transitScheduleFile" value="data/supply/schedule_mapped.xml.gz" />
+		<param name="transitScheduleFile" value="../../../data/supply/schedule_mapped.xml.gz" />
 		<!-- Optional input file containing additional attributes for transit stop facilities, stored as ObjectAttributes. -->
 		<param name="transitStopsAttributesFile" value="null" />
 		<!-- Set this parameter to true if transit should be simulated, false if not. -->
 		<param name="useTransit" value="true" />
 		<param name="usingTransitInMobsim" value="true" />
 		<!-- Input file containing the vehicles used by the departures in the transit schedule. -->
-		<param name="vehiclesFile" value="data/supply/vehicles_unmapped.xml" />
+		<param name="vehiclesFile" value="../../../data/supply/vehicles_unmapped.xml" />
 	</module>
 	<module name="transitRouter">
 		<!-- additional time the router allocates when a line switch happens. Can be interpreted as a 'safety' time that agents need to safely transfer from one line to another -->
@@ -1132,7 +1132,7 @@
 		<param name="travelTimeGetter" value="average" />
 	</module>
 	<module name="vehicles">
-		<param name="vehiclesFile" value="data/supply/network_vehicles.xml" />
+		<param name="vehiclesFile" value="../../../data/supply/network_vehicles.xml" />
 	</module>
 	<module name="vspExperimental">
 		<!-- (do not use except of you have to) There was a problem with pt interaction scoring.  Some people solved it by overwriting the parameters of the pt interaction activity type.  Doing this now throws an Exception.  If you still insist on doing this, set the following to true. -->
