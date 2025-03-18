@@ -44,9 +44,9 @@ USE_REJECTION_CONSTRAINT="true"
 # Define the output directory
 OUTPUT_DIRECTORY="scenarios/sample_${SAMPLE_SIZE}"
 # Define the input plans file
-INPUT_PLANS_FILE="data/demand/plans_sample_eqasim_${SAMPLE_SIZE}.xml"
+INPUT_PLANS_FILE="../../../data/demand/plans_sample_eqasim_${SAMPLE_SIZE}.xml"
 # Define the vehicles file (it differs based on the population sample - see NetworkVehicleInserter.java)
-VEHICLES_FILE="data/supply/network_vehicles_${SAMPLE_SIZE}.xml"
+VEHICLES_FILE="../../../data/supply/network_vehicles_${SAMPLE_SIZE}.xml"
 
 
 # Run the first simulation using sbatch
