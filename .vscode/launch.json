@@ -73,8 +73,12 @@
             "projectName": "matsim-leeds",
             "cwd": "${workspaceFolder}/matsim-leeds",
             "args": [
+                "--input",
                 "data/demand/plans.xml",
-                "src/main/resources/data/demand/plans_sample.xml"
+                "--output",
+                "src/main/resources/data/demand/plans_sample_0.05.xml",
+                "--sample",
+                "0.05"
             ]
         },
         {
