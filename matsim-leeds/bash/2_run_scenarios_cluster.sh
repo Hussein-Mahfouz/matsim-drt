@@ -32,12 +32,10 @@ MAIN_CLASS="com.husseinmahfouz.matsim.RunDMCSimulationDRTCluster"
 CPUS_PER_TASK=12
 MEM_PER_CPU=8192
 MAX_RUNTIME="4:00:00"
-GLOBAL_THREADS=12
-QSIM_THREADS=12
 # Should not be higher than CPUS_PER_TASK
-GLOBAL_THREADS=12
+GLOBAL_THREADS="12"
 # Should not be higher than CPUS_PER_TASK
-QSIM_THREADS=12
+QSIM_THREADS="12"
 
 # Define the population sample size being used
 SAMPLE_SIZE="0.01" 
