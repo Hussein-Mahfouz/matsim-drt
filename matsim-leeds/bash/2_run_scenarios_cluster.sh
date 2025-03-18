@@ -23,7 +23,7 @@ MATSIM_DIR="$(pwd)"   # This automatically sets the current directory to MATSIM_
 
 # Define the paths to the JAR file and the config file
 JAR_FILE="$MATSIM_DIR/matsim-leeds-1.0.jar"
-CONFIG_FILE="$MATSIM_DIR/src/main/resources/config_simulation_dmc_drt_feeder_3pct.xml"
+CONFIG_FILE="$MATSIM_DIR/src/main/resources/config_simulation_dmc_drt_feeder_3pct_cluster.xml"
 
 # Define the population sample size being used
 SAMPLE_SIZE="0.03" 
