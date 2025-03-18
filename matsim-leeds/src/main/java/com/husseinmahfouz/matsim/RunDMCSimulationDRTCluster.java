@@ -105,12 +105,16 @@ public class RunDMCSimulationDRTCluster {
         if (cmd.hasOption("global-threads")) {
             int globalThreads = Integer.parseInt(cmd.getOptionStrict("global-threads"));
             config.global().setNumberOfThreads(globalThreads);
+        } else {
+            config.global().setNumberOfThreads(8);
         }
 
         // Update the qsim number of threads if specified
         if (cmd.hasOption("qsim-threads")) {
             int qsimThreads = Integer.parseInt(cmd.getOptionStrict("qsim-threads"));
             config.qsim().setNumberOfThreads(qsimThreads);
+        } else {
+            config.qsim().setNumberOfThreads(8);
         }
 
         cmd.applyConfiguration(config);

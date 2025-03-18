@@ -50,6 +50,18 @@ VEHICLES_FILE="data/supply/network_vehicles_${SAMPLE_SIZE}.xml"
 
 
 # Run the first simulation using sbatch
+# JOB_ID_1=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-per-cpu=$MEM_PER_CPU --wrap="\
+#     java -Xmx48G -cp $JAR_FILE $MAIN_CLASS \
+#     --config-path $CONFIG_FILE \
+#     --global-threads $GLOBAL_THREADS \
+#     --qsim-threads $QSIM_THREADS \
+#     --sample-size $SAMPLE_SIZE \
+#     --use-rejection-constraint $USE_REJECTION_CONSTRAINT \
+#     --output-directory $OUTPUT_DIRECTORY \
+#     --input-plans-file $INPUT_PLANS_FILE \
+#     --vehicles-file $VEHICLES_FILE" | awk '{print $4}')
+# echo "Submitted job $JOB_ID_1 for sample size $SAMPLE_SIZE"
+
 JOB_ID_1=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-per-cpu=$MEM_PER_CPU --wrap="\
     java -Xmx48G -cp $JAR_FILE $MAIN_CLASS \
     --config-path $CONFIG_FILE \
@@ -57,9 +69,7 @@ JOB_ID_1=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-
     --use-rejection-constraint $USE_REJECTION_CONSTRAINT \
     --output-directory $OUTPUT_DIRECTORY \
     --input-plans-file $INPUT_PLANS_FILE \
-    --vehicles-file $VEHICLES_FILE \
-    --global-threads $GLOBAL_THREADS \
-    --qsim-threads $QSIM_THREADS" | awk '{print $4}')
+    --vehicles-file $VEHICLES_FILE" | awk '{print $4}')
 echo "Submitted job $JOB_ID_1 for sample size $SAMPLE_SIZE"
 
 # Define parameters for the second run
@@ -76,9 +86,7 @@ JOB_ID_2=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-
     --use-rejection-constraint $USE_REJECTION_CONSTRAINT \
     --output-directory $OUTPUT_DIRECTORY_2 \
     --input-plans-file $INPUT_PLANS_FILE_2 \
-    --vehicles-file $VEHICLES_FILE_2 \
-    --global-threads $GLOBAL_THREADS \
-    --qsim-threads $QSIM_THREADS" | awk '{print $4}')
+    --vehicles-file $VEHICLES_FILE_2" | awk '{print $4}')
 echo "Submitted job $JOB_ID_2 for sample size $SAMPLE_SIZE_2"
 
 # Define parameters for the third run
@@ -95,7 +103,5 @@ JOB_ID_3=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-
     --use-rejection-constraint $USE_REJECTION_CONSTRAINT \
     --output-directory $OUTPUT_DIRECTORY_3 \
     --input-plans-file $INPUT_PLANS_FILE_3 \
-    --vehicles-file $VEHICLES_FILE_3 \
-    --global-threads $GLOBAL_THREADS \
-    --qsim-threads $QSIM_THREADS" | awk '{print $4}')
+    --vehicles-file $VEHICLES_FILE_3" | awk '{print $4}')
 echo "Submitted job $JOB_ID_3 for sample size $SAMPLE_SIZE_3"
