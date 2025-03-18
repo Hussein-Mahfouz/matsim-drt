@@ -75,8 +75,8 @@ echo "Submitted job $JOB_ID_1 for sample size $SAMPLE_SIZE"
 # Define parameters for the second run
 SAMPLE_SIZE_2="0.05"
 OUTPUT_DIRECTORY_2="scenarios/sample_${SAMPLE_SIZE_2}"
-INPUT_PLANS_FILE_2="data/demand/plans_sample_eqasim_${SAMPLE_SIZE_2}.xml"
-VEHICLES_FILE_2="data/supply/network_vehicles_${SAMPLE_SIZE_2}.xml"
+INPUT_PLANS_FILE_2="../../../data/demand/plans_sample_eqasim_${SAMPLE_SIZE_2}.xml"
+VEHICLES_FILE_2="../../../data/supply/network_vehicles_${SAMPLE_SIZE_2}.xml"
 
 # Run the second simulation using sbatch
 JOB_ID_2=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-per-cpu=$MEM_PER_CPU --wrap="\
@@ -92,8 +92,8 @@ echo "Submitted job $JOB_ID_2 for sample size $SAMPLE_SIZE_2"
 # Define parameters for the third run
 SAMPLE_SIZE_3="0.20"
 OUTPUT_DIRECTORY_3="scenarios/sample_${SAMPLE_SIZE_3}"
-INPUT_PLANS_FILE_3="data/demand/plans_sample_eqasim_${SAMPLE_SIZE_3}.xml"
-VEHICLES_FILE_3="data/supply/network_vehicles_${SAMPLE_SIZE_3}.xml"
+INPUT_PLANS_FILE_3="../../../data/demand/plans_sample_eqasim_${SAMPLE_SIZE_3}.xml"
+VEHICLES_FILE_3="../../../data/supply/network_vehicles_${SAMPLE_SIZE_3}.xml"
 
 # Run the third simulation using sbatch
 JOB_ID_3=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-per-cpu=$MEM_PER_CPU --wrap="\
