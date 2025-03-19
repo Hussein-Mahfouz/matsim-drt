@@ -10,9 +10,24 @@
 
 # Define the different sets of arguments (each row will produce a different config, so the outputCOnfigPath should be unique
 declare -a argsArray=(
-    "src/main/resources/config_simulation_dmc_drt.xml src/main/resources/config_simulation_dmc_drt_feeder.xml drtA_feeder,drtB_feeder pt drtA,drtB bus|rail,bus LeedsDrtUtilityEstimator LeedsDrtModeAvailability"
-    # "src/main/resources/config_simulation_dmc_drt.xml src/main/resources/config_simulation_dmc_drt_feeder2.xml drtA_feeder,drtB_feeder pt drtA rail,bus LeedsDrtUtilityEstimator LeedsDrtModeAvailability"
+    "src/main/resources/config_simulation_dmc_drt.xml src/main/resources/config_simulation_dmc_drt_feeder.xml \
+    drtNW_feeder,drtNE_feeder \
+    pt \
+    drtNW,drtNE \
+    bus|rail,bus|rail \
+    LeedsDrtUtilityEstimator \
+    FeederDrtModeAvailabilityWrapper"
 )
+
+# declare -a argsArray=(
+#     "src/main/resources/config_simulation_dmc_drt_all.xml src/main/resources/config_simulation_dmc_drt_all_feeder.xml \
+#     drt_feeder \
+#     pt \
+#     drt \
+#     bus|rail \
+#     LeedsDrtUtilityEstimator \
+#     FeederDrtModeAvailabilityWrapper"
+# )
 
 # Get the classpath for all dependencies and append target/classes (the former has core functionality e.g. core eqasim, the latter has the classes I wrote and compiled)
 mvn dependency:build-classpath -Dmdep.outputFile=cp.txt

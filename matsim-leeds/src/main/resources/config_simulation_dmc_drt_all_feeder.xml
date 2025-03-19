@@ -4,7 +4,7 @@
 	<module name="DiscreteModeChoice" >
 		<param name="accumulateEstimationDelays" value="true" />
 		<!-- Trips tested with the modes listed here will be cached for each combination of trip and agent during one replanning pass. -->
-		<param name="cachedModes" value="pt, car, taxi, drtNW, drtNE, car_passenger, walk, bike" />
+		<param name="cachedModes" value="pt, car, drt, taxi, drt_feeder, car_passenger, walk, bike" />
 		<!-- Defines whether to run a runtime check that verifies that everything is set up correctl for a 'mode-choice-in-the-loop' setup. -->
 		<param name="enforceSinglePlan" value="true" />
 		<!-- Defines what happens if there is no feasible choice alternative for an agent: IGNORE_AGENT, INITIAL_CHOICE, EXCEPTION -->
@@ -12,7 +12,7 @@
 		<!-- Defines how home activities are identified. Built-in choices: FirstActivity, ActivityBased -->
 		<param name="homeFinder" value="EqasimHomeFinder" />
 		<!-- Defines which ModeAvailability component to use. Built-in choices: Default, Car -->
-		<param name="modeAvailability" value="LeedsDrtModeAvailability" />
+		<param name="modeAvailability" value="FeederDrtModeAvailabilityWrapper" />
 		<!-- Main model type: Trip, Tour -->
 		<param name="modelType" value="Tour" />
 		<!-- Defines whether the DiscreteModeChoice strategy should be followed by a rerouting of all trips. If the estimator returns alternatives with routes attached this is not necessary. -->
@@ -28,7 +28,7 @@
 		<!-- Defines which TourFinder component to use. Built-in choices: PlanBased, ActivityBased, HomeBased -->
 		<param name="tourFinder" value="ActivityBased" />
 		<!-- Defines a number of TripConstraint components that should be activated. Built-in choices: VehicleContinuity, ShapeFile, LinkAttribute, TransitWalk -->
-		<param name="tripConstraints" value="PassengerConstraint, LegTimeConstraint, DrtServiceAreaConstraint, DrtWalkConstraint, OutsideConstraint, TransitWalk" />
+		<param name="tripConstraints" value="PassengerConstraint, FeederConstraint, LegTimeConstraint, DrtWalkConstraint, OutsideConstraint, TransitWalk" />
 		<!-- Defines which TripEstimator component to use. Built-in choices: MATSimTripScoring, Uniform -->
 		<param name="tripEstimator" value="EqasimUtilityEstimator" />
 		<!-- Defines a number of TripFilter components that should be activated. Built-in choices:  -->
@@ -210,11 +210,7 @@
 			<param name="model" value="LeedsTaxiCostModel" />
 		</parameterset>
 		<parameterset type="cost_model" >
-			<param name="mode" value="drtNW" />
-			<param name="model" value="LeedsDrtCostModel" />
-		</parameterset>
-		<parameterset type="cost_model" >
-			<param name="mode" value="drtNE" />
+			<param name="mode" value="drt" />
 			<param name="model" value="LeedsDrtCostModel" />
 		</parameterset>
 		<parameterset type="estimator" >
@@ -247,11 +243,11 @@
 		</parameterset>
 		<parameterset type="estimator" >
 			<param name="estimator" value="LeedsDrtUtilityEstimator" />
-			<param name="mode" value="drtNW" />
+			<param name="mode" value="drt" />
 		</parameterset>
 		<parameterset type="estimator" >
 			<param name="estimator" value="LeedsDrtUtilityEstimator" />
-			<param name="mode" value="drtNE" />
+			<param name="mode" value="drt_feeder" />
 		</parameterset>
 	</module>
 	<module name="eqasim:legTimeConstraint" >
@@ -259,9 +255,9 @@
 			<!-- Whether to ensure that both departure and arrival time are within the timeslots or departure time only -->
 			<param name="checkBothDepartureAndArrivalTimes" value="true" />
 			<!-- Leg mode to verify against the time slots -->
-			<param name="legMode" value="drtNW" />
+			<param name="legMode" value="drt" />
 			<!-- Main mode in which the given leg type will be verified against the time slots -->
-			<param name="mainMode" value="drtNW" />
+			<param name="mainMode" value="drt" />
 			<parameterset type="timeSlot" >
 				<!-- Begin time of the slot -->
 				<param name="beginTime" value="0.0" />
@@ -271,8 +267,8 @@
 		</parameterset>
 		<parameterset type="singleLegTimeConstraintDefinition" >
 			<param name="checkBothDepartureAndArrivalTimes" value="true" />
-			<param name="legMode" value="drtNE" />
-			<param name="mainMode" value="drtNE" />
+			<param name="legMode" value="drt" />
+			<param name="mainMode" value="drt_feeder" />
 			<parameterset type="timeSlot" >
 				<param name="beginTime" value="0.0" />
 				<param name="endTime" value="86400.0" />
@@ -367,11 +363,11 @@
 			<!-- Idle vehicles return to the nearest of all start links. See: DvrpVehicle.getStartLink() -->
 			<param name="idleVehiclesReturnToDepots" value="false" />
 			<!-- Mode which will be handled by PassengerEngine and VrpOptimizer (passengers'/customers' perspective) -->
-			<param name="mode" value="drtNW" />
+			<param name="mode" value="drt" />
 			<!-- Number of threads used for parallel evaluation of request insertion into existing schedules. Scales well up to 4, due to path data provision, the most computationally intensive part, using up to 4 threads. Default value is the number of cores available to JVM. -->
 			<param name="numberOfThreads" value="8" />
 			<!-- Operational Scheme, either of door2door, stopbased or serviceAreaBased. door2door by default -->
-			<param name="operationalScheme" value="serviceAreaBased" />
+			<param name="operationalScheme" value="door2door" />
 			<!-- Specifies the time interval (seconds) a vehicle gets evaluated to be send back to depot. -->
 			<param name="returnToDepotEvaluationInterval" value="60.0" />
 			<!-- Specifies the duration (seconds) a vehicle needs to be idle in order to get send back to the depot.Please be aware, that returnToDepotEvaluationInterval describes the minimal time a vehicle will be idle before it gets send back to depot. -->
@@ -387,7 +383,7 @@
 			<!-- Limit the operation of vehicles to links (of the 'dvrp_routing' network) with 'allowedModes' containing this 'mode'. For backward compatibility, the value is set to false by default - this means that the vehicles are allowed to operate on all links of the 'dvrp_routing' network. The 'dvrp_routing' is defined by DvrpConfigGroup.networkModes) -->
 			<param name="useModeFilteredSubnetwork" value="false" />
 			<!-- An XML file specifying the vehicle fleet. The file format according to dvrp_vehicles_v1.dtd If not provided, the vehicle specifications will be created from matsim vehicle file or provided via a custom binding. See FleetModule. -->
-			<param name="vehiclesFile" value="../../../data/supply/drt/nw/fleets/drt_fleet_nw_50.xml" />
+			<param name="vehiclesFile" value="../../../data/supply/drt/all/fleets/drt_fleet_all_50.xml" />
 			<!-- Writes out detailed DRT customer stats in each iteration. True by default. -->
 			<param name="writeDetailedCustomerStats" value="true" />
 			<parameterset type="ExtensiveInsertionSearch" >
@@ -441,54 +437,24 @@
 				</parameterset>
 			</parameterset>
 		</parameterset>
-		<parameterset type="drt" >
-			<param name="changeStartLinkToLastLinkInSchedule" value="false" />
-			<param name="drtServiceAreaShapeFile" value="null" />
-			<param name="idleVehiclesReturnToDepots" value="false" />
-			<param name="mode" value="drtNE" />
-			<param name="numberOfThreads" value="8" />
-			<param name="operationalScheme" value="serviceAreaBased" />
-			<param name="returnToDepotEvaluationInterval" value="60.0" />
-			<param name="returnToDepotTimeout" value="60.0" />
-			<param name="simulationType" value="fullSimulation" />
-			<param name="stopDuration" value="15.0" />
-			<param name="storeUnsharedPath" value="false" />
-			<param name="transitStopFile" value="null" />
-			<param name="useModeFilteredSubnetwork" value="false" />
-			<param name="vehiclesFile" value="../../../data/supply/drt/ne/fleets/drt_fleet_ne_50.xml" />
-			<param name="writeDetailedCustomerStats" value="true" />
-			<parameterset type="ExtensiveInsertionSearch" >
-				<param name="admissibleBeelineSpeedFactor" value="1.0" />
-				<param name="nearestInsertionsAtEndLimit" value="10" />
-			</parameterset>
-			<parameterset type="drtOptimizationConstraints" >
-				<parameterset type="drtOptimizationConstraintsSet" >
-					<param name="lateDiversionthreshold" value="0.0" />
-					<param name="maxAbsoluteDetour" value="Infinity" />
-					<param name="maxAllowedPickupDelay" value="Infinity" />
-					<param name="maxDetourAlpha" value="Infinity" />
-					<param name="maxDetourBeta" value="Infinity" />
-					<param name="maxTravelTimeAlpha" value="1.5" />
-					<param name="maxTravelTimeBeta" value="300.0" />
-					<param name="maxWaitTime" value="600.0" />
-					<param name="maxWalkDistance" value="1.7976931348623157E308" />
-					<param name="name" value="default" />
-					<param name="rejectRequestIfMaxWaitOrTravelTimeViolated" value="true" />
-				</parameterset>
-			</parameterset>
-			<parameterset type="rebalancing" >
-				<param name="interval" value="1800" />
-				<param name="maxTimeBeforeIdle" value="900.0" />
-				<param name="minServiceTime" value="3600.0" />
-				<parameterset type="PlusOneRebalancingStrategy" >
-					<param name="relocationCalculatorType" value="FastHeuristic" />
-				</parameterset>
-			</parameterset>
-			<parameterset type="zonalSystem" >
-				<param name="zoneTargetLinkSelection" value="mostCentral" />
-				<parameterset type="SquareGridZoneSystem" >
-					<param name="cellSize" value="500.0" />
-				</parameterset>
+	</module>
+	<module name="multiModeFeederDrt" >
+		<!-- Whether or not to perform the analysis for feeder drt services. If set to true, will follow the analysis interval specified in the configuration of the eqasim module -->
+		<param name="performAnalysis" value="true" />
+		<parameterset type="feederDrt" >
+			<!-- The name of the drt mode to use for access and egress segments -->
+			<param name="accessEgressModeName" value="drt" />
+			<!-- Possible values: CLOSEST -->
+			<param name="accessEgressStopSelection" value="CLOSEST" />
+			<!-- Mode which will be handled by PassengerEngine and VrpOptimizer (passengers'/customers' perspective) -->
+			<param name="mode" value="drt_feeder" />
+			<!-- The name by which the pt mode is known to the agents. Most usually pt -->
+			<param name="ptModeName" value="pt" />
+			<!-- A regex that if matches with the from facility id (resp to facility id) will result in an access (resp egress) drt leg not being constructed. Leave empty to consider access and egress segments at all times -->
+			<param name="skipAccessAndEgressAtFacilities" value="^outside*+" />
+			<parameterset type="TransitStopByModeAccessEgressStopSearch" >
+				<!-- Comma separated list of PT transit modes (rail, bus...) where intermodality can happen, leave empty to allow intermodality everywhere -->
+				<param name="accessEgressTransitStopModes" value="bus,rail" />
 			</parameterset>
 		</parameterset>
 	</module>
@@ -852,19 +818,7 @@
 				<param name="typicalDurationScoreComputation" value="relative" />
 			</parameterset>
 			<parameterset type="activityParams" >
-				<param name="activityType" value="drtNW interaction" />
-				<param name="closingTime" value="undefined" />
-				<param name="earliestEndTime" value="undefined" />
-				<param name="latestStartTime" value="undefined" />
-				<param name="minimalDuration" value="undefined" />
-				<param name="openingTime" value="undefined" />
-				<param name="priority" value="1.0" />
-				<param name="scoringThisActivityAtAll" value="false" />
-				<param name="typicalDuration" value="00:00:01" />
-				<param name="typicalDurationScoreComputation" value="relative" />
-			</parameterset>
-			<parameterset type="activityParams" >
-				<param name="activityType" value="drtNE interaction" />
+				<param name="activityType" value="drt_feeder interaction" />
 				<param name="closingTime" value="undefined" />
 				<param name="earliestEndTime" value="undefined" />
 				<param name="latestStartTime" value="undefined" />
@@ -959,16 +913,7 @@
 				<param name="dailyUtilityConstant" value="0.0" />
 				<param name="marginalUtilityOfDistance_util_m" value="0.0" />
 				<param name="marginalUtilityOfTraveling_util_hr" value="-6.0" />
-				<param name="mode" value="drtNW" />
-				<param name="monetaryDistanceRate" value="0.0" />
-			</parameterset>
-			<parameterset type="modeParams" >
-				<param name="constant" value="0.0" />
-				<param name="dailyMonetaryConstant" value="0.0" />
-				<param name="dailyUtilityConstant" value="0.0" />
-				<param name="marginalUtilityOfDistance_util_m" value="0.0" />
-				<param name="marginalUtilityOfTraveling_util_hr" value="-6.0" />
-				<param name="mode" value="drtNE" />
+				<param name="mode" value="drt" />
 				<param name="monetaryDistanceRate" value="0.0" />
 			</parameterset>
 		</parameterset>
