@@ -90,7 +90,7 @@ JOB_ID_2=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-
 echo "Submitted job $JOB_ID_2 for sample size $SAMPLE_SIZE_2"
 
 # Define parameters for the third run
-SAMPLE_SIZE_3="0.20"
+SAMPLE_SIZE_3="0.25"
 OUTPUT_DIRECTORY_3="scenarios/sample_${SAMPLE_SIZE_3}"
 INPUT_PLANS_FILE_3="../../../data/demand/plans_sample_eqasim_${SAMPLE_SIZE_3}.xml"
 VEHICLES_FILE_3="../../../data/supply/network_vehicles_${SAMPLE_SIZE_3}.xml"
@@ -105,3 +105,20 @@ JOB_ID_3=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-
     --input-plans-file $INPUT_PLANS_FILE_3 \
     --vehicles-file $VEHICLES_FILE_3" | awk '{print $4}')
 echo "Submitted job $JOB_ID_3 for sample size $SAMPLE_SIZE_3"
+
+# Define parameters for the fourth run
+SAMPLE_SIZE_4="0.50"
+OUTPUT_DIRECTORY_4="scenarios/sample_${SAMPLE_SIZE_4}"
+INPUT_PLANS_FILE_4="../../../data/demand/plans_sample_eqasim_${SAMPLE_SIZE_4}.xml"
+VEHICLES_FILE_4="../../../data/supply/network_vehicles_${SAMPLE_SIZE_4}.xml"
+
+# Run the fourth simulation using sbatch
+JOB_ID_4=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-per-cpu=$MEM_PER_CPU --wrap="\
+    java -Xmx48G -cp $JAR_FILE $MAIN_CLASS \
+    --config-path $CONFIG_FILE \
+    --sample-size $SAMPLE_SIZE_4 \
+    --use-rejection-constraint $USE_REJECTION_CONSTRAINT \
+    --output-directory $OUTPUT_DIRECTORY_4 \
+    --input-plans-file $INPUT_PLANS_FILE_4 \
+    --vehicles-file $VEHICLES_FILE_4" | awk '{print $4}')
+echo "Submitted job $JOB_ID_4 for sample size $SAMPLE_SIZE_4"
