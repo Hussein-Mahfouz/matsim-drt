@@ -3,6 +3,9 @@
 # Run this file from the following directory: matsim-leeds
 # If file is in matsim-leeds/bash, run ./bash/CreateDrtVehiclesByTime.sh
 
+# This script takes a DRT service area and create a fleet of DRT vehicles for different time ranges.
+# You can specify a different fleet size for each time range in the last argument of timeRanges.
+
 # Define the fixed arguments
 networkPath="data/supply/network_mapped.xml.gz"
 randomSeed="1234"
