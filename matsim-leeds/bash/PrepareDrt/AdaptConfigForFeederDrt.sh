@@ -21,7 +21,7 @@ for FLEET_SIZE in "${fleet_sizes[@]}"; do
         pt \
         drtNW,drtNE \
         bus|rail,bus|rail \
-        LeedsDrtUtilityEstimator \
+        DefaultFeederDrtUtilityEstimator \
         FeederDrtModeAvailabilityWrapper"
     )
 
@@ -35,7 +35,7 @@ for FLEET_SIZE in "${fleet_sizes[@]}"; do
     #     pt \
     #     drt \
     #     bus|rail \
-    #     LeedsDrtUtilityEstimator \
+    #     DefaultFeederDrtUtilityEstimator \
     #     FeederDrtModeAvailabilityWrapper"
     # )
 
