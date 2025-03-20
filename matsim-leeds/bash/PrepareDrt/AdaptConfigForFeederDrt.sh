@@ -11,7 +11,8 @@ fleet_sizes=("50" "100" "200" "500" "1000")
 # Loop through each fleet size
 for FLEET_SIZE in "${fleet_sizes[@]}"; do
 
-    # --- Define the different sets of arguments
+    # # --- SERVICE AREA BASED: Define the different sets of arguments
+
     inputConfigPath="src/main/resources/fleet_sizing/config_simulation_dmc_drt_${FLEET_SIZE}.xml"
     outputConfigPath="src/main/resources/fleet_sizing/config_simulation_dmc_drt_${FLEET_SIZE}_feeder.xml"
     declare -a argsArray=(
@@ -24,7 +25,8 @@ for FLEET_SIZE in "${fleet_sizes[@]}"; do
         FeederDrtModeAvailabilityWrapper"
     )
 
-    # --- Define the different sets of arguments
+    # # --- ENTIRE STUDY AREA (door2door): Define the different sets of arguments
+
     # inputConfigPath="src/main/resources/fleet_sizing/config_simulation_dmc_drt_all_${FLEET_SIZE}.xml"
     # outputConfigPath="src/main/resources/fleet_sizing/config_simulation_dmc_drt_all_${FLEET_SIZE}_feeder.xml"
     # declare -a argsArray=(
@@ -34,7 +36,7 @@ for FLEET_SIZE in "${fleet_sizes[@]}"; do
     #     drt \
     #     bus|rail \
     #     LeedsDrtUtilityEstimator \
-    #     LeedsDrtModeAvailability"
+    #     FeederDrtModeAvailabilityWrapper"
     # )
 
     # Get the classpath for all dependencies and append target/classes (the former has core functionality e.g. core eqasim, the latter has the classes I wrote and compiled)
@@ -49,7 +51,7 @@ for FLEET_SIZE in "${fleet_sizes[@]}"; do
         basePtModes=$2 # can remove as "pt" is default
         baseDrtModes=$3
         accessEgressTransitStopModes=$4
-    # accessEgressTransitStopIDs=$
+        # accessEgressTransitStopIDs=$
         estimators=$5
         modeAvailability=$6
 
