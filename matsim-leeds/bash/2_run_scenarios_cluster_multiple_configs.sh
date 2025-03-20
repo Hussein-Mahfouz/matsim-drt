@@ -26,7 +26,7 @@ export PATH="$MAVEN_HOME/bin:$PATH"
 MATSIM_DIR="$(pwd)"   # This automatically sets the current directory to MATSIM_DIR
 
 # Define the paths to the JAR file and the config file
-JAR_FILE="$MATSIM_DIR/target/matsim-leeds-1.0.jar"
+JAR_FILE="$MATSIM_DIR/matsim-leeds-1.0.jar"
 
 # Define the fully qualified name of the main class (RunDMCSimulation) - to get path, use: jar tf target/matsim-leeds-1.0.jar | grep "RunDMCSimulation"
 MAIN_CLASS="com.husseinmahfouz.matsim.RunDMCSimulationDRTCluster"
