@@ -7,6 +7,8 @@ set -e
 # The configs and drt vehicle files are prepared in advance using AdaptConfigforDRT 
 # and AdaptConfigForFeederDrt.sh 
 
+# The plans and vehicles files are prepared in advance using 0_create_pop_sample.sh
+
 # --- modules that worked for ETH cluster
 
 # module load stack/2024-06
@@ -39,9 +41,11 @@ MAX_RUNTIME="8:00:00"
 GLOBAL_THREADS=12
 # Should not be higher than CPUS_PER_TASK
 QSIM_THREADS=12
+# Number of iterations
+ITERATIONS=50
 
-# Define the population sample size being used
-SAMPLE_SIZE="0.05" 
+# Define the population sample size being used (plans and vehicles files need to exist for this sample size)
+SAMPLE_SIZE="1.00" # 0.50, 0.20, 0.10, 0.05, 0.01
 # Define whether to use the rejection constraint
 USE_REJECTION_CONSTRAINT="true"
 
@@ -85,6 +89,7 @@ for CONFIG_FILE in "${config_files[@]}"; do
         --config-path $FULL_CONFIG_PATH \
         --global-threads $GLOBAL_THREADS \
         --qsim-threads $QSIM_THREADS \
+        --iterations $ITERATIONS \
         --sample-size $SAMPLE_SIZE \
         --use-rejection-constraint $USE_REJECTION_CONSTRAINT \
         --output-directory $OUTPUT_DIRECTORY \
