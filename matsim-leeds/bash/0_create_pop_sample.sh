@@ -9,7 +9,7 @@ set -e
 MATSIM_DIR="$(pwd)"
 
 # Define the sample size
-SAMPLE_SIZE="0.50"
+SAMPLE_SIZE="1.00"
 
 # Define the input and output files for CreatePopulationSample
 INPUT_POPULATION_FILE="$MATSIM_DIR/data/demand/plans.xml"

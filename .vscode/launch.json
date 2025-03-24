@@ -141,6 +141,27 @@
                 "0.05"
             ],
             "vmArgs": "-Xmx32G"
+        },
+        {
+            "type": "java",
+            "name": "RunDMCSimulationDRTCluster",
+            "request": "launch",
+            "mainClass": "com.husseinmahfouz.matsim.RunDMCSimulationDRTCluster",
+            "projectName": "matsim-leeds",
+            "cwd": "${workspaceFolder}/matsim-leeds",
+            "args": [
+                "--config-path",
+                "src/main/resources/fleet_sizing/config_simulation_dmc_drt_50_feeder.xml",
+                "--use-rejection-constraint",
+                "true",
+                "--sample-size",
+                "0.05",
+                "--global-threads",
+                "8",
+                "--iterations",
+                "5"
+            ],
+            "vmArgs": "-Xmx32G"
         }
     ]
 }

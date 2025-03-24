@@ -24,6 +24,7 @@ import org.matsim.api.core.v01.Scenario;
 // import org.matsim.contrib.drt.optimizer.insertion.selective.SelectiveInsertionSearchParams;
 import org.matsim.contrib.drt.routing.DrtRoute;
 import org.matsim.contrib.drt.routing.DrtRouteFactory;
+import org.matsim.contrib.drt.run.DrtConfigGroup;
 // import org.matsim.contrib.drt.run.DrtConfigGroup;
 // import org.matsim.contrib.drt.run.DrtConfigGroup.OperationalScheme;
 // import org.matsim.contrib.drt.run.DrtConfigs;
@@ -59,7 +60,7 @@ public class RunDMCSimulationDRTCluster {
         CommandLine cmd = new CommandLine.Builder(args) //
                 .requireOptions("config-path") //
                 .allowOptions("use-rejection-constraint", "sample-size", "output-directory",
-                        "input-plans-file", "vehicles-file", "global-threads", "qsim-threads") //
+                        "input-plans-file", "vehicles-file", "global-threads", "qsim-threads", "iterations") //
                 .allowPrefixes("mode-choice-parameter", "cost-parameter") //
                 .build();
 
@@ -77,6 +78,8 @@ public class RunDMCSimulationDRTCluster {
             // Qsim
             config.qsim().setFlowCapFactor(sampleSize);
             config.qsim().setStorageCapFactor(sampleSize);
+            //config.qsim().setStorageCapFactor(Math.pow(sampleSize, 0.75)); // from Kagho 2022 sampling
+
             // Eqasim
             EqasimConfigGroup eqasimConfig = EqasimConfigGroup.get(config);
             eqasimConfig.setSampleSize(sampleSize);
@@ -115,6 +118,12 @@ public class RunDMCSimulationDRTCluster {
             config.qsim().setNumberOfThreads(qsimThreads);
         } else {
             config.qsim().setNumberOfThreads(8);
+        }
+
+        // Update the number of iterations if specified
+        if (cmd.hasOption("iterations")) {
+            int iterations = Integer.parseInt(cmd.getOptionStrict("iterations"));
+            config.controller().setLastIteration(iterations);
         }
 
         cmd.applyConfiguration(config);
