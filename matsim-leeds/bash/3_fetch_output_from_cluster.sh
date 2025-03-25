@@ -38,7 +38,7 @@ for REMOTE_DIR in "${!DIR_PAIRS[@]}"; do
     mkdir -p "$LOCAL_DIR"
 
     # Use rsync to sync the results, excluding specified directories
-    rsync -avz "${EXCLUDE_OPTIONS[@]}" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/" "$LOCAL_DIR/"
+    rsync -avz -vv "${EXCLUDE_OPTIONS[@]}" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/" "$LOCAL_DIR/"
 
     # Print message on successful completion
     echo "Results have been synced successfully to $LOCAL_DIR"
