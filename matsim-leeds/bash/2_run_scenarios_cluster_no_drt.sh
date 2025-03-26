@@ -54,7 +54,7 @@ echo "Submitted job $JOB_ID_1 for sample size $SAMPLE_SIZE"
 
 # Define parameters for the second run
 SAMPLE_SIZE_2="0.50"
-OUTPUT_DIRECTORY_2="scenarios/sample_${SAMPLE_SIZE_2}"
+OUTPUT_DIRECTORY_2="scenarios/basic/sample_${SAMPLE_SIZE_2}"
 INPUT_PLANS_FILE_2="../../../data/demand/plans_sample_eqasim_${SAMPLE_SIZE_2}.xml"
 VEHICLES_FILE_2="../../../data/supply/network_vehicles_${SAMPLE_SIZE_2}.xml"
 
