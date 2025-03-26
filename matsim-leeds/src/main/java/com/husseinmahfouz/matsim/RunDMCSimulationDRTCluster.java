@@ -24,6 +24,7 @@ import org.matsim.api.core.v01.Scenario;
 // import org.matsim.contrib.drt.optimizer.insertion.selective.SelectiveInsertionSearchParams;
 import org.matsim.contrib.drt.routing.DrtRoute;
 import org.matsim.contrib.drt.routing.DrtRouteFactory;
+import org.matsim.contrib.drt.run.DrtConfigGroup;
 // import org.matsim.contrib.drt.run.DrtConfigGroup;
 // import org.matsim.contrib.drt.run.DrtConfigGroup.OperationalScheme;
 // import org.matsim.contrib.drt.run.DrtConfigs;
@@ -53,14 +54,13 @@ import org.matsim.core.config.groups.QSimConfigGroup.StarttimeInterpretation;
 import org.matsim.core.controler.Controler;
 import org.matsim.core.scenario.ScenarioUtils;
 
-
-
-public class RunDMCSimulationDRT {
+public class RunDMCSimulationDRTCluster {
 
     static public void main(String[] args) throws ConfigurationException {
         CommandLine cmd = new CommandLine.Builder(args) //
                 .requireOptions("config-path") //
-                .allowOptions("use-rejection-constraint", "sample-size") //
+                .allowOptions("use-rejection-constraint", "sample-size", "output-directory",
+                        "input-plans-file", "vehicles-file", "global-threads", "qsim-threads", "iterations") //
                 .allowPrefixes("mode-choice-parameter", "cost-parameter") //
                 .build();
 
@@ -68,58 +68,68 @@ public class RunDMCSimulationDRT {
         Config config = ConfigUtils.loadConfig(cmd.getOptionStrict("config-path"));
         configurator.updateConfig(config);
 
-        // MultiModeDrtConfigGroup multiModeDrtConfig = new MultiModeDrtConfigGroup();
-
-        // { // Configure DRT
-        // config.addModule(multiModeDrtConfig);
-
-        // DrtConfigGroup drtConfig = new DrtConfigGroup();
-        // drtConfig.mode = "drt";
-        // drtConfig.operationalScheme = OperationalScheme.door2door;
-        // drtConfig.stopDuration = 15.0;
-        // DefaultDrtOptimizationConstraintsSet defaultDrtOptimizationConstraintsSet = new
-        // DefaultDrtOptimizationConstraintsSet();
-        // defaultDrtOptimizationConstraintsSet.maxWaitTime = 3600;
-        // defaultDrtOptimizationConstraintsSet.maxTravelTimeAlpha = 3;
-        // defaultDrtOptimizationConstraintsSet.maxTravelTimeBeta = 3600;
-        // drtConfig.addOrGetDrtOptimizationConstraintsParams().addParameterSet(defaultDrtOptimizationConstraintsSet);
-        // drtConfig.vehiclesFile = "../../../data/supply/drt/drt_fleet_1.xml";
-
-        // DrtInsertionSearchParams searchParams = new SelectiveInsertionSearchParams();
-        // drtConfig.setDrtInsertionSearchParams(searchParams);
-
-        // multiModeDrtConfig.addParameterSet(drtConfig);
-        // DrtConfigs.adjustMultiModeDrtConfig(multiModeDrtConfig, config.scoring(),
-        // config.routing());
-
-        // // Additional requirements
-        // config.qsim().setStartTime(0.0);
-        // config.qsim().setSimStarttimeInterpretation(StarttimeInterpretation.onlyUseStarttime);
-        // }
-
         // Update config parameters based on sample size if specified
         if (cmd.hasOption("sample-size")) {
 
             // Get the sample size from the command line arguments
             double sampleSize = Double.parseDouble(cmd.getOptionStrict("sample-size"));
 
-
             // update the relevant config parameters based on the sample size
             // Qsim
             config.qsim().setFlowCapFactor(sampleSize);
             config.qsim().setStorageCapFactor(sampleSize);
+            //config.qsim().setStorageCapFactor(Math.pow(sampleSize, 0.75)); // from Kagho 2022 sampling
+
             // Eqasim
             EqasimConfigGroup eqasimConfig = EqasimConfigGroup.get(config);
             eqasimConfig.setSampleSize(sampleSize);
 
         }
 
+        // Update the output directory if specified
+        if (cmd.hasOption("output-directory")) {
+            String outputDirectory = cmd.getOptionStrict("output-directory");
+            config.controller().setOutputDirectory(outputDirectory);
+        }
+
+        // Update the input plans file if specified
+        if (cmd.hasOption("input-plans-file")) {
+            String inputPlansFile = cmd.getOptionStrict("input-plans-file");
+            config.plans().setInputFile(inputPlansFile);
+        }
+
+        // Update the vehicles file if specified
+        if (cmd.hasOption("vehicles-file")) {
+            String vehiclesFile = cmd.getOptionStrict("vehicles-file");
+            config.vehicles().setVehiclesFile(vehiclesFile);
+        }
+
+        // Update the global number of threads if specified
+        if (cmd.hasOption("global-threads")) {
+            int globalThreads = Integer.parseInt(cmd.getOptionStrict("global-threads"));
+            config.global().setNumberOfThreads(globalThreads);
+        } else {
+            config.global().setNumberOfThreads(8);
+        }
+
+        // Update the qsim number of threads if specified
+        if (cmd.hasOption("qsim-threads")) {
+            int qsimThreads = Integer.parseInt(cmd.getOptionStrict("qsim-threads"));
+            config.qsim().setNumberOfThreads(qsimThreads);
+        } else {
+            config.qsim().setNumberOfThreads(8);
+        }
+
+        // Update the number of iterations if specified
+        if (cmd.hasOption("iterations")) {
+            int iterations = Integer.parseInt(cmd.getOptionStrict("iterations"));
+            config.controller().setLastIteration(iterations);
+        }
 
         cmd.applyConfiguration(config);
 
         { // Edit the DMC config module
-            DiscreteModeChoiceConfigGroup dmcConfig =
-                    DiscreteModeChoiceConfigGroup.getOrCreate(config);
+            DiscreteModeChoiceConfigGroup dmcConfig = DiscreteModeChoiceConfigGroup.getOrCreate(config);
 
             // Add rejection constraint if specified
             if (cmd.getOption("use-rejection-constraint").map(Boolean::parseBoolean)

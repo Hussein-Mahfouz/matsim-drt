@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE config SYSTEM "http://www.matsim.org/files/dtd/config_v2.dtd">
 <config>
-	<module name="DiscreteModeChoice">
+	<module name="DiscreteModeChoice" >
 		<param name="accumulateEstimationDelays" value="true" />
 		<!-- Trips tested with the modes listed here will be cached for each combination of trip and agent during one replanning pass. -->
-		<param name="cachedModes" value="pt, car, drt, car_passenger, walk, bike" />
+		<param name="cachedModes" value="pt, car, drt, taxi, car_passenger, walk, bike" />
 		<!-- Defines whether to run a runtime check that verifies that everything is set up correctl for a 'mode-choice-in-the-loop' setup. -->
 		<param name="enforceSinglePlan" value="true" />
 		<!-- Defines what happens if there is no feasible choice alternative for an agent: IGNORE_AGENT, INITIAL_CHOICE, EXCEPTION -->
@@ -28,25 +28,25 @@
 		<!-- Defines which TourFinder component to use. Built-in choices: PlanBased, ActivityBased, HomeBased -->
 		<param name="tourFinder" value="ActivityBased" />
 		<!-- Defines a number of TripConstraint components that should be activated. Built-in choices: VehicleContinuity, ShapeFile, LinkAttribute, TransitWalk -->
-		<param name="tripConstraints" value="PassengerConstraint, DrtWalkConstraint, OutsideConstraint, TransitWalk" />
+		<param name="tripConstraints" value="PassengerConstraint, LegTimeConstraint, DrtWalkConstraint, OutsideConstraint, TransitWalk" />
 		<!-- Defines which TripEstimator component to use. Built-in choices: MATSimTripScoring, Uniform -->
 		<param name="tripEstimator" value="EqasimUtilityEstimator" />
 		<!-- Defines a number of TripFilter components that should be activated. Built-in choices:  -->
 		<param name="tripFilters" value="" />
 		<param name="writeUtilitiesInterval" value="1" />
-		<parameterset type="homeFinder:ActivityBased">
+		<parameterset type="homeFinder:ActivityBased" >
 			<!-- Comma-separated activity types which should be considered as home. -->
 			<param name="activityTypes" value="home" />
 		</parameterset>
-		<parameterset type="modeAvailability:Car">
+		<parameterset type="modeAvailability:Car" >
 			<!-- Defines which modes are avialable to the agents. -->
-			<param name="availableModes" value="pt, car, car_passenger, walk, bike" />
+			<param name="availableModes" value="pt, car, taxi, car_passenger, walk, bike" />
 		</parameterset>
-		<parameterset type="modeAvailability:Default">
+		<parameterset type="modeAvailability:Default" >
 			<!-- Defines which modes are avialable to the agents. -->
-			<param name="availableModes" value="pt, car, car_passenger, walk, bike" />
+			<param name="availableModes" value="pt, car, taxi, car_passenger, walk, bike" />
 		</parameterset>
-		<parameterset type="selector:MultinomialLogit">
+		<parameterset type="selector:MultinomialLogit" >
 			<!-- Defines whether candidates with a utility lower than the minimum utility should be filtered out. -->
 			<param name="considerMinimumUtility" value="false" />
 			<!-- Candidates with a utility above that threshold will be cut off to this value. -->
@@ -54,23 +54,23 @@
 			<!-- Candidates with a utility lower than that threshold will not be considered by default. -->
 			<param name="minimumUtility" value="-700.0" />
 		</parameterset>
-		<parameterset type="tourConstraint:SubtourMode">
+		<parameterset type="tourConstraint:SubtourMode" >
 			<!-- Modes for which the sub-tour behaviour should be replicated. If all available modes are put here, this equals to SubTourModeChoice with singleLegProbability == 0.0; if only the constrained modes are put here, it equals singleLegProbability > 0.0 -->
 			<param name="constrainedModes" value="" />
 		</parameterset>
-		<parameterset type="tourConstraint:VehicleContinuity">
+		<parameterset type="tourConstraint:VehicleContinuity" >
 			<!-- Defines which modes must fulfill continuity constraints (can only be used where they have been brough to before) -->
 			<param name="restrictedModes" value="car, bike" />
 		</parameterset>
-		<parameterset type="tourFilter:TourLength">
+		<parameterset type="tourFilter:TourLength" >
 			<!-- Defines the maximum allowed length of a tour. -->
 			<param name="maximumLength" value="10" />
 		</parameterset>
-		<parameterset type="tourFinder:ActivityBased">
+		<parameterset type="tourFinder:ActivityBased" >
 			<!-- Comma-separated activity types which should be considered as start and end of a tour. If a plan does not start or end with such an activity additional tours are added. -->
 			<param name="activityTypes" value="outside, home" />
 		</parameterset>
-		<parameterset type="tripConstraint:LinkAttribute">
+		<parameterset type="tripConstraint:LinkAttribute" >
 			<!-- Link attribute that will be considered for feasibility of the trip. -->
 			<param name="attributeName" value="null" />
 			<!-- Value that the link attributes should equal. -->
@@ -80,7 +80,7 @@
 			<!-- Defines the criterion on when a trip with the constrained mode will be allowed: ORIGIN, DESTINATION, BOTH, ANY, NONE -->
 			<param name="requirement" value="BOTH" />
 		</parameterset>
-		<parameterset type="tripConstraint:ShapeFile">
+		<parameterset type="tripConstraint:ShapeFile" >
 			<!-- Modes for which the shapes will be considered. -->
 			<param name="constrainedModes" value="" />
 			<!-- Path to a shape file, which should have the same projection as the network. -->
@@ -88,18 +88,18 @@
 			<!-- Defines the criterion on when a trip with the constrained mode will be allowed: ORIGIN, DESTINATION, BOTH, ANY, NONE -->
 			<param name="requirement" value="BOTH" />
 		</parameterset>
-		<parameterset type="tripConstraint:VehicleContinuity">
+		<parameterset type="tripConstraint:VehicleContinuity" >
 			<!-- Defines if the advanced constriant is used (vehicles must be brought back home). -->
 			<param name="isAdvanced" value="true" />
 			<!-- Defines which modes must fulfill continuity constraints (can only be used where they have been brough to before) -->
 			<param name="restrictedModes" value="car, bike" />
 		</parameterset>
-		<parameterset type="tripEstimator:MATSimTripScoring">
+		<parameterset type="tripEstimator:MATSimTripScoring" >
 			<!-- Modes which are considered as public transit, i.e. they involve waiting for a vehicle. -->
 			<param name="ptLegModes" value="pt" />
 		</parameterset>
 	</module>
-	<module name="changeMode">
+	<module name="changeMode" >
 		<!-- Defines whether car availability is considered be considered or not. An agent has no car only if it has no license, or never access to a car. Default: true -->
 		<param name="ignoreCarAvailability" value="true" />
 		<!-- Defines the mode switch behavior. Possible values [fromAllModesToSpecifiedModes, fromSpecifiedModesToSpecifiedModes] Default: fromSpecifiedModesToSpecifiedModes. -->
@@ -107,7 +107,7 @@
 		<!-- Defines all the modes available, including chain-based modes, seperated by commas -->
 		<param name="modes" value="car,pt" />
 	</module>
-	<module name="controller">
+	<module name="controller" >
 		<!-- Defines what should be done with the ITERS directory when a simulation finished successfully -->
 		<param name="cleanItersAtEnd" value="keep" />
 		<!-- Compression algorithm to use when writing out data to files. Possible values: [none, gzip, lz4, zst] -->
@@ -126,7 +126,7 @@
 		<!-- Default=0. First Iteration of a simulation. -->
 		<param name="firstIteration" value="0" />
 		<!-- Default=1000. Last Iteration of a simulation. -->
-		<param name="lastIteration" value="10" />
+		<param name="lastIteration" value="50" />
 		<!-- Defines the interval for printing memory usage to the log in [seconds]. Must be positive. Defaults to 60. -->
 		<param name="memoryObserverInterval" value="60" />
 		<!-- Defines which mobility simulation will be used. Currently supported: [qsim, JDEQSim, hermes]
@@ -151,7 +151,7 @@
 		<!-- iterationNumber % writeEventsInterval == 0 defines in which iterations trips CSV are written to a file. `0' disables trips writing completely. -->
 		<param name="writeTripsInterval" value="50" />
 	</module>
-	<module name="counts">
+	<module name="counts" >
 		<!-- Transport modes that will be respected for the counts comparison. 'car' is default, which includes also bussed from the pt simulation module. Use this parameter in combination with 'filterModes' = true! -->
 		<param name="analyzedModes" value="car" />
 		<!-- Specifies over how many iterations the link volumes should be averaged that are used for the counts comparison. Use 1 or 0 to only use the link volumes of a single iteration. This values cannot be larger than the value specified for writeCountsInterval -->
@@ -173,7 +173,7 @@
 		<!-- Specifies how often the counts comparison should be calculated and written. -->
 		<param name="writeCountsInterval" value="10" />
 	</module>
-	<module name="dvrp">
+	<module name="dvrp" >
 		<!-- File containing the initial link travel time estimates. Ignored if null -->
 		<param name="initialTravelTimesFile" value="null" />
 		<!-- Mode of which the network will be used for throwing events and hence calculating travel times. Default is car. -->
@@ -185,7 +185,7 @@
 		<!-- Used for ONLINE estimation of travel times for VrpOptimizer by combining WithinDayTravelTime and DvrpOfflineTravelTimeEstimator. The beta coefficient is provided in seconds and should be either 0 (no online estimation) or positive (mixed online-offline estimation). For 'beta = 0', only the offline estimate is used: 'onlineTT(t) = offlineTT(t)', where 'offlineTT(t)' in the offline estimate for TT at time 't', For 'beta > 0', estimating future TTs at time 't', uses the currently observed TT to correct the offline estimates is made: where 'currentTT' is the currently observed TT, and 'correction = min(1, max(0, 1 - (time - currentTime) / beta))' The rule is that correction decreases linearly from 1 (when 'time = currentTime') to 0 (when 'time = currentTime + beta' For 'time > currentTime + beta' correction is 0, whereas if 'time < currentTime' it is 1. If beta is sufficiently large, 'beta >> 0', only the currently observed TT is used. -->
 		<param name="travelTimeEstimationBeta" value="0.0" />
 	</module>
-	<module name="eqasim">
+	<module name="eqasim" >
 		<!-- Possible values: kilometer,meter,mile,foot -->
 		<param name="analysisDistanceUnit" value="meter" />
 		<param name="analysisInterval" value="60" />
@@ -197,48 +197,72 @@
 		<param name="sampleSize" value="0.001" />
 		<param name="travelTimeRecordingInterval" value="0" />
 		<param name="useScheduleBasedTransport" value="true" />
-		<parameterset type="cost_model">
+		<parameterset type="cost_model" >
 			<param name="mode" value="car" />
 			<param name="model" value="LeedsCarCostModel" />
 		</parameterset>
-		<parameterset type="cost_model">
+		<parameterset type="cost_model" >
 			<param name="mode" value="pt" />
 			<param name="model" value="LeedsPtCostModel" />
 		</parameterset>
-		<parameterset type="cost_model">
+		<parameterset type="cost_model" >
+			<param name="mode" value="taxi" />
+			<param name="model" value="LeedsTaxiCostModel" />
+		</parameterset>
+		<parameterset type="cost_model" >
 			<param name="mode" value="drt" />
 			<param name="model" value="LeedsDrtCostModel" />
 		</parameterset>
-		<parameterset type="estimator">
+		<parameterset type="estimator" >
 			<param name="estimator" value="LeedsCarUtilityEstimator" />
 			<param name="mode" value="car" />
 		</parameterset>
-		<parameterset type="estimator">
+		<parameterset type="estimator" >
 			<param name="estimator" value="LeedsPtUtilityEstimator" />
 			<param name="mode" value="pt" />
 		</parameterset>
-		<parameterset type="estimator">
+		<parameterset type="estimator" >
 			<param name="estimator" value="LeedsBikeUtilityEstimator" />
 			<param name="mode" value="bike" />
 		</parameterset>
-		<parameterset type="estimator">
+		<parameterset type="estimator" >
 			<param name="estimator" value="LeedsWalkUtilityEstimator" />
 			<param name="mode" value="walk" />
 		</parameterset>
-		<parameterset type="estimator">
+		<parameterset type="estimator" >
+			<param name="estimator" value="LeedsTaxiUtilityEstimator" />
+			<param name="mode" value="taxi" />
+		</parameterset>
+		<parameterset type="estimator" >
 			<param name="estimator" value="ZeroUtilityEstimator" />
 			<param name="mode" value="outside" />
 		</parameterset>
-		<parameterset type="estimator">
+		<parameterset type="estimator" >
 			<param name="estimator" value="ZeroUtilityEstimator" />
 			<param name="mode" value="car_passenger" />
 		</parameterset>
-		<parameterset type="estimator">
+		<parameterset type="estimator" >
 			<param name="estimator" value="LeedsDrtUtilityEstimator" />
 			<param name="mode" value="drt" />
 		</parameterset>
 	</module>
-	<module name="eqasim:raptor">
+	<module name="eqasim:legTimeConstraint" >
+		<parameterset type="singleLegTimeConstraintDefinition" >
+			<!-- Whether to ensure that both departure and arrival time are within the timeslots or departure time only -->
+			<param name="checkBothDepartureAndArrivalTimes" value="true" />
+			<!-- Leg mode to verify against the time slots -->
+			<param name="legMode" value="drt" />
+			<!-- Main mode in which the given leg type will be verified against the time slots -->
+			<param name="mainMode" value="drt" />
+			<parameterset type="timeSlot" >
+				<!-- Begin time of the slot -->
+				<param name="beginTime" value="0.0" />
+				<!-- End time of the slot -->
+				<param name="endTime" value="86400.0" />
+			</parameterset>
+		</parameterset>
+	</module>
+	<module name="eqasim:raptor" >
 		<param name="perTransfer_u" value="-1.0" />
 		<param name="travelTimeBus_u_h" value="-7.0" />
 		<param name="travelTimeOther_u_h" value="-7.0" />
@@ -248,14 +272,14 @@
 		<param name="waitTime_u_h" value="-6.0" />
 		<param name="walkTime_u_h" value="-7.0" />
 	</module>
-	<module name="eqasim:termination">
+	<module name="eqasim:termination" >
 		<param name="historyFile" value="null" />
 		<param name="horizon" value="10" />
 		<param name="modes" value="car,pt,bike,walk" />
 		<param name="smoothing" value="20" />
 		<param name="threshold" value="0.001" />
 	</module>
-	<module name="eventsManager">
+	<module name="eventsManager" >
 		<!-- Estimated number of events during mobsim run. An optional optimization hint for the framework. -->
 		<param name="estimatedNumberOfEvents" value="null" />
 		<!-- Size of the events Queue. Increase for very large scenarios -->
@@ -267,7 +291,7 @@
 		<!-- If enabled, it is ensured that all events that are created during a time step of the mobility simulation are processed before the next time step is simulated. E.g. neccessary when within-day replanning is used. -->
 		<param name="synchronizeOnSimSteps" value="true" />
 	</module>
-	<module name="facilities">
+	<module name="facilities" >
 		<!-- This defines how facilities should be created. Possible values: none fromFile setInScenario onePerActivityLinkInPlansFile onePerActivityLinkInPlansFileExceptWhenCoordinatesAreGiven onePerActivityLocationInPlansFile  -->
 		<param name="facilitiesSource" value="none" />
 		<!-- A prefix to be used for auto-generated IDs. -->
@@ -278,15 +302,15 @@
 		<param name="inputFacilityAttributesFile" value="null" />
 		<param name="insistingOnUsingDeprecatedFacilitiesAttributeFile" value="false" />
 	</module>
-	<module name="global">
+	<module name="global" >
 		<param name="coordinateSystem" value="EPSG:3857" />
 		<param name="defaultDelimiter" value=";" />
 		<param name="insistingOnDeprecatedConfigVersion" value="true" />
 		<!-- "global" number of threads.  This number is used, e.g., for replanning, but NOT in QSim.  This can typically be set to as many cores as you have available, or possibly even slightly more. -->
-		<param name="numberOfThreads" value="8" />
+		<param name="numberOfThreads" value="2" />
 		<param name="randomSeed" value="4711" />
 	</module>
-	<module name="hermes">
+	<module name="hermes" >
 		<!-- Simulation End Time -->
 		<param name="endTime" value="30:00:00" />
 		<param name="flowCapacityFactor" value="1.0" />
@@ -297,12 +321,12 @@
 		<!-- treats PT as deterministic. PT vehicles will run with a steady speed. Should be used with separate network layers for PT and other network modes. -->
 		<param name="useDeterministicPt" value="false" />
 	</module>
-	<module name="households">
+	<module name="households" >
 		<param name="inputFile" value="null" />
 		<param name="inputHouseholdAttributesFile" value="null" />
 		<param name="insistingOnUsingDeprecatedHouseholdsAttributeFile" value="false" />
 	</module>
-	<module name="jdeqsim">
+	<module name="jdeqsim" >
 		<param name="carSize" value="7.5" />
 		<param name="endTime" value="undefined" />
 		<param name="flowCapacityFactor" value="1.0" />
@@ -311,18 +335,18 @@
 		<param name="squeezeTime" value="1800.0" />
 		<param name="storageCapacityFactor" value="1.0" />
 	</module>
-	<module name="linkStats">
+	<module name="linkStats" >
 		<!-- Specifies over how many iterations the link volumes should be averaged that are used for the link statistics. Use 1 or 0 to only use the link volumes of a single iteration. This values cannot be larger than the value specified for writeLinkStatsInterval -->
 		<param name="averageLinkStatsOverIterations" value="5" />
 		<!-- Specifies how often the link stats should be calculated and written. Use 0 to disable the generation of link stats. -->
 		<param name="writeLinkStatsInterval" value="50" />
 	</module>
-	<module name="multiModeDrt">
-		<parameterset type="drt">
+	<module name="multiModeDrt" >
+		<parameterset type="drt" >
 			<!-- If true, the startLink is changed to last link in the current schedule, so the taxi starts the next day at the link where it stopped operating the day before. False by default. -->
 			<param name="changeStartLinkToLastLinkInSchedule" value="false" />
 			<!-- Allows to configure a service area per drt mode. Used with serviceArea Operational Scheme -->
-			<param name="drtServiceAreaShapeFile" value="../../../data/supply/drt/oa_leeds1.shp" />
+			<param name="drtServiceAreaShapeFile" value="null" />
 			<!-- Idle vehicles return to the nearest of all start links. See: DvrpVehicle.getStartLink() -->
 			<param name="idleVehiclesReturnToDepots" value="false" />
 			<!-- Mode which will be handled by PassengerEngine and VrpOptimizer (passengers'/customers' perspective) -->
@@ -330,7 +354,7 @@
 			<!-- Number of threads used for parallel evaluation of request insertion into existing schedules. Scales well up to 4, due to path data provision, the most computationally intensive part, using up to 4 threads. Default value is the number of cores available to JVM. -->
 			<param name="numberOfThreads" value="8" />
 			<!-- Operational Scheme, either of door2door, stopbased or serviceAreaBased. door2door by default -->
-			<param name="operationalScheme" value="serviceAreaBased" />
+			<param name="operationalScheme" value="door2door" />
 			<!-- Specifies the time interval (seconds) a vehicle gets evaluated to be send back to depot. -->
 			<param name="returnToDepotEvaluationInterval" value="60.0" />
 			<!-- Specifies the duration (seconds) a vehicle needs to be idle in order to get send back to the depot.Please be aware, that returnToDepotEvaluationInterval describes the minimal time a vehicle will be idle before it gets send back to depot. -->
@@ -346,17 +370,17 @@
 			<!-- Limit the operation of vehicles to links (of the 'dvrp_routing' network) with 'allowedModes' containing this 'mode'. For backward compatibility, the value is set to false by default - this means that the vehicles are allowed to operate on all links of the 'dvrp_routing' network. The 'dvrp_routing' is defined by DvrpConfigGroup.networkModes) -->
 			<param name="useModeFilteredSubnetwork" value="false" />
 			<!-- An XML file specifying the vehicle fleet. The file format according to dvrp_vehicles_v1.dtd If not provided, the vehicle specifications will be created from matsim vehicle file or provided via a custom binding. See FleetModule. -->
-			<param name="vehiclesFile" value="../../../data/supply/drt/drt_fleet_1.xml" />
+			<param name="vehiclesFile" value="../../../data/supply/drt/all/fleets/drt_fleet_all_50.xml" />
 			<!-- Writes out detailed DRT customer stats in each iteration. True by default. -->
 			<param name="writeDetailedCustomerStats" value="true" />
-			<parameterset type="ExtensiveInsertionSearch">
+			<parameterset type="ExtensiveInsertionSearch" >
 				<param name="admissibleBeelineSpeedFactor" value="1.0" />
 				<param name="nearestInsertionsAtEndLimit" value="10" />
 			</parameterset>
-			<parameterset type="drtOptimizationConstraints">
-				<parameterset type="drtOptimizationConstraintsSet">
+			<parameterset type="drtOptimizationConstraints" >
+				<parameterset type="drtOptimizationConstraintsSet" >
 					<!-- Time before reaching a planned dropoff from which it is not allowed to insert new detours for new requests. I.e., if set to 180, then a vehicle will not divert to pickup or dropoff a new passenger once a boarded passenger is only 3 minutes away from her destination, even though her time window would allow it. Delayed detours just before arrival are usually perceived very negatively. -->
-					<param name="lateDiversionthreshold" value="180" />
+					<param name="lateDiversionthreshold" value="0.0" />
 					<!-- Defines the maximum allowed absolute detour in seconds. Note that the detour is computed from the latest promised pickup time. To enable the max detour constraint, maxAllowedPickupDelay has to be specified. maxAbsoluteDetour should not be smaller than 0, and should be higher than the offset maxDetourBeta. By default, this limit is disabled (i.e. set to Inf) -->
 					<param name="maxAbsoluteDetour" value="Infinity" />
 					<!-- Defines the maximum delay allowed from the initial scheduled pick up time. Once the initial pickup time is offered, the latest promisedpickup time is calculated based on initial scheduled pickup time + maxAllowedPickupDelay. By default, this limit is disabled. If enabled, a value between 0 and 240 is a good choice. -->
@@ -372,48 +396,48 @@
 					<!-- Max wait time for the bus to come (optimisation constraint). -->
 					<param name="maxWaitTime" value="600.0" />
 					<!-- Maximum beeline distance (in meters) to next stop location in stopbased system for access/egress walk leg to/from drt. If no stop can be found within this maximum distance will return null (in most cases caught by fallback routing module). -->
-					<param name="maxWalkDistance" value="500" />
+					<param name="maxWalkDistance" value="1.7976931348623157E308" />
 					<!-- name of optimization params -->
 					<param name="name" value="default" />
 					<!-- If true, the max travel and wait times of a submitted request are considered hard constraints (the request gets rejected if one of the constraints is violated). If false, the max travel and wait times are considered soft constraints (insertion of a request that violates one of the constraints is allowed, but its cost is increased by additional penalty to make it relatively less attractive). Penalisation of insertions can be customised by injecting a customised InsertionCostCalculator.PenaltyCalculator -->
 					<param name="rejectRequestIfMaxWaitOrTravelTimeViolated" value="true" />
 				</parameterset>
 			</parameterset>
-			<parameterset type="rebalancing">
+			<parameterset type="rebalancing" >
 				<!-- Specifies how often empty vehicle rebalancing is executed. Must be positive. Default is 1800 s. Expects an Integer Value -->
 				<param name="interval" value="1800" />
 				<!-- Maximum remaining time before busy vehicle becomes idle to be considered as soon-idle vehicle. Default is 900 s. In general should be lower than interval (e.g. 0.5 x interval) -->
 				<param name="maxTimeBeforeIdle" value="900.0" />
 				<!-- Minimum remaining service time of an idle/busy vehicle to be considered as rebalancable/soon-idle (respectively). Default is 3600 s. In general, should be higher than interval (e.g. 2 x interval). -->
 				<param name="minServiceTime" value="3600.0" />
-				<parameterset type="PlusOneRebalancingStrategy">
+				<parameterset type="PlusOneRebalancingStrategy" >
 					<!-- Specific the zone free relocation calculator. Default is fast heuristic zone free relocation calculator. -->
 					<param name="relocationCalculatorType" value="FastHeuristic" />
 				</parameterset>
 			</parameterset>
-			<parameterset type="zonalSystem">
+			<parameterset type="zonalSystem" >
 				<!-- Defines how the target link of a zone is determined (e.g. for rebalancing). Possible values are [random,mostCentral]. Default behavior is mostCentral, where all vehicles are sent to the same link. -->
 				<param name="zoneTargetLinkSelection" value="mostCentral" />
-				<parameterset type="SquareGridZoneSystem">
+				<parameterset type="SquareGridZoneSystem" >
 					<!-- size of square cells used for demand aggregation. Depends on demand, supply and network. Often used with values in the range of 500 - 2000 m -->
 					<param name="cellSize" value="500.0" />
 				</parameterset>
 			</parameterset>
 		</parameterset>
 	</module>
-	<module name="network">
+	<module name="network" >
 		<!-- The Coordinates Reference System in which the coordinates are expressed in the input file. At import, the coordinates will be converted to the coordinate system defined in "global", and willbe converted back at export. If not specified, no conversion happens. -->
 		<param name="inputCRS" value="null" />
 		<param name="inputChangeEventsFile" value="null" />
-		<param name="inputNetworkFile" value="../../../data/supply/network_mapped.xml.gz" />
+		<param name="inputNetworkFile" value="../resources/data/supply/network_mapped.xml.gz" />
 		<param name="laneDefinitionsFile" value="null" />
 		<param name="timeVariantNetwork" value="false" />
 	</module>
-	<module name="planInheritance">
+	<module name="planInheritance" >
 		<!-- Specifies whether or not PlanInheritance Information should be tracked. -->
 		<param name="enabled" value="false" />
 	</module>
-	<module name="plans">
+	<module name="plans" >
 		<!-- String: minOfDurationAndEndTime tryEndTimeThenDuration endTimeOnly. Anything besides minOfDurationAndEndTime will internally use a different (simpler) version of the TimeAllocationMutator. -->
 		<param name="activityDurationInterpretation" value="tryEndTimeThenDuration" />
 		<!-- Possible values: reject,useMainModeIdentifier -->
@@ -421,7 +445,7 @@
 		<!-- The Coordinates Reference System in which the coordinates are expressed in the input file. At import, the coordinates will be converted to the coordinate system defined in "global", and willbe converted back at export. If not specified, no conversion happens. -->
 		<param name="inputCRS" value="null" />
 		<param name="inputPersonAttributesFile" value="null" />
-		<param name="inputPlansFile" value="../../../scenarios/test/plans_eqasim.xml" />
+		<param name="inputPlansFile" value="../resources/data/demand/plans_sample_eqasim.xml" />
 		<param name="insistingOnUsingDeprecatedPersonAttributeFile" value="false" />
 		<!-- Defines how routes are stored in memory. Currently supported: LinkNetworkRoute, MediumCompressedNetworkRoute, HeavyCompressedNetworkRoute. -->
 		<param name="networkRouteType" value="LinkNetworkRoute" />
@@ -430,7 +454,7 @@
 		<!-- Defines how departure times are interpreted in rerouting applications. If set to 'ignoreDelays', the departure time of a trip when routing along a plan will always be the nominal (plan-based) activity end time. If set to 'shiftActivityEndTimes', routing along a plan will accumulate travel times and shift activity end times if necessary -->
 		<param name="tripDurationHandling" value="ignoreDelays" />
 	</module>
-	<module name="qsim">
+	<module name="qsim" >
 		<param name="endTime" value="30:00:00" />
 		<!-- If set to withLinkAttributes snapshots will only be generated for links which include generateSnapshotForLink as attribute key. Default is no filtering. -->
 		<param name="filterSnapshots" value="no" />
@@ -450,7 +474,7 @@
 		<!-- Shortens a link in the visualization, i.e. its start and end point are moved into towards the center. Does not affect traffic flow.  -->
 		<param name="nodeOffset" value="0.0" />
 		<!-- Number of threads used for the QSim.  Note that this setting is independent from the "global" threads setting.  In contrast to earlier versions, the non-parallel special version is no longer there. -->
-		<param name="numberOfThreads" value="8" />
+		<param name="numberOfThreads" value="1" />
 		<!-- Boolean. `true': stuck vehicles are removed, aborting the plan; `false': stuck vehicles are forced into the next link. `false' is probably the better choice. -->
 		<param name="removeStuckVehicles" value="false" />
 		<!-- If link dynamics is set as SeepageQ, set a seep mode. Default is bike. -->
@@ -480,7 +504,7 @@
 		<!-- If vehicles should all be the same default vehicle, or come from the vehicles file, or something else.  Possible values:  defaultVehicle modeVehicleTypesFromVehiclesData fromVehiclesData -->
 		<param name="vehiclesSource" value="fromVehiclesData" />
 	</module>
-	<module name="replanning">
+	<module name="replanning" >
 		<!-- the external executable will be called with a config file as argument.  This is the pathname to a possible skeleton config, to which additional information will be added.  Can be null. -->
 		<param name="ExternalExeConfigTemplate" value="null" />
 		<!-- time out value (in seconds) after which matsim will consider the external strategy as failed -->
@@ -493,7 +517,7 @@
 		<param name="maxAgentPlanMemorySize" value="1" />
 		<!-- strategyName of PlanSelector for plans removal.  Possible defaults: WorstPlanSelector SelectRandom SelectExpBetaForRemoval ChangeExpBetaForRemoval PathSizeLogitSelectorForRemoval . The current default, WorstPlanSelector is not a good choice from a discrete choice theoretical perspective. Alternatives, however, have not been systematically tested. kai, feb'12 -->
 		<param name="planSelectorForRemoval" value="NonSelectedPlanSelector" />
-		<parameterset type="strategysettings">
+		<parameterset type="strategysettings" >
 			<!-- iteration after which strategy will be disabled.  most useful for ``innovative'' strategies (new routes, new times, ...). Normally, better use fractionOfIterationsToDisableInnovation -->
 			<param name="disableAfterIteration" value="-1" />
 			<!-- path to external executable (if applicable) -->
@@ -505,7 +529,7 @@
 			<!-- weight of a strategy: for each agent, a strategy will be selected with a probability proportional to its weight -->
 			<param name="weight" value="0.05" />
 		</parameterset>
-		<parameterset type="strategysettings">
+		<parameterset type="strategysettings" >
 			<param name="disableAfterIteration" value="-1" />
 			<param name="executionPath" value="null" />
 			<param name="strategyName" value="KeepLastSelected" />
@@ -513,22 +537,22 @@
 			<param name="weight" value="0.95" />
 		</parameterset>
 	</module>
-	<module name="replanningAnnealer">
+	<module name="replanningAnnealer" >
 		<!-- Activate the scaling of replanning modules using an annealing approach rather than fixed rates. -->
 		<param name="activateAnnealingModule" value="false" />
 	</module>
-	<module name="routing">
+	<module name="routing" >
 		<!-- Defines how access and egress to main mode is simulated. Either of [none, accessEgressModeToLink, walkConstantTimeToLink, accessEgressModeToLinkPlusTimeConstant], Current default=none which means no access or egress trips are simulated. -->
 		<param name="accessEgressType" value="accessEgressModeToLink" />
 		<!-- Some typical teleportation routing params are set by default, such as for walk and bike.  Setting this switch to "true" will clear them.  Note that this will also clear settings for helper modes such as for non_network_walk -->
 		<param name="clearDefaultTeleportedModeParams" value="false" />
 		<!-- All the modes for which the router is supposed to generate network routes (like car) -->
-		<param name="networkModes" value="car,car_passenger" />
+		<param name="networkModes" value="car,car_passenger,taxi" />
 		<!-- Defines whether the network consistency should be checked. -->
 		<param name="networkRouteConsistencyCheck" value="abortOnInconsistency" />
 		<!-- strength of the randomness for the utility of money in routing under toll.  Leads to Pareto-optimal route with randomly drawn money-vs-other-attributes tradeoff. Technically the width parameter of a log-normal distribution. 3.0 seems to be a good value.  -->
 		<param name="routingRandomness" value="3.0" />
-		<parameterset type="teleportedModeParameters">
+		<parameterset type="teleportedModeParameters" >
 			<param name="beelineDistanceFactor" value="1.3" />
 			<param name="mode" value="bike" />
 			<!-- Free-speed factor for a teleported mode. Travel time = teleportedModeFreespeedFactor * <freespeed car travel time>. Insert a line like this for every such mode. Please do not set teleportedModeFreespeedFactor as well as teleportedModeSpeed for the same mode, but if you do, +teleportedModeFreespeedFactor wins over teleportedModeSpeed. -->
@@ -536,26 +560,26 @@
 			<!-- Speed for a teleported mode. Travel time = (<beeline distance> * beelineDistanceFactor) / teleportedModeSpeed. Insert a line like this for every such mode. -->
 			<param name="teleportedModeSpeed" value="4.2" />
 		</parameterset>
-		<parameterset type="teleportedModeParameters">
+		<parameterset type="teleportedModeParameters" >
 			<param name="beelineDistanceFactor" value="1.3" />
 			<param name="mode" value="walk" />
 			<param name="teleportedModeFreespeedFactor" value="null" />
 			<param name="teleportedModeSpeed" value="1.8" />
 		</parameterset>
-		<parameterset type="teleportedModeParameters">
+		<parameterset type="teleportedModeParameters" >
 			<param name="beelineDistanceFactor" value="1.3" />
 			<param name="mode" value="non_network_walk" />
 			<param name="teleportedModeFreespeedFactor" value="null" />
 			<param name="teleportedModeSpeed" value="1.8" />
 		</parameterset>
-		<parameterset type="teleportedModeParameters">
+		<parameterset type="teleportedModeParameters" >
 			<param name="beelineDistanceFactor" value="1.3" />
 			<param name="mode" value="ride" />
 			<param name="teleportedModeFreespeedFactor" value="1.0" />
 			<param name="teleportedModeSpeed" value="null" />
 		</parameterset>
 	</module>
-	<module name="scoring">
+	<module name="scoring" >
 		<!-- logit model scale parameter. default: 1.  Has name and default value for historical reasons (see Bryan Raney's phd thesis). -->
 		<param name="brainExpBeta" value="1.0" />
 		<!-- fraction of iterations at which MSA score averaging is started. The matsim theory department suggests to use this together with switching off choice set innovation (where a similar switch exists), but it has not been tested yet. -->
@@ -569,7 +593,7 @@
 		<param name="writeExperiencedPlans" value="false" />
 		<!-- Write detailed score composition into plan attributes after execution. -->
 		<param name="writeScoreExplanations" value="false" />
-		<parameterset type="scoringParameters">
+		<parameterset type="scoringParameters" >
 			<param name="earlyDeparture" value="-0.0" />
 			<param name="lateArrival" value="-18.0" />
 			<param name="marginalUtilityOfMoney" value="1.0" />
@@ -578,7 +602,7 @@
 			<param name="utilityOfLineSwitch" value="-1.0" />
 			<param name="waiting" value="-0.0" />
 			<param name="waitingPt" value="-6.0" />
-			<parameterset type="activityParams">
+			<parameterset type="activityParams" >
 				<param name="activityType" value="home" />
 				<param name="closingTime" value="undefined" />
 				<param name="earliestEndTime" value="undefined" />
@@ -592,7 +616,7 @@
 				<!-- method to compute score at typical duration.  Options: | uniform | relative | Use uniform for backwards compatibility (all activities same score; higher proba to drop long acts). -->
 				<param name="typicalDurationScoreComputation" value="relative" />
 			</parameterset>
-			<parameterset type="activityParams">
+			<parameterset type="activityParams" >
 				<param name="activityType" value="work" />
 				<param name="closingTime" value="undefined" />
 				<param name="earliestEndTime" value="undefined" />
@@ -604,7 +628,7 @@
 				<param name="typicalDuration" value="08:00:00" />
 				<param name="typicalDurationScoreComputation" value="relative" />
 			</parameterset>
-			<parameterset type="activityParams">
+			<parameterset type="activityParams" >
 				<param name="activityType" value="education" />
 				<param name="closingTime" value="undefined" />
 				<param name="earliestEndTime" value="undefined" />
@@ -616,7 +640,7 @@
 				<param name="typicalDuration" value="08:00:00" />
 				<param name="typicalDurationScoreComputation" value="relative" />
 			</parameterset>
-			<parameterset type="activityParams">
+			<parameterset type="activityParams" >
 				<param name="activityType" value="shop" />
 				<param name="closingTime" value="undefined" />
 				<param name="earliestEndTime" value="undefined" />
@@ -628,7 +652,7 @@
 				<param name="typicalDuration" value="01:00:00" />
 				<param name="typicalDurationScoreComputation" value="relative" />
 			</parameterset>
-			<parameterset type="activityParams">
+			<parameterset type="activityParams" >
 				<param name="activityType" value="escort" />
 				<param name="closingTime" value="undefined" />
 				<param name="earliestEndTime" value="undefined" />
@@ -640,7 +664,7 @@
 				<param name="typicalDuration" value="01:00:00" />
 				<param name="typicalDurationScoreComputation" value="relative" />
 			</parameterset>
-			<parameterset type="activityParams">
+			<parameterset type="activityParams" >
 				<param name="activityType" value="visit" />
 				<param name="closingTime" value="undefined" />
 				<param name="earliestEndTime" value="undefined" />
@@ -652,7 +676,7 @@
 				<param name="typicalDuration" value="02:00:00" />
 				<param name="typicalDurationScoreComputation" value="relative" />
 			</parameterset>
-			<parameterset type="activityParams">
+			<parameterset type="activityParams" >
 				<param name="activityType" value="medical" />
 				<param name="closingTime" value="undefined" />
 				<param name="earliestEndTime" value="undefined" />
@@ -664,7 +688,7 @@
 				<param name="typicalDuration" value="03:00:00" />
 				<param name="typicalDurationScoreComputation" value="relative" />
 			</parameterset>
-			<parameterset type="activityParams">
+			<parameterset type="activityParams" >
 				<param name="activityType" value="other" />
 				<param name="closingTime" value="undefined" />
 				<param name="earliestEndTime" value="undefined" />
@@ -676,7 +700,7 @@
 				<param name="typicalDuration" value="02:00:00" />
 				<param name="typicalDurationScoreComputation" value="relative" />
 			</parameterset>
-			<parameterset type="activityParams">
+			<parameterset type="activityParams" >
 				<param name="activityType" value="car interaction" />
 				<param name="closingTime" value="undefined" />
 				<param name="earliestEndTime" value="undefined" />
@@ -688,7 +712,7 @@
 				<param name="typicalDuration" value="undefined" />
 				<param name="typicalDurationScoreComputation" value="relative" />
 			</parameterset>
-			<parameterset type="activityParams">
+			<parameterset type="activityParams" >
 				<param name="activityType" value="pt interaction" />
 				<param name="closingTime" value="undefined" />
 				<param name="earliestEndTime" value="undefined" />
@@ -700,7 +724,7 @@
 				<param name="typicalDuration" value="undefined" />
 				<param name="typicalDurationScoreComputation" value="relative" />
 			</parameterset>
-			<parameterset type="activityParams">
+			<parameterset type="activityParams" >
 				<param name="activityType" value="bike interaction" />
 				<param name="closingTime" value="undefined" />
 				<param name="earliestEndTime" value="undefined" />
@@ -712,7 +736,7 @@
 				<param name="typicalDuration" value="undefined" />
 				<param name="typicalDurationScoreComputation" value="relative" />
 			</parameterset>
-			<parameterset type="activityParams">
+			<parameterset type="activityParams" >
 				<param name="activityType" value="drt interaction" />
 				<param name="closingTime" value="undefined" />
 				<param name="earliestEndTime" value="undefined" />
@@ -724,7 +748,7 @@
 				<param name="typicalDuration" value="undefined" />
 				<param name="typicalDurationScoreComputation" value="relative" />
 			</parameterset>
-			<parameterset type="activityParams">
+			<parameterset type="activityParams" >
 				<param name="activityType" value="taxi interaction" />
 				<param name="closingTime" value="undefined" />
 				<param name="earliestEndTime" value="undefined" />
@@ -736,7 +760,7 @@
 				<param name="typicalDuration" value="undefined" />
 				<param name="typicalDurationScoreComputation" value="relative" />
 			</parameterset>
-			<parameterset type="activityParams">
+			<parameterset type="activityParams" >
 				<param name="activityType" value="other interaction" />
 				<param name="closingTime" value="undefined" />
 				<param name="earliestEndTime" value="undefined" />
@@ -748,7 +772,7 @@
 				<param name="typicalDuration" value="undefined" />
 				<param name="typicalDurationScoreComputation" value="relative" />
 			</parameterset>
-			<parameterset type="activityParams">
+			<parameterset type="activityParams" >
 				<param name="activityType" value="walk interaction" />
 				<param name="closingTime" value="undefined" />
 				<param name="earliestEndTime" value="undefined" />
@@ -760,7 +784,7 @@
 				<param name="typicalDuration" value="undefined" />
 				<param name="typicalDurationScoreComputation" value="relative" />
 			</parameterset>
-			<parameterset type="modeParams">
+			<parameterset type="modeParams" >
 				<!-- [utils] alternative-specific constant.  Normally per trip, but that is probably buggy for multi-leg trips. -->
 				<param name="constant" value="0.0" />
 				<!-- [unit_of_money/day] Fixed cost of mode, per day. -->
@@ -775,7 +799,7 @@
 				<!-- [unit_of_money/m] conversion of distance into money. Normally negative. -->
 				<param name="monetaryDistanceRate" value="0.0" />
 			</parameterset>
-			<parameterset type="modeParams">
+			<parameterset type="modeParams" >
 				<param name="constant" value="0.0" />
 				<param name="dailyMonetaryConstant" value="0.0" />
 				<param name="dailyUtilityConstant" value="0.0" />
@@ -784,7 +808,7 @@
 				<param name="mode" value="pt" />
 				<param name="monetaryDistanceRate" value="0.0" />
 			</parameterset>
-			<parameterset type="modeParams">
+			<parameterset type="modeParams" >
 				<param name="constant" value="0.0" />
 				<param name="dailyMonetaryConstant" value="0.0" />
 				<param name="dailyUtilityConstant" value="0.0" />
@@ -793,7 +817,7 @@
 				<param name="mode" value="walk" />
 				<param name="monetaryDistanceRate" value="0.0" />
 			</parameterset>
-			<parameterset type="modeParams">
+			<parameterset type="modeParams" >
 				<param name="constant" value="0.0" />
 				<param name="dailyMonetaryConstant" value="0.0" />
 				<param name="dailyUtilityConstant" value="0.0" />
@@ -802,7 +826,7 @@
 				<param name="mode" value="bike" />
 				<param name="monetaryDistanceRate" value="0.0" />
 			</parameterset>
-			<parameterset type="modeParams">
+			<parameterset type="modeParams" >
 				<param name="constant" value="0.0" />
 				<param name="dailyMonetaryConstant" value="0.0" />
 				<param name="dailyUtilityConstant" value="0.0" />
@@ -811,7 +835,7 @@
 				<param name="mode" value="ride" />
 				<param name="monetaryDistanceRate" value="0.0" />
 			</parameterset>
-			<parameterset type="modeParams">
+			<parameterset type="modeParams" >
 				<param name="constant" value="0.0" />
 				<param name="dailyMonetaryConstant" value="0.0" />
 				<param name="dailyUtilityConstant" value="0.0" />
@@ -820,7 +844,7 @@
 				<param name="mode" value="other" />
 				<param name="monetaryDistanceRate" value="0.0" />
 			</parameterset>
-			<parameterset type="modeParams">
+			<parameterset type="modeParams" >
 				<param name="constant" value="0.0" />
 				<param name="dailyMonetaryConstant" value="0.0" />
 				<param name="dailyUtilityConstant" value="0.0" />
@@ -829,7 +853,16 @@
 				<param name="mode" value="car_passenger" />
 				<param name="monetaryDistanceRate" value="0.0" />
 			</parameterset>
-			<parameterset type="modeParams">
+			<parameterset type="modeParams" >
+				<param name="constant" value="0.0" />
+				<param name="dailyMonetaryConstant" value="0.0" />
+				<param name="dailyUtilityConstant" value="0.0" />
+				<param name="marginalUtilityOfDistance_util_m" value="0.0" />
+				<param name="marginalUtilityOfTraveling_util_hr" value="-6.0" />
+				<param name="mode" value="taxi" />
+				<param name="monetaryDistanceRate" value="0.0" />
+			</parameterset>
+			<parameterset type="modeParams" >
 				<param name="constant" value="0.0" />
 				<param name="dailyMonetaryConstant" value="0.0" />
 				<param name="dailyUtilityConstant" value="0.0" />
@@ -840,7 +873,7 @@
 			</parameterset>
 		</parameterset>
 	</module>
-	<module name="subtourModeChoice">
+	<module name="subtourModeChoice" >
 		<!-- Only for backwards compatibility.  Defines if only trips from modes list should change mode, or all trips.  Options: fromAllModesToSpecifiedModes fromSpecifiedModesToSpecifiedModes betweenAllAndFewerConstraints  -->
 		<param name="behavior" value="fromSpecifiedModesToSpecifiedModes" />
 		<!-- Defines the chain-based modes, seperated by commas -->
@@ -850,11 +883,11 @@
 		<!-- If greater than 0, activities that are closer than coordDistance, to each other, will be considered part of the same subtour.i.e. if two activities are close to each other, the agent is allowed to use the same 'chain-based' vehicle for both subtours. -->
 		<param name="coordDistance" value="0.0" />
 		<!-- Defines all the modes available, including chain-based modes, seperated by commas -->
-		<param name="modes" value="car,pt,bike,walk,car_passenger" />
+		<param name="modes" value="car,pt,bike,walk,car_passenger,taxi" />
 		<!-- Defines the probability of changing a single trip for a unchained mode instead of subtour. -->
 		<param name="probaForRandomSingleTripMode" value="0.0" />
 	</module>
-	<module name="swissRailRaptor">
+	<module name="swissRailRaptor" >
 		<!-- Sets whether intermodal access and egress modes are selected by least cost (default) or randomly chosen out of the available access / egress modes. -->
 		<param name="intermodalAccessEgressModeSelection" value="CalcLeastCostModePerStop" />
 		<param name="intermodalLegOnlyHandling" value="forbid" />
@@ -874,7 +907,7 @@
 		<param name="useModeMappingForPassengers" value="false" />
 		<param name="useRangeQuery" value="false" />
 	</module>
-	<module name="timeAllocationMutator">
+	<module name="timeAllocationMutator" >
 		<!-- Latest Activity End Time. Default = 24:00:00 -->
 		<param name="latestActivityEndTime" value="86400.0" />
 		<!-- Mutates times only around the initially defined end times. -->
@@ -886,7 +919,7 @@
 		<!-- Mutation Range Step, default = 1 second -->
 		<param name="mutationRangeStep" value="1.0" />
 	</module>
-	<module name="transit">
+	<module name="transit" >
 		<!-- The Coordinates Reference System in which the coordinates are expressed in the input file. At import, the coordinates will be converted to the coordinate system defined in "global", and willbe converted back at export. If not specified, no conversion happens. -->
 		<param name="inputScheduleCRS" value="null" />
 		<param name="insistingOnUsingDeprecatedAttributeFiles" value="false" />
@@ -897,16 +930,16 @@
 		<!-- Comma-separated list of transportation modes that are handled as transit. Defaults to 'pt'. -->
 		<param name="transitModes" value="pt" />
 		<!-- Input file containing the transit schedule to be simulated. -->
-		<param name="transitScheduleFile" value="../../../data/supply/schedule_mapped.xml.gz" />
+		<param name="transitScheduleFile" value="../resources/data/supply/schedule_mapped.xml.gz" />
 		<!-- Optional input file containing additional attributes for transit stop facilities, stored as ObjectAttributes. -->
 		<param name="transitStopsAttributesFile" value="null" />
 		<!-- Set this parameter to true if transit should be simulated, false if not. -->
 		<param name="useTransit" value="true" />
 		<param name="usingTransitInMobsim" value="true" />
 		<!-- Input file containing the vehicles used by the departures in the transit schedule. -->
-		<param name="vehiclesFile" value="../../../data/supply/vehicles_unmapped.xml" />
+		<param name="vehiclesFile" value="../resources/data/supply/vehicles_unmapped.xml" />
 	</module>
-	<module name="transitRouter">
+	<module name="transitRouter" >
 		<!-- additional time the router allocates when a line switch happens. Can be interpreted as a 'safety' time that agents need to safely transfer from one line to another -->
 		<param name="additionalTransferTime" value="0.0" />
 		<!-- Factor with which direct walk generalized cost is multiplied before it is compared to the pt generalized cost.  Set to a very high value to reduce direct walk results. -->
@@ -918,9 +951,9 @@
 		<!-- the radius in which stop locations are searched, given a start or target coordinate -->
 		<param name="searchRadius" value="1000.0" />
 	</module>
-	<module name="travelTimeCalculator">
+	<module name="travelTimeCalculator" >
 		<!-- (only for backwards compatibility; only used if separateModes==false && + filterModes==true)  Transport modes that will be respected by the travel time collector. 'car' is default which includes also buses from the pt simulation module. -->
-		<param name="analyzedModes" value="car,car_passenger" />
+		<param name="analyzedModes" value="car,car_passenger,taxi" />
 		<param name="calculateLinkToLinkTravelTimes" value="false" />
 		<param name="calculateLinkTravelTimes" value="true" />
 		<!-- (only for backwards compatiblity; only used if separateModes==false)  Only modes included in analyzedModes are included. -->
@@ -936,10 +969,10 @@
 		<!-- How to deal with link entry times at different positions during the time bin. Currently supported: average, linearinterpolation -->
 		<param name="travelTimeGetter" value="average" />
 	</module>
-	<module name="vehicles">
-		<param name="vehiclesFile" value="../../../scenarios/test/network_vehicles.xml" />
+	<module name="vehicles" >
+		<param name="vehiclesFile" value="../resources/data/supply/network_vehicles.xml" />
 	</module>
-	<module name="vspExperimental">
+	<module name="vspExperimental" >
 		<!-- (do not use except of you have to) There was a problem with pt interaction scoring.  Some people solved it by overwriting the parameters of the pt interaction activity type.  Doing this now throws an Exception.  If you still insist on doing this, set the following to true. -->
 		<param name="isAbleToOverwritePtInteractionParams" value="false" />
 		<param name="isGeneratingBoardingDeniedEvent" value="false" />
