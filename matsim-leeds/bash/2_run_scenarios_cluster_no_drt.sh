@@ -19,7 +19,7 @@ JAR_FILE="$MATSIM_DIR/matsim-leeds-1.0.jar"
 CONFIG_FILE="$MATSIM_DIR/src/main/resources/config_simulation_dmc.xml"
 
 # Define the fully qualified name of the main class (RunDMCSimulation) - to get path, use: jar tf target/matsim-leeds-1.0.jar | grep "RunDMCSimulation"
-MAIN_CLASS="com.husseinmahfouz.matsim.RunDMCSimulation"
+MAIN_CLASS="com.husseinmahfouz.matsim.dmc.RunDMCSimulation"
 
 # Define the compute-related parameters
 CPUS_PER_TASK=12
