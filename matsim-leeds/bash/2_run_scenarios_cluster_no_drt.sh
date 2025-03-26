@@ -32,8 +32,6 @@ QSIM_THREADS=12
 
 # Define the population sample size being used
 SAMPLE_SIZE="1.00" 
-# Define whether to use the rejection constraint
-USE_REJECTION_CONSTRAINT="true"
 # Define the output directory
 OUTPUT_DIRECTORY="scenarios/basic/sample_${SAMPLE_SIZE}"
 # Define the input plans file
