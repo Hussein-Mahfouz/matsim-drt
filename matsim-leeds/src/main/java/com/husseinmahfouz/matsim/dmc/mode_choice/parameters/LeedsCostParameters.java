@@ -3,26 +3,28 @@ package com.husseinmahfouz.matsim.dmc.mode_choice.parameters;
 import org.eqasim.core.simulation.mode_choice.ParameterDefinition;
 
 public class LeedsCostParameters implements ParameterDefinition {
-	public double carCost_EUR_km;
+	public double carCostPerKm;
 	public double busFare;
 	public double taxi_inititalCharge;
 	public double taxiCostPerMinute;
 	public double taxiCostPerKm;
 	public double railFareBase;
 	public double railFarePerKm;
-	public double drtCost_EUR_km;
+	public double drtFareBase;
+	public double drtFarePerKm;
 
 	public static LeedsCostParameters buildDefault() {
 		LeedsCostParameters parameters = new LeedsCostParameters();
 		// car
-		parameters.carCost_EUR_km = 0.15;
+		parameters.carCostPerKm = 0.15;
 		// bus
 		parameters.busFare = 2.0;
 		parameters.railFareBase = 3.0;
 		parameters.railFarePerKm = 1.0;
 
 		// drt
-		parameters.drtCost_EUR_km = 0.1;
+		parameters.drtFareBase = 2.0;
+		parameters.drtFarePerKm = 0.0;
 		// taxi
 		parameters.taxi_inititalCharge = 2.5;
 		parameters.taxiCostPerMinute = 0.2;
