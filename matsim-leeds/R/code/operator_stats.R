@@ -10,6 +10,58 @@ scenario = "zones"
 fleet_size = 200 # 20, 100, 200, 500, 1000
 drt_name = "drtNW"
 
+#  --------------- CONTINUE BUILDING ON THIS TO PLOT SCENARIOS!
+#
+# # Set up a list of scenarios and fleet sizes to read in (file directories should exist)
+# scenarios <- c("all", "zones")
+# fleet_sizes <- c(100, 200, 500, 1000)
+#
+# # Function to read and process all matching files
+# read_and_process <- function(scenario, fleet_size) {
+#   # Define directory path
+#   dir_path <- paste0("../scenarios/fleet_sizing/", scenario, "/", fleet_size, "/sample_1.00/")
+#
+#   # List all matching files
+#   files <- list.files(path = dir_path, pattern = "^output_occupancy_time_profiles_.*\\.txt$", full.names = TRUE)
+#
+#   # If no matching file found, return NULL (to be ignored in `pmap_dfr`)
+#   if (length(files) == 0) {
+#     warning(paste("No matching file found for", scenario, fleet_size))
+#     return(NULL)
+#   }
+#
+#   # Read and process all matching files
+#   data_list <- lapply(files, function(file) {
+#     # Extract file suffix (e.g., "drt", "drtNE", "drtNW" from "output_occupancy_time_profiles_drt.csv")
+#     file_suffix <- gsub("^output_occupancy_time_profiles_|\\.txt$", "", basename(file))
+#
+#     # Read the file
+#     data <- read_delim(file, delim = ";")
+#
+#     # Add columns for scenario, fleet size, and file suffix (operator ID)
+#     data %>%
+#       mutate(scenario = scenario,
+#              fleet_size = fleet_size,
+#              operator_id = file_suffix)
+#   })
+#
+#   # Combine all files for this scenario & fleet size
+#   bind_rows(data_list)
+# }
+#
+# # Create a data frame of all combinations of scenarios and fleet sizes to read in
+# combinations <- expand.grid(scenario = scenarios, fleet_size = fleet_sizes)
+#
+# # Read & combine all DRT trip data
+# drt_occupancy_time <- purrr::pmap_dfr(combinations, function(scenario, fleet_size) {
+#   read_and_process(scenario, fleet_size)
+# })
+#
+
+
+
+
+
 
 # ----------  Breakdown of vehicles by occupany (throughout the day) ---------- #
 
