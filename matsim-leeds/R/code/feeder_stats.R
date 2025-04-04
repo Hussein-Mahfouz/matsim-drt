@@ -2,11 +2,38 @@ library(tidyverse)
 library(tidytransit)
 library(tmap)
 
+# Set up a list of scenarios and fleet sizes to read in (file directories should exist)
+scenarios <- c("zones", "all")
+fleet_sizes <- c(100, 200, 500, 1000)
+
+# Function to read and process a file and add identifier column
+read_and_process <- function(scenario, fleet_size, file_name) {
+  # Read the data
+  file_path <- paste0("../scenarios/fleet_sizing/", scenario, "/", fleet_size, "/sample_1.00/", file_name, ".csv")
+  data <- read_delim(file_path, delim = ";")
+
+  # Add the scenario and fleet size columns
+  data <- data %>%
+    mutate(scenario = scenario, fleet_size = fleet_size)
+
+  return(data)
+}
+
+# Create a data frame of all combinations of scenarios and fleet sizes to read in
+combinations <- expand.grid(scenario = scenarios, fleet_size = fleet_sizes)
+
+# ----------  All DRT trips ---------- #
+
+# Use purrr::pmap_dfr to read and process each combination. All dfs are binded together
+drt_trips <- purrr::pmap_dfr(combinations, function(scenario, fleet_size) {
+  read_and_process(scenario, fleet_size, "eqasim_drt_passenger_rides")
+})
+
 # Add a column to identify if this is a feeder or not
 drt_trips <- drt_trips %>%
   mutate(mode_type = ifelse(str_detect(main_mode, "_feeder"), "feeder", "main")) %>%
   # for better labelling
-  mutate(fleet_size = factor(paste0("fleet size = ", fleet_size),
+  mutate(fleet_size_label = factor(paste0("fleet size = ", fleet_size),
                              levels = paste0("fleet size = ", c(100, 200, 500, 1000))))
 
 # ----------  All DRT FEEDER trips only---------- #
@@ -19,7 +46,7 @@ drt_feeder_trips <- purrr::pmap_dfr(combinations, function(scenario, fleet_size)
 
 drt_feeder_trips <- drt_feeder_trips %>%
   # for better labelling
-  mutate(fleet_size = factor(paste0("fleet size = ", fleet_size),
+  mutate(fleet_size_label = factor(paste0("fleet size = ", fleet_size),
                              levels = paste0("fleet size = ", c(100, 200, 500, 1000))))
 
 
@@ -30,11 +57,12 @@ drt_feeder_trips <- drt_feeder_trips %>%
 
 # ----- Distance and waiting time by mode (operator + feeder or not)
 drt_trips_distance = drt_trips %>%
-  group_by(operator_id, mode_type, scenario, fleet_size) %>%
+  group_by(operator_id, mode_type, scenario, fleet_size, fleet_size_label) %>%
   summarise(distance = sum(distance) / 1000,
-            waiting_time = mean(waiting_time, na.rm = TRUE)) %>%
+            waiting_time = mean(waiting_time, na.rm = TRUE),
+            no_of_trips = n()) %>%
   ungroup() %>%
-  group_by(operator_id, scenario, fleet_size) %>%
+  group_by(operator_id, scenario, fleet_size, fleet_size_label) %>%
   mutate(distance_frac = round((distance / sum(distance)) * 100)) %>%
   ungroup()
 
@@ -53,7 +81,7 @@ ggplot(drt_trips_distance, aes(x = operator_id, y = distance, fill = mode_type))
        fill = "") +
   scale_y_continuous(labels = scales::comma) +  # Add commas to the y-axis values
   theme_light() +
-  facet_wrap(. ~ fleet_size)
+  facet_wrap(. ~ fleet_size_label)
 
 ggsave(paste0("plots/feeder_stats/standalone_vs_feeder_bar_facet_fleet_size.png"))
 
@@ -62,18 +90,19 @@ ggsave(paste0("plots/feeder_stats/standalone_vs_feeder_bar_facet_fleet_size.png"
 drt_trips_distance_time = drt_trips %>%
   mutate(departure_time_hr = round(departure_time / 3600),
          arrival_time_hr = round(arrival_time / 3600)) %>%
-  group_by(operator_id, mode_type, departure_time_hr, scenario, fleet_size) %>%
+  group_by(operator_id, mode_type, departure_time_hr, scenario, fleet_size, fleet_size_label) %>%
   summarise(distance = sum(distance) / 1000,
-            waiting_time = mean(waiting_time, na.rm = TRUE)) %>%
+            waiting_time = mean(waiting_time, na.rm = TRUE),
+            no_of_trips = n()) %>%
   ungroup() %>%
-  group_by(operator_id, departure_time_hr, scenario, fleet_size) %>%
+  group_by(operator_id, departure_time_hr, scenario, fleet_size, fleet_size_label) %>%
   mutate(distance_frac = round((distance / sum(distance)) * 100))
 
 
 
 ggplot(drt_trips_distance_time, aes(x = departure_time_hr, y = distance, fill = mode_type)) +
   geom_bar(stat = "identity") +
-  facet_grid(operator_id ~ fleet_size) +
+  facet_grid(operator_id ~ fleet_size_label) +
   #facet_grid(fleet_size ~ operator_id) +
   labs(title = "DRT Usage: Feeder vs. Standalone Trips throughout the day",
        subtitle = "Share of travel distance by feeder trips vs. full DRT trips for different service areas",
@@ -130,7 +159,7 @@ drt_feeder_trips = drt_feeder_trips %>%
 # access trips only
 drt_feeder_trips_access = drt_feeder_trips %>%
   filter(trip_type == "access") %>%
-  group_by(access_transit_line_id, trip_type, access_departure_time_hr, access_operator_id, scenario, fleet_size) %>%
+  group_by(access_transit_line_id, trip_type, access_departure_time_hr, access_operator_id, scenario, fleet_size, fleet_size_label) %>%
   summarise(trips = n()) %>%
   ungroup() %>%
   rename(transit_line_id = access_transit_line_id,
@@ -140,7 +169,7 @@ drt_feeder_trips_access = drt_feeder_trips %>%
 # egress trips only
 drt_feeder_trips_egress = drt_feeder_trips %>%
   filter(trip_type == "egress") %>%
-  group_by(egress_transit_line_id, trip_type, egress_departure_time_hr, egress_operator_id, scenario, fleet_size) %>%
+  group_by(egress_transit_line_id, trip_type, egress_departure_time_hr, egress_operator_id, scenario, fleet_size, fleet_size_label) %>%
   summarise(trips = n()) %>%
   ungroup() %>%
   rename(transit_line_id = egress_transit_line_id,
@@ -150,7 +179,7 @@ drt_feeder_trips_egress = drt_feeder_trips %>%
 # access_egress: access part
 drt_feeder_trips_access_2 = drt_feeder_trips %>%
   filter(trip_type == "access_egress") %>%
-  group_by(access_transit_line_id, trip_type, access_departure_time_hr, access_operator_id, scenario, fleet_size) %>%
+  group_by(access_transit_line_id, trip_type, access_departure_time_hr, access_operator_id, scenario, fleet_size, fleet_size_label) %>%
   summarise(trips = n()) %>%
   ungroup() %>%
   rename(transit_line_id = access_transit_line_id,
@@ -162,7 +191,7 @@ drt_feeder_trips_access_2 = drt_feeder_trips %>%
 # access_egress: egress part
 drt_feeder_trips_egress_2 = drt_feeder_trips %>%
   filter(trip_type == "access_egress") %>%
-  group_by(egress_transit_line_id, trip_type, egress_departure_time_hr, egress_operator_id, scenario, fleet_size) %>%
+  group_by(egress_transit_line_id, trip_type, egress_departure_time_hr, egress_operator_id, scenario, fleet_size, fleet_size_label) %>%
   summarise(trips = n()) %>%
   ungroup() %>%
   rename(transit_line_id = egress_transit_line_id,
@@ -186,7 +215,7 @@ drt_trips_feeder_lines_time = drt_trips_feeder_lines_time %>%
 
 # sum without accounting for hour of day
 drt_trips_feeder_lines = drt_trips_feeder_lines_time %>%
-  group_by(transit_line_id, operator_id, scenario, fleet_size) %>%
+  group_by(transit_line_id, operator_id, scenario, fleet_size, fleet_size_label) %>%
   summarise(trips = sum(trips)) %>%
   ungroup()
 
@@ -200,9 +229,8 @@ drt_trips_feeder_lines = drt_trips_feeder_lines_time %>%
 
 gtfs = read_gtfs("../data/external/study_area_gtfs_merged.zip")
 
-gtfs_rail = read_gtfs("../data/external/study_area_gtfs_rail.zip")
-
-gtfs_bus = read_gtfs("../data/external/study_area_gtfs_bus.zip")
+# gtfs_rail = read_gtfs("../data/external/study_area_gtfs_rail.zip")
+# gtfs_bus = read_gtfs("../data/external/study_area_gtfs_bus.zip")
 
 
 gtfs_sf = gtfs_as_sf(gtfs, crs = 3857)
@@ -270,7 +298,7 @@ tm_shape(scenario_extents) +
   tm_shape(drt_trips_feeder_lines_sf %>%
              filter(!st_is_empty(.))) +
   tm_lines(col = "trips",
-           title.col = "Number of trips",
+           title.col = "Number of \nfeeder \nDRT trips",
            lwd = "trips",
            palette = "Reds",
            scale = 5,
@@ -279,11 +307,14 @@ tm_shape(scenario_extents) +
   tm_facets(by = c("operator_id", "fleet_size"),
             free.coords = FALSE) +
   tm_layout(fontfamily = 'Georgia',
-            main.title = "Number of Feeder DRT trips connectng to each bus routes",
+            main.title = "Number of Feeder DRT trips connecting to each bus routes",
             main.title.size = 1.1,
             main.title.color = "azure4",
             main.title.position = "left",
             bg.color = "#FAF9F6",
+            # legend.outside = TRUE,
+            # legend.outside.position = "bottom",
+            # legend.stack = "horizontal",
             # panel.label.size = 1,
             # panel.label.bg.color = "grey",
             #panel.labels = 1:length(unique(clusters_vis_mode_poly_filt_max$cluster)),
@@ -294,3 +325,28 @@ drt_feeder_bus_count
 
 tmap_save(tm = drt_feeder_bus_count, filename = "plots/feeder_stats/map_drt_feeder_bus_route_count.png", width = 12, dpi = 1080, asp = 0)
 
+
+
+
+# ------------------- Stats for a summary table
+
+# distance, proportion of trips, and total number of trips (main and feeder)
+drt_trips_distance_table = drt_trips_distance %>%
+  pivot_wider(names_from = mode_type,
+              values_from = c("distance", "distance_frac", "waiting_time", "no_of_trips"))
+
+
+
+
+# Average no. of feeder trips per bus route (all bus routes, and top 5 bus routes)
+drt_trips_feeder_lines_table = drt_trips_feeder_lines %>%
+  group_by(operator_id, scenario, fleet_size) %>%
+  arrange(desc(trips), .by_group = TRUE) %>%  # Ensure sorting within each group
+  summarise(average_feeder_trips_per_route = sum(trips)/ n(),
+            average_feeder_trips_per_route_top_5_routes = mean(trips[1:5])  # Average trips for top 5 routes
+            )
+
+
+drt_trips_table = drt_trips_distance_table %>%
+  left_join(drt_trips_feeder_lines_table,
+            by = c("operator_id", "scenario", "fleet_size"))

@@ -2,7 +2,13 @@ library(tidyverse)
 library(sf)
 library(tmap)
 
-# ----------  Breakdown of vehicles by occupany (throughout the day) ---------- #
+
+# --- Plots directory
+plots_dir <- "plots/operator_stats/"
+# Ensure the directory exists (optional)
+dir.create(plots_dir, recursive = TRUE, showWarnings = FALSE)
+
+# ----------  Breakdown of vehicles by occupancy (throughout the day) ---------- #
 
 
 # Set up a list of scenarios and fleet sizes to read in (file directories should exist)
@@ -92,9 +98,12 @@ ggplot(drt_occupancy_time_l #%>%
        y = "Proportion of Vehicles",
        color = "") +
   theme_minimal() +
+  theme(legend.position = "bottom",
+        legend.direction = "horizontal") +
   facet_grid(vars(fleet_size), vars(operator_id)) +
 theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+ggsave(paste0(plots_dir, "vehicle_occupancy_line_facet_scenario_and_fleet_size.png"), bg = "white")
 
 # --- Area plot
 ggplot(drt_occupancy_time_l # %>%
@@ -109,9 +118,12 @@ ggplot(drt_occupancy_time_l # %>%
        y = "Proportion of Vehicles",
        fill = "") +
   theme_minimal() +
+  theme(legend.position = "bottom",
+        legend.direction = "horizontal") +
   facet_grid(vars(fleet_size), vars(operator_id)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+ggsave(paste0(plots_dir, "vehicle_occupancy_area_facet_scenario_and_fleet_size.png"), bg = "white")
 
 # ----------- DRT VKM travelled vs Passenger KM ---------- #
 
@@ -205,6 +217,7 @@ drt_pkm_time = drt_pkm_time %>%
   mutate(distance_km_cum = cumsum(distance_km)) %>% # cumulative distance
   ungroup()
 
+
 # --- Plot
 
 # --- Combine vkm with pkm
@@ -219,7 +232,9 @@ ggplot(drt_km_time, aes(x = arrival_time_h, y = distance_km, fill = metric)) +
        y = "Distance (km)",
        fill = "") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom",
+        legend.direction = "horizontal") +
   facet_grid(vars(fleet_size), vars(operator_id)) +
   scale_x_continuous(breaks = seq(0, 24, by = 1),
                      labels = ifelse(seq(0, 24, by = 1) %% 4 == 0,
@@ -228,16 +243,21 @@ ggplot(drt_km_time, aes(x = arrival_time_h, y = distance_km, fill = metric)) +
   scale_y_continuous(#trans = "log10",
                      labels = scales::comma)
 
+ggsave(paste0(plots_dir, "vkm_pkm_bar_facet_scenario_and_fleet_size.png"), bg = "white")
+
 
 # --- Plot CUMULATIVE pkm and vkm every hour
-ggplot(drt_km_time, aes(x = arrival_time_h, y = distance_km_cum, color = metric)) +
+ggplot(drt_km_time,
+       aes(x = arrival_time_h, y = distance_km_cum, color = metric)) +
   geom_line() +
   labs(title = "Cumulative vehicle and passenger km throughout the day",
        x = "",
        y = "Distance (km)",
        color = "") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom",
+        legend.direction = "horizontal") +
   facet_grid(vars(fleet_size), vars(operator_id)) +
   scale_x_continuous(breaks = seq(0, 24, by = 1),
                      labels = ifelse(seq(0, 24, by = 1) %% 4 == 0,
@@ -245,6 +265,8 @@ ggplot(drt_km_time, aes(x = arrival_time_h, y = distance_km_cum, color = metric)
                                      ""))  +
   scale_y_continuous(#trans = "log10",
                      labels = scales::comma)
+
+ggsave(paste0(plots_dir, "vkm_pkm_cumulative_line_facet_scenario_and_fleet_size.png"), bg = "white")
 
 
 # ------ Load factor
@@ -263,7 +285,9 @@ ggplot(drt_km_time_load_factor, aes(x = arrival_time_h, y = load_factor, fill = 
        y = "Load factor (pkm / vkm)",
        fill = "Load factor") +
   theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom",
+        legend.direction = "horizontal") +
   facet_grid(vars(fleet_size), vars(operator_id)) +
   scale_x_continuous(breaks = seq(0, 24, by = 1),
                      labels = ifelse(seq(0, 24, by = 1) %% 4 == 0,
@@ -273,6 +297,8 @@ ggplot(drt_km_time_load_factor, aes(x = arrival_time_h, y = load_factor, fill = 
     #trans = "log10",
     labels = scales::comma) +
   scale_fill_distiller(palette = "RdYlGn", direction = 1)
+
+ggsave(paste0(plots_dir, "load_factor_bar_facet_scenario_and_fleet_size.png"), bg = "white")
 
 # plot (cumulative) - i.e. how load factor is changing
 
@@ -284,7 +310,9 @@ ggplot(drt_km_time_load_factor, aes(x = arrival_time_h, y = load_factor_cum, col
        y = "Load factor (pkm / vkm)",
        color = "Cumulative \nload factor") +
   theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom",
+        legend.direction = "horizontal") +
   facet_grid(vars(fleet_size), vars(operator_id)) +
   scale_x_continuous(breaks = seq(0, 24, by = 1),
                      labels = ifelse(seq(0, 24, by = 1) %% 4 == 0,
@@ -294,6 +322,111 @@ ggplot(drt_km_time_load_factor, aes(x = arrival_time_h, y = load_factor_cum, col
     #trans = "log10",
     labels = scales::comma) +
   scale_color_distiller(palette = "RdYlGn", direction = 1)
+
+ggsave(paste0(plots_dir, "load_factor_cumulative_line_facet_scenario_and_fleet_size.png"), bg = "white")
+
+
+# ----- Person and vehicle distance travelled per passenger trip
+
+drt_passengers = drt_pkm %>%
+  mutate(departure_time_h = round(departure_time / 3600),
+         arrival_time_h = round(arrival_time / 3600)) %>%
+  group_by(arrival_time_h, operator_id, scenario, fleet_size) %>%
+  summarise(passengers = n()) %>%
+  ungroup() %>%
+  group_by(operator_id, scenario, fleet_size) %>%
+  mutate(passengers_cum = cumsum(passengers)) %>% # cumulative distance
+  ungroup()
+
+# Prepare pkm and vkm for joining
+
+drt_pkm_passengers = drt_km_time %>%
+  pivot_wider(names_from = metric,
+              values_from = c(distance_km, distance_km_cum)) %>%
+  left_join(drt_passengers, by = c("arrival_time_h", "operator_id", "scenario", "fleet_size")) %>%
+  # add columns that represent the distance travel by:
+      # (a) passenger per trip (at every hour and a cumulative trend)
+      # (b) vehicle per passenger trip  (at every hour and a cumulative trend)
+  mutate(passenger_distance_per_trip = round(distance_km_pkm / passengers, 2),
+         passenger_distance_per_trip_cum = round(distance_km_cum_pkm / passengers_cum, 2),
+         vehicle_distance_per_trip = round(distance_km_vkm / passengers, 2),
+         vehicle_distance_per_trip_cum = round(distance_km_cum_vkm / passengers_cum, 2))
+
+
+
+# Pivot longer for facet plots
+drt_pkm_passengers = drt_pkm_passengers %>%
+  pivot_longer(cols = c(#distance_km_pkm, distance_km_cum_pkm,
+                        #distance_km_vkm, distance_km_cum_vkm,
+                        #passengers, passengers_cum,
+                        passenger_distance_per_trip, passenger_distance_per_trip_cum,
+                        vehicle_distance_per_trip, vehicle_distance_per_trip_cum),
+               names_to = "metric")
+
+# add group column for plotting
+drt_pkm_passengers = drt_pkm_passengers %>%
+  mutate(category = case_when(stringr::str_starts(metric,"passenger_") ~ "passenger",
+                              stringr::str_starts(metric, "vehicle_") ~ "vehicle"),
+         cumulative = case_when(stringr::str_ends(metric,"_cum") ~ "yes",
+                                TRUE ~ "no"))
+
+# Line plot (cumulative and non-cumulative measures)
+ggplot(drt_pkm_passengers %>%
+       filter(arrival_time_h > 4, arrival_time_h < 24),
+       aes(x = arrival_time_h, y = value, colour = category, linetype = cumulative)) +
+  geom_line() +
+  labs(title = "Trip efficiency",
+       subtitle = "Average passenger and vehicle distance per passenger trip (km)",
+       x = "",
+       y = "Distance per passenger trip (km)",
+       color = "Distance (km)",
+       linetype = "Cumulative?") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom",  # Move legend to bottom
+        legend.direction = "horizontal") +  # Arrange items horizontally
+  guides(colour = guide_legend(nrow = 2),  # Force a single-row legend
+         linetype = guide_legend(nrow = 2)) +
+  facet_grid(vars(fleet_size), vars(operator_id)) +
+  scale_x_continuous(breaks = seq(0, 24, by = 1),
+                     labels = ifelse(seq(0, 24, by = 1) %% 3 == 0,
+                                     paste0(seq(0, 24, by = 1), ":00"),
+                                     "")) +
+  scale_y_continuous(
+    #trans = "log10",
+    labels = scales::comma)
+
+ggsave(paste0(plots_dir, "distance_per_passenger_trip_line_facet_scenario_and_fleet_size.png"), bg = "white")
+
+
+# Bar plot throughout day (not cumulative)
+ggplot(drt_pkm_passengers %>%
+         filter(arrival_time_h > 4, arrival_time_h < 24,
+                # remove cumulative rows
+                metric %in% c("passenger_distance_per_trip", "vehicle_distance_per_trip")),
+       aes(x = arrival_time_h, y = value, fill = category)) +
+  geom_col(position = "dodge") +
+  labs(title = "Trip efficiency",
+       subtitle = "Average passenger and vehicle distance per passenger trip (km)",
+       x = "",
+       y = "Distance per passenger trip (km)",
+       fill = "Distance (km)") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom",  # Move legend to bottom
+        legend.direction = "horizontal") +
+  facet_grid(vars(fleet_size), vars(operator_id)) +
+  scale_x_continuous(breaks = seq(0, 24, by = 1),
+                     labels = ifelse(seq(0, 24, by = 1) %% 3 == 0,
+                                     paste0(seq(0, 24, by = 1), ":00"),
+                                     "")) +
+  scale_y_continuous(
+    #trans = "log10",
+    labels = scales::comma)
+
+ggsave(paste0(plots_dir, "distance_per_passenger_trip_bar_facet_scenario_and_fleet_size.png"), bg = "white")
+
+
 
 
 # ------ Distance travelled by occupancy
@@ -315,7 +448,41 @@ ggplot(drt_vkm_occupancy, aes(x = factor(number_of_passengers), y = distance_km,
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         legend.position = "none") +
   scale_y_continuous(#trans = "log10",
-                     labels = scales::comma)
+    labels = scales::comma) +
+  scale_fill_brewer(palette = "RdYlGn", direction = 1)
+
+ggsave(paste0(plots_dir, "distance_by_passenger_count_bar_facet_scenario_and_fleet_size.png"), bg = "white")
 
 
 
+
+
+
+
+
+# ------------------- Stats for a summary table
+
+# pkm, vkm, and load factor
+drt_km_time_table = drt_km_time %>%
+  group_by(operator_id, scenario, fleet_size, metric) %>%
+  summarise(distance_km_total = sum(distance_km)) %>%
+  ungroup() %>%
+  pivot_wider(names_from = metric, values_from = distance_km_total) %>%
+  mutate(average_load_factor = round(pkm / vkm, 2))
+
+
+# pkm and vkm per passenger trip
+drt_pkm_passengers_table = drt_pkm_passengers %>%
+  filter(cumulative == "no") %>%
+  group_by(operator_id, scenario, fleet_size, metric) %>%
+  summarise(average_distance_per_passenger_trip = mean(value, na.rm = TRUE)) %>%
+  ungroup() %>%
+  pivot_wider(names_from = metric, values_from = average_distance_per_passenger_trip)
+
+
+drt_table = drt_km_time_table %>%
+  left_join(drt_pkm_passengers_table,
+            by = c("operator_id", "scenario", "fleet_size"))
+
+
+write_csv(drt_table, paste0(plots_dir, "drt_daily_stats.csv"))
