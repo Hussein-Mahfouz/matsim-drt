@@ -2,33 +2,6 @@ library(tidyverse)
 library(tidytransit)
 library(tmap)
 
-# Set up a list of scenarios and fleet sizes to read in (file directories should exist)
-scenarios <- c("zones", "all")
-fleet_sizes <- c(100, 200, 500, 1000)
-
-# Function to read and process a file and add identifier column
-read_and_process <- function(scenario, fleet_size, file_name) {
-  # Read the data
-  file_path <- paste0("../scenarios/fleet_sizing/", scenario, "/", fleet_size, "/sample_1.00/", file_name, ".csv")
-  data <- read_delim(file_path, delim = ";")
-
-  # Add the scenario and fleet size columns
-  data <- data %>%
-    mutate(scenario = scenario, fleet_size = fleet_size)
-
-  return(data)
-}
-
-# Create a data frame of all combinations of scenarios and fleet sizes to read in
-combinations <- expand.grid(scenario = scenarios, fleet_size = fleet_sizes)
-
-# ----------  All DRT trips ---------- #
-
-# Use purrr::pmap_dfr to read and process each combination. All dfs are binded together
-drt_trips <- purrr::pmap_dfr(combinations, function(scenario, fleet_size) {
-  read_and_process(scenario, fleet_size, "eqasim_drt_passenger_rides")
-})
-
 # Add a column to identify if this is a feeder or not
 drt_trips <- drt_trips %>%
   mutate(mode_type = ifelse(str_detect(main_mode, "_feeder"), "feeder", "main")) %>%

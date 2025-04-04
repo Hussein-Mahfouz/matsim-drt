@@ -2,80 +2,78 @@ library(tidyverse)
 library(sf)
 library(tmap)
 
-# ----------- Specfy scenario
-
-# Output demand
-scenario = "zones"
-# scenario = "all"
-fleet_size = 200 # 20, 100, 200, 500, 1000
-drt_name = "drtNW"
-
-#  --------------- CONTINUE BUILDING ON THIS TO PLOT SCENARIOS!
-#
-# # Set up a list of scenarios and fleet sizes to read in (file directories should exist)
-# scenarios <- c("all", "zones")
-# fleet_sizes <- c(100, 200, 500, 1000)
-#
-# # Function to read and process all matching files
-# read_and_process <- function(scenario, fleet_size) {
-#   # Define directory path
-#   dir_path <- paste0("../scenarios/fleet_sizing/", scenario, "/", fleet_size, "/sample_1.00/")
-#
-#   # List all matching files
-#   files <- list.files(path = dir_path, pattern = "^output_occupancy_time_profiles_.*\\.txt$", full.names = TRUE)
-#
-#   # If no matching file found, return NULL (to be ignored in `pmap_dfr`)
-#   if (length(files) == 0) {
-#     warning(paste("No matching file found for", scenario, fleet_size))
-#     return(NULL)
-#   }
-#
-#   # Read and process all matching files
-#   data_list <- lapply(files, function(file) {
-#     # Extract file suffix (e.g., "drt", "drtNE", "drtNW" from "output_occupancy_time_profiles_drt.csv")
-#     file_suffix <- gsub("^output_occupancy_time_profiles_|\\.txt$", "", basename(file))
-#
-#     # Read the file
-#     data <- read_delim(file, delim = ";")
-#
-#     # Add columns for scenario, fleet size, and file suffix (operator ID)
-#     data %>%
-#       mutate(scenario = scenario,
-#              fleet_size = fleet_size,
-#              operator_id = file_suffix)
-#   })
-#
-#   # Combine all files for this scenario & fleet size
-#   bind_rows(data_list)
-# }
-#
-# # Create a data frame of all combinations of scenarios and fleet sizes to read in
-# combinations <- expand.grid(scenario = scenarios, fleet_size = fleet_sizes)
-#
-# # Read & combine all DRT trip data
-# drt_occupancy_time <- purrr::pmap_dfr(combinations, function(scenario, fleet_size) {
-#   read_and_process(scenario, fleet_size)
-# })
-#
-
-
-
-
-
-
 # ----------  Breakdown of vehicles by occupany (throughout the day) ---------- #
 
-drt_occupancy_time = read_delim(paste0("../scenarios/fleet_sizing/", scenario, "/", fleet_size, "/sample_1.00/output_occupancy_time_profiles_", drt_name, ".txt"), delim =";")
+
+# Set up a list of scenarios and fleet sizes to read in (file directories should exist)
+scenarios <- c("all", "zones")
+fleet_sizes <- c(100, 200, 500, 1000)
+
+# Function to read and process results of multiple scenarios, and combine them into one df
+# This is used specifically for output_occupancy_time_profiles .txt files
+# Unique identifier columns are add (scenario, fleet_size)
+read_and_process <- function(scenario, fleet_size) {
+  # Print the scenario and fleet size to verify function call
+  print(paste("Processing scenario:", scenario, "Fleet size:", fleet_size))
+
+  # Define directory path
+  dir_path <- paste0("../scenarios/fleet_sizing/", scenario, "/", fleet_size, "/sample_1.00/")
+
+  # List all matching files
+  files <- list.files(path = dir_path, pattern = "^output_occupancy_time_profiles_.*\\.txt$", full.names = TRUE)
+
+  # Print found files
+  print(paste("Files found:", paste(files, collapse = ", ")))
+
+  # If no matching file found, return NULL (to be ignored in `pmap_dfr`)
+  if (length(files) == 0) {
+    warning(paste("No matching file found for", scenario, fleet_size))
+    return(NULL)
+  }
+
+  # Read and process all matching files
+  data_list <- lapply(files, function(file) {
+    # Extract file suffix (e.g., "drt", "drtNE", "drtNW" from "output_occupancy_time_profiles_drt.csv")
+    file_suffix <- gsub("^output_occupancy_time_profiles_|\\.txt$", "", basename(file))
+    print(paste("Processing file:", file, "Suffix:", file_suffix))
+
+
+    # Read the file
+    data <- read_delim(file, delim = ";")
+
+    # Add columns for scenario, fleet size, and file suffix (operator ID)
+    data %>%
+      mutate(scenario = scenario,
+             fleet_size = fleet_size,
+             operator_id = file_suffix)
+  })
+
+  # Combine all files for this scenario & fleet size
+  bind_rows(data_list)
+}
+
+# Create a data frame of all combinations of scenarios and fleet sizes to read in
+combinations <- expand.grid(scenario = scenarios, fleet_size = fleet_sizes)
+
+# Read & combine all DRT trip data
+drt_occupancy_time <- purrr::pmap_dfr(combinations, function(scenario, fleet_size) {
+  read_and_process(scenario, fleet_size)
+})
 
 
 drt_occupancy_time_l <- drt_occupancy_time %>%
-  pivot_longer(cols = -time, names_to = "Category", values_to = "Vehicles") %>%
-  group_by(time) %>%
+  pivot_longer(cols = -c(time, scenario, fleet_size, operator_id),
+               names_to = "Category",
+               values_to = "Vehicles") %>%
+  group_by(time, scenario, fleet_size, operator_id) %>%
   mutate(Vehicles_Share = Vehicles / sum(Vehicles)) %>%
   ungroup() %>%
   filter(minute(time) %% 30 == 0) %>% # A value every 5 minutes is excessive
   filter(as.numeric(time) < 24 * 60 * 60) %>% # Remove data points for time > 24
   mutate(time = as.POSIXct(time, format = "%H:%M:%S"))
+
+
+
 
 drt_occupancy_time_l$Category <- forcats::fct_relevel(drt_occupancy_time_l$Category, "STAY", "RELOCATE",
                                                       "0 pax", "1 pax", "2 pax", "3 pax", "4 pax")
@@ -94,7 +92,8 @@ ggplot(drt_occupancy_time_l #%>%
        y = "Proportion of Vehicles",
        color = "") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  facet_grid(vars(fleet_size), vars(operator_id)) +
+theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 
 # --- Area plot
@@ -110,13 +109,59 @@ ggplot(drt_occupancy_time_l # %>%
        y = "Proportion of Vehicles",
        fill = "") +
   theme_minimal() +
+  facet_grid(vars(fleet_size), vars(operator_id)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 
 # ----------- DRT VKM travelled vs Passenger KM ---------- #
 
+# Function to read and process a file with scenario & fleet size identifiers
+read_and_process <- function(scenario,
+                             fleet_size,
+                             file_name,
+                             base_dir = "../scenarios/fleet_sizing/",
+                             sample_size = "1.00",
+                             extension = "csv",
+                             delim = ";") {
+
+  # Construct file path
+  file_path <- file.path(base_dir, scenario, as.character(fleet_size), sample_size, paste0(file_name, ".", extension))
+
+  # Check if file exists to avoid errors
+  if (!file.exists(file_path)) {
+    warning(paste("File not found:", file_path))
+    return(NULL)  # Return NULL to be ignored in pmap_dfr
+  }
+
+  # Print message to indicate which file is being read
+  message("Reading file: ", file_path)
+  # Read the file
+  data <- read_delim(file_path, delim = delim, show_col_types = FALSE)
+
+  # Add scenario and fleet size as metadata
+  data <- data %>%
+    mutate(scenario = scenario, fleet_size = fleet_size)
+
+  return(data)
+}
+
+
+# Create a dataframe of all combinations
+combinations <- expand.grid(scenario = scenarios, fleet_size = fleet_sizes, stringsAsFactors = FALSE)
+
+# Read & combine all DRT trip data
+
 # --- DRT vehicle KMs
-drt_vkm = read_delim(paste0("../scenarios/fleet_sizing/", scenario, "/", fleet_size, "/sample_1.00/eqasim_drt_vehicle_movements.csv"), delim =";")
+drt_vkm <- purrr::pmap_dfr(combinations, function(scenario, fleet_size){
+  read_and_process(scenario = scenario,
+                   fleet_size = fleet_size,
+                   file_name = "eqasim_drt_vehicle_movements",
+                   base_dir = "../scenarios/fleet_sizing",
+                   sample_size = "sample_1.00",
+                   extension = "csv",
+                   delim = ";")
+})
+
 
 # times as hour of day
 drt_vkm_time = drt_vkm %>%
@@ -125,30 +170,38 @@ drt_vkm_time = drt_vkm %>%
 
 # total distance travlled by hour of day
 drt_vkm_time = drt_vkm_time %>%
-  group_by(arrival_time_h, operator_id) %>%
+  group_by(arrival_time_h, operator_id, scenario, fleet_size) %>%
   summarise(distance_km = sum(distance) / 1000) %>%
   mutate(metric = "vkm") %>%
   ungroup() %>%
-  group_by(operator_id) %>%
+  group_by(operator_id, scenario, fleet_size) %>%
   mutate(distance_km_cum = cumsum(distance_km)) %>% # cumulative distance
   ungroup()
 
 
 
 # --- DRT Passenger KMs
-drt_pkm = read_delim(paste0("../scenarios/fleet_sizing/", scenario, "/", fleet_size, "/sample_1.00/eqasim_drt_passenger_rides.csv"), delim =";")
-
+# drt_pkm = read_delim(paste0("../scenarios/fleet_sizing/", scenario, "/", fleet_size, "/sample_1.00/eqasim_drt_passenger_rides.csv"), delim =";")
+drt_pkm = purrr::pmap_dfr(combinations, function(scenario, fleet_size){
+  read_and_process(scenario = scenario,
+                   fleet_size = fleet_size,
+                   file_name = "eqasim_drt_passenger_rides",
+                   base_dir = "../scenarios/fleet_sizing",
+                   sample_size = "sample_1.00",
+                   extension = "csv",
+                   delim = ";")
+})
 
 drt_pkm_time = drt_pkm %>%
   mutate(departure_time_h = round(departure_time / 3600),
          arrival_time_h = round(arrival_time / 3600))
 
 drt_pkm_time = drt_pkm_time %>%
-  group_by(arrival_time_h, operator_id) %>%
+  group_by(arrival_time_h, operator_id, scenario, fleet_size) %>%
   summarise(distance_km = sum(distance) / 1000) %>%
   mutate(metric = "pkm") %>%
   ungroup() %>%
-  group_by(operator_id) %>%
+  group_by(operator_id, scenario, fleet_size) %>%
   mutate(distance_km_cum = cumsum(distance_km)) %>% # cumulative distance
   ungroup()
 
@@ -159,19 +212,22 @@ drt_km_time = drt_pkm_time %>%
   bind_rows(drt_vkm_time)
 
 # --- Plot pkm and vkm every hour
-ggplot(drt_km_time, aes(x = arrival_time_h, y = distance_km, color = metric)) +
-  geom_line() +
+ggplot(drt_km_time, aes(x = arrival_time_h, y = distance_km, fill = metric)) +
+  geom_col(position = "dodge") +
   labs(title = "Vehicle and passenger km throughout the day",
        x = "",
        y = "Distance (km)",
-       color = "") +
+       fill = "") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  facet_wrap(. ~ operator_id) +
+  facet_grid(vars(fleet_size), vars(operator_id)) +
   scale_x_continuous(breaks = seq(0, 24, by = 1),
                      labels = ifelse(seq(0, 24, by = 1) %% 4 == 0,
                                      paste0(seq(0, 24, by = 1), ":00"),
-                                     ""))
+                                     "")) +
+  scale_y_continuous(#trans = "log10",
+                     labels = scales::comma)
+
 
 # --- Plot CUMULATIVE pkm and vkm every hour
 ggplot(drt_km_time, aes(x = arrival_time_h, y = distance_km_cum, color = metric)) +
@@ -182,30 +238,84 @@ ggplot(drt_km_time, aes(x = arrival_time_h, y = distance_km_cum, color = metric)
        color = "") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  facet_wrap(. ~ operator_id) +
+  facet_grid(vars(fleet_size), vars(operator_id)) +
   scale_x_continuous(breaks = seq(0, 24, by = 1),
                      labels = ifelse(seq(0, 24, by = 1) %% 4 == 0,
                                      paste0(seq(0, 24, by = 1), ":00"),
-                                     ""))
+                                     ""))  +
+  scale_y_continuous(#trans = "log10",
+                     labels = scales::comma)
+
+
+# ------ Load factor
+drt_km_time_load_factor = drt_km_time %>%
+  pivot_wider(names_from = metric,
+              values_from = c(distance_km, distance_km_cum)) %>%
+  mutate(load_factor = distance_km_pkm / distance_km_vkm,
+         load_factor_cum = distance_km_cum_pkm / distance_km_cum_vkm)
+
+# plot
+ggplot(drt_km_time_load_factor, aes(x = arrival_time_h, y = load_factor, fill = load_factor)) +
+  geom_col(position = "dodge") +
+  labs(title = "Load factor throughout the day",
+       subtitle = "pkm / vkm",
+       x = "",
+       y = "Load factor (pkm / vkm)",
+       fill = "Load factor") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  facet_grid(vars(fleet_size), vars(operator_id)) +
+  scale_x_continuous(breaks = seq(0, 24, by = 1),
+                     labels = ifelse(seq(0, 24, by = 1) %% 4 == 0,
+                                     paste0(seq(0, 24, by = 1), ":00"),
+                                     "")) +
+  scale_y_continuous(
+    #trans = "log10",
+    labels = scales::comma) +
+  scale_fill_distiller(palette = "RdYlGn", direction = 1)
+
+# plot (cumulative) - i.e. how load factor is changing
+
+ggplot(drt_km_time_load_factor, aes(x = arrival_time_h, y = load_factor_cum, color = load_factor_cum)) +
+  geom_line(lwd = 2) +
+  labs(title = "Load Factor Evolution Over the Day (pkm / vkm)",
+       subtitle = "Cumulative pkm / vkm from start of day",
+       x = "",
+       y = "Load factor (pkm / vkm)",
+       color = "Cumulative \nload factor") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  facet_grid(vars(fleet_size), vars(operator_id)) +
+  scale_x_continuous(breaks = seq(0, 24, by = 1),
+                     labels = ifelse(seq(0, 24, by = 1) %% 4 == 0,
+                                     paste0(seq(0, 24, by = 1), ":00"),
+                                     "")) +
+  scale_y_continuous(
+    #trans = "log10",
+    labels = scales::comma) +
+  scale_color_distiller(palette = "RdYlGn", direction = 1)
 
 
 # ------ Distance travelled by occupancy
 
 drt_vkm_occupancy = drt_vkm %>%
-  group_by(operator_id, number_of_passengers) %>%
+  group_by(operator_id, number_of_passengers, scenario, fleet_size) %>%
   summarise(distance_km = sum(distance / 1000)) %>%
   ungroup()
 
 
 ggplot(drt_vkm_occupancy, aes(x = factor(number_of_passengers), y = distance_km, fill = factor(number_of_passengers))) +
   geom_col() +
-  facet_wrap(~ operator_id) +  #
+  facet_grid(vars(fleet_size), vars(operator_id)) +
   labs(title = "Total distance travelled by passenger load",
        x = "Number of Passengers",
        y = "Total Distance (KM)",
        fill = "Number of Passengers") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = "none")
+        legend.position = "none") +
+  scale_y_continuous(#trans = "log10",
+                     labels = scales::comma)
+
 
 
