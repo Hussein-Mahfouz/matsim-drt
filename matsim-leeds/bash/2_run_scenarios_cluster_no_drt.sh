@@ -24,11 +24,13 @@ MAIN_CLASS="com.husseinmahfouz.matsim.dmc.RunDMCSimulation"
 # Define the compute-related parameters
 CPUS_PER_TASK=12
 MEM_PER_CPU=8192
-MAX_RUNTIME="4:00:00"
+MAX_RUNTIME="6:00:00"
 # Should not be higher than CPUS_PER_TASK
 GLOBAL_THREADS=12
 # Should not be higher than CPUS_PER_TASK
 QSIM_THREADS=12
+# no of iterations
+ITERATIONS=75
 
 # Define the population sample size being used
 SAMPLE_SIZE="1.00" 
@@ -47,6 +49,7 @@ JOB_ID_1=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-
     --global-threads $GLOBAL_THREADS \
     --qsim-threads $QSIM_THREADS \
     --sample-size $SAMPLE_SIZE \
+    --iterations $ITERATIONS \
     --output-directory $OUTPUT_DIRECTORY \
     --input-plans-file $INPUT_PLANS_FILE \
     --vehicles-file $VEHICLES_FILE" | awk '{print $4}')
@@ -65,6 +68,7 @@ JOB_ID_2=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-
     --global-threads $GLOBAL_THREADS \
     --qsim-threads $QSIM_THREADS \
     --sample-size $SAMPLE_SIZE_2 \
+    --iterations $ITERATIONS \
     --output-directory $OUTPUT_DIRECTORY_2 \
     --input-plans-file $INPUT_PLANS_FILE_2 \
     --vehicles-file $VEHICLES_FILE_2" | awk '{print $4}')
