@@ -60,7 +60,7 @@ public class RunDMCSimulationDRT {
     static public void main(String[] args) throws ConfigurationException {
         CommandLine cmd = new CommandLine.Builder(args) //
                 .requireOptions("config-path") //
-                .allowOptions("use-rejection-constraint", "sample-size") //
+                .allowOptions("use-rejection-constraint", "sample-size", "iterations") //
                 .allowPrefixes("mode-choice-parameter", "cost-parameter") //
                 .build();
 
@@ -112,6 +112,12 @@ public class RunDMCSimulationDRT {
             EqasimConfigGroup eqasimConfig = EqasimConfigGroup.get(config);
             eqasimConfig.setSampleSize(sampleSize);
 
+        }
+
+        // Update the number of iterations if specified
+        if (cmd.hasOption("iterations")) {
+            int iterations = Integer.parseInt(cmd.getOptionStrict("iterations"));
+            config.controller().setLastIteration(iterations);
         }
 
 
