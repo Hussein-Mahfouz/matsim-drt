@@ -19,8 +19,9 @@ drt_table |>
   gt() |>
   cols_hide(columns = c(scenario)) |>
   tab_options(row_group.as_column = TRUE) |>
-  tab_header(title = "DRT distances",
-             subtitle = "Average fleet and passenger distance under different scenarios") |>
+  tab_header(title = "Vehicle and passenger distance travelled",
+            # subtitle = "Average fleet and passenger distance under different scenarios"
+             ) |>
   tab_spanner(
     label = "Vehicle",
     columns = c(vkm, vehicle_distance_per_trip, average_load_factor)
@@ -228,6 +229,4 @@ mode_shift_drt_table |>
     trips_walk_feeder = "Walk",
     trips_taxi_standalone = "Taxi",
     trips_taxi_feeder = "Taxi") |>
-  tab_source_note(source_note = "How to read: 150 (0.03) = 150 trips shifted to DRT (0.03% of Mode total shifted to DRT)") |>
-  gt::as_latex() |>
-  as.character()
+  tab_source_note(source_note = "How to read: 150 (0.03) = 150 trips shifted to DRT (0.03% of Mode total shifted to DRT)")

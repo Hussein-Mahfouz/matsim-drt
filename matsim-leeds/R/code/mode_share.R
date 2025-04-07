@@ -89,7 +89,7 @@ write_csv(demand_compare_summary, "plots/mode_share/mode_shift_all.csv")
 # ---------- Plots
 
 fleet_size_plot = 1000
-scenario_plot = "zones"
+scenario_plot = "all"
 
 # Create a static Sankey-like diagram using ggplot and ggalluvial
 ggplot(data = demand_compare_summary %>%
@@ -115,11 +115,12 @@ ggplot(data = demand_compare_summary %>%
     title = "Shifts in Mode Share after introduction of DRT",
     subtitle = "What modes did all trips transition from?",
     y = "Number of trips",  # Change the y-axis label here
-    fill = "Initial mode \n(Initial mode share)"  # Change the legend title here
+    fill = "Initial mode \n(Initial mode share)",  # Change the legend title here
+    caption = paste0("DRT fleet size = ", fleet_size_plot)
   )
 
 
-ggsave(paste0("plots/mode_share/mode_share_sankey_", scenario, "_", fleet_size, ".png"))
+ggsave(paste0("plots/mode_share/mode_share_sankey_", scenario_plot, "_", fleet_size_plot, ".png"))
 
 # ----- Same plot but combine all DRT (no distinction with feeder or specific fleets)
 demand_compare_summary_all <- demand_compare_summary %>%
@@ -156,10 +157,11 @@ ggplot(data = demand_compare_summary_all %>%
     title = "Shifts in Mode Share after introduction of DRT",
     subtitle = "What modes did all trips transition from?",
     y = "Number of trips",  # Change the y-axis label here
-    fill = "Initial mode \n(Initial mode share)"  # Change the legend title here
+    fill = "Initial mode \n(Initial mode share)",  # Change the legend title here
+    caption = paste0("DRT fleet size = ", fleet_size_plot)
   )
 
-ggsave(paste0("plots/mode_share/mode_share_sankey_", scenario, "_", fleet_size, "_sum_drt.png"))
+ggsave(paste0("plots/mode_share/mode_share_sankey_", scenario_plot, "_", fleet_size_plot, "_sum_drt.png"))
 
 
 
@@ -195,9 +197,10 @@ ggplot(data = demand_compare_summary_drt %>%
     title = "Shifts in Mode Share after introduction of DRT",
     subtitle = "What modes did DRT user trips transition from?",
     y = "Number of trips",  # Change the y-axis label here
-    fill = "Initial mode (% \nof trips that \nshifted to DRT)"  # Change the legend title here
+    fill = "Initial mode (% \nof trips that \nshifted to DRT)",  # Change the legend title here
+    caption = paste0("DRT fleet size = ", fleet_size_plot)
   )
 
-ggsave(paste0("plots/mode_share/mode_share_sankey_", scenario, "_", fleet_size, "_drt.png"))
+ggsave(paste0("plots/mode_share/mode_share_sankey_", scenario_plot, "_", fleet_size_plot, "_drt.png"))
 
 
