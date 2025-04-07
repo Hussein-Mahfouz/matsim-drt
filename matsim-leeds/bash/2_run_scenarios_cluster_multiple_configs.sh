@@ -42,7 +42,7 @@ GLOBAL_THREADS=12
 # Should not be higher than CPUS_PER_TASK
 QSIM_THREADS=12
 # Number of iterations
-ITERATIONS=50
+ITERATIONS=75
 
 # Define the population sample size being used (plans and vehicles files need to exist for this sample size)
 SAMPLE_SIZE="1.00" # 0.50, 0.20, 0.10, 0.05, 0.01
