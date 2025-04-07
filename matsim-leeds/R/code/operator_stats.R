@@ -183,7 +183,7 @@ drt_vkm_time = drt_vkm %>%
 # total distance travlled by hour of day
 drt_vkm_time = drt_vkm_time %>%
   group_by(arrival_time_h, operator_id, scenario, fleet_size) %>%
-  summarise(distance_km = sum(distance) / 1000) %>%
+  summarise(distance_km = round(sum(distance) / 1000)) %>%
   mutate(metric = "vkm") %>%
   ungroup() %>%
   group_by(operator_id, scenario, fleet_size) %>%
@@ -210,7 +210,7 @@ drt_pkm_time = drt_pkm %>%
 
 drt_pkm_time = drt_pkm_time %>%
   group_by(arrival_time_h, operator_id, scenario, fleet_size) %>%
-  summarise(distance_km = sum(distance) / 1000) %>%
+  summarise(distance_km = round(sum(distance) / 1000)) %>%
   mutate(metric = "pkm") %>%
   ungroup() %>%
   group_by(operator_id, scenario, fleet_size) %>%
@@ -475,7 +475,7 @@ drt_km_time_table = drt_km_time %>%
 drt_pkm_passengers_table = drt_pkm_passengers %>%
   filter(cumulative == "no") %>%
   group_by(operator_id, scenario, fleet_size, metric) %>%
-  summarise(average_distance_per_passenger_trip = mean(value, na.rm = TRUE)) %>%
+  summarise(average_distance_per_passenger_trip = round(mean(value, na.rm = TRUE), 1)) %>%
   ungroup() %>%
   pivot_wider(names_from = metric, values_from = average_distance_per_passenger_trip)
 

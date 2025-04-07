@@ -11,18 +11,40 @@ library(ggalluvial) # sankey
 # demand_original = arrow::read_parquet("../data/demand/legs_with_locations.parquet")
 demand_original = read_delim("../scenarios/basic/sample_1.00/eqasim_trips.csv", delim =";")
 
-# Output demand
-scenario = "zones"
-# scenario = "all"
-fleet_size = 1000 # 20, 100, 200, 500, 1000
 
-demand_matsim = read_delim(paste0("../scenarios/fleet_sizing/", scenario, "/", fleet_size, "/sample_1.00/eqasim_trips.csv"), delim =";")
+# Set up a list of scenarios and fleet sizes to read in (file directories should exist)
+scenarios <- c("zones", "all")
+fleet_sizes <- c(100, 200, 500, 1000)
+
+# Function to read and process a file and add identifier column
+read_and_process <- function(scenario, fleet_size, file_name) {
+  # Read the data
+  file_path <- paste0("../scenarios/fleet_sizing/", scenario, "/", fleet_size, "/sample_1.00/", file_name, ".csv")
+  data <- read_delim(file_path, delim = ";")
+
+  # Add the scenario and fleet size columns
+  data <- data %>%
+    mutate(scenario = scenario, fleet_size = fleet_size)
+
+  return(data)
+}
+
+
+# Create a data frame of all combinations of scenarios and fleet sizes to read in
+combinations <- expand.grid(scenario = scenarios, fleet_size = fleet_sizes)
+
+# ----------  All DRT trips ---------- #
+
+# Use purrr::pmap_dfr to read and process each combination. All dfs are binded together
+demand_matsim <- purrr::pmap_dfr(combinations, function(scenario, fleet_size) {
+  read_and_process(scenario, fleet_size, "eqasim_trips")
+})
 
 # Add Trip distance
 demand_matsim <- demand_matsim %>%
   mutate(euclidean_distance_bucket = cut(euclidean_distance,
-                           breaks = seq(0, ceiling(max(euclidean_distance, na.rm = TRUE) / 2500) * 2500, by = 2500),
-                           include.lowest = TRUE, right = FALSE))
+                                         breaks = seq(0, ceiling(max(euclidean_distance, na.rm = TRUE) / 2500) * 2500, by = 2500),
+                                         include.lowest = TRUE, right = FALSE))
 
 # ---------- Join input and output trips
 
@@ -34,9 +56,19 @@ demand_original = demand_original %>%
   # rename_with(~ paste0("input_", .))
   rename_with(~ paste0("input_", .), .cols = c("mode"))
 
+# Create columns for labels
+demand_original = demand_original %>%
+  group_by(input_mode) %>%
+  mutate(input_mode_trips = n()) %>% # total number of trips that started with mode = input_mode
+  ungroup() %>%
+  mutate(input_mode_trips_frac = round((input_mode_trips / n()) * 100, 1)) %>%  # initial mode share of input_mode (%)
+  mutate(input_mode_trips_with_frac = glue::glue("{input_mode} ({input_mode_trips_frac} {'%'})")) # initial mode + initial mode share (%)
+
+
+
 demand_matsim = demand_matsim %>%
   rename(pid = person_id) %>%
-  select(pid, person_trip_id, mode) %>%
+  select(pid, person_trip_id, mode, scenario, fleet_size) %>%
   rename_with(~ paste0("output_", .), .cols = c("mode"))
 
 # join
@@ -45,23 +77,24 @@ demand_compare = demand_original %>%
 
 # ---------- Calculate mode summary statistics
 demand_compare_summary = demand_compare %>%
-  group_by(input_mode, output_mode) %>%
-  summarise(trips = n())
+  group_by(input_mode, input_mode_trips, input_mode_trips_frac, input_mode_trips_with_frac, output_mode, scenario, fleet_size) %>%
+  summarise(trips = n()) %>%
+  ungroup()
+
+# save
+write_csv(demand_compare_summary, "plots/mode_share/mode_shift_all.csv")
+
 
 
 # ---------- Plots
 
-# Create columns for labels
-demand_compare_summary = demand_compare_summary %>%
-  group_by(input_mode) %>%
-  mutate(input_mode_trips = sum(trips)) %>% # total number of trips that started with mode = input_mode
-  ungroup() %>%
-  mutate(input_mode_trips_frac = round((input_mode_trips / sum(trips)) * 100, 1)) %>%  # initial mode share of input_mode (%)
-  mutate(input_mode_trips_with_frac = glue::glue("{input_mode} ({input_mode_trips_frac} {'%'})")) # initial mode + initial mode share (%)
-
+fleet_size_plot = 1000
+scenario_plot = "zones"
 
 # Create a static Sankey-like diagram using ggplot and ggalluvial
-ggplot(data = demand_compare_summary, aes(axis1 = input_mode, axis2 = output_mode, y = trips)) +
+ggplot(data = demand_compare_summary %>%
+         filter(fleet_size == fleet_size_plot, scenario == scenario_plot),
+       aes(axis1 = input_mode, axis2 = output_mode, y = trips)) +
   geom_alluvium(aes(fill = input_mode_trips_with_frac)) +
   geom_stratum() +
   geom_text(stat = "stratum", aes(label = input_mode), size = 3) +
@@ -85,21 +118,24 @@ ggplot(data = demand_compare_summary, aes(axis1 = input_mode, axis2 = output_mod
     fill = "Initial mode \n(Initial mode share)"  # Change the legend title here
   )
 
+
 ggsave(paste0("plots/mode_share/mode_share_sankey_", scenario, "_", fleet_size, ".png"))
 
 # ----- Same plot but combine all DRT (no distinction with feeder or specific fleets)
 demand_compare_summary_all <- demand_compare_summary %>%
   mutate(output_mode_drt = if_else(str_detect(output_mode, regex("drt", ignore_case = TRUE)),
-                               "drt",
-                               output_mode)) %>%
+                                   "drt",
+                                   output_mode)) %>%
   # get total trips by DRT (we need one row per unique OD pair)
-  group_by(input_mode, output_mode_drt, input_mode_trips_with_frac) %>%
+  group_by(input_mode, output_mode_drt, input_mode_trips_with_frac, scenario, fleet_size) %>%
   summarise(trips = sum(trips)) %>%
   ungroup() %>%
   filter(!is.na(output_mode_drt))
 
 
-ggplot(data = demand_compare_summary_all, aes(axis1 = input_mode, axis2 = output_mode_drt, y = trips)) +
+ggplot(data = demand_compare_summary_all %>%
+         filter(fleet_size == fleet_size_plot, scenario == scenario_plot),
+       aes(axis1 = input_mode, axis2 = output_mode_drt, y = trips)) +
   geom_alluvium(aes(fill = input_mode_trips_with_frac)) +
   geom_stratum() +
   geom_text(stat = "stratum", aes(label = input_mode), size = 3) +
@@ -132,14 +168,18 @@ ggsave(paste0("plots/mode_share/mode_share_sankey_", scenario, "_", fleet_size, 
 demand_compare_summary_drt = demand_compare_summary %>%
   filter(str_detect(output_mode, "drt")) %>%
   mutate(trips_moved_drt_frac = round((trips / input_mode_trips) * 100, 2)) %>% # % of Trips for a particular mode that shifted to DRT
-  group_by(input_mode) %>%
+  group_by(input_mode, fleet_size, scenario) %>%
   mutate(total_drt_frac = sum(trips_moved_drt_frac), # total % of trips that transition to DRT (regardless of standalone or feeder)
          mode_with_trips_moved_drt_frac = glue::glue("{input_mode} ({total_drt_frac} {'%'})")) %>% # initial mode + initial mode share (%)
   ungroup()
 
+# save
+write_csv(demand_compare_summary_drt, "plots/mode_share/mode_shift_drt.csv")
 
 
-ggplot(data = demand_compare_summary_drt,
+
+ggplot(data = demand_compare_summary_drt %>%
+         filter(fleet_size == fleet_size_plot, scenario == scenario_plot),
        aes(axis1 = input_mode, axis2 = output_mode, y = trips)) +
   geom_alluvium(aes(fill = mode_with_trips_moved_drt_frac)) +
   geom_stratum() +

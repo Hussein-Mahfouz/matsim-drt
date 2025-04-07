@@ -58,8 +58,8 @@ drt_feeder_trips <- drt_feeder_trips %>%
 # ----- Distance and waiting time by mode (operator + feeder or not)
 drt_trips_distance = drt_trips %>%
   group_by(operator_id, mode_type, scenario, fleet_size, fleet_size_label) %>%
-  summarise(distance = sum(distance) / 1000,
-            waiting_time = mean(waiting_time, na.rm = TRUE),
+  summarise(distance = round(sum(distance) / 1000),
+            waiting_time = round(mean(waiting_time, na.rm = TRUE)),
             no_of_trips = n()) %>%
   ungroup() %>%
   group_by(operator_id, scenario, fleet_size, fleet_size_label) %>%
@@ -86,7 +86,7 @@ ggplot(drt_trips_distance, aes(x = operator_id, y = distance, fill = mode_type))
 ggsave(paste0("plots/feeder_stats/standalone_vs_feeder_bar_facet_fleet_size.png"))
 
 
-# ----- Distance travelled by feeder vs standaone (bucketed by hour of day)
+# ----- Distance travelled by feeder vs standalone (bucketed by hour of day)
 drt_trips_distance_time = drt_trips %>%
   mutate(departure_time_hr = round(departure_time / 3600),
          arrival_time_hr = round(arrival_time / 3600)) %>%
@@ -335,6 +335,11 @@ drt_trips_distance_table = drt_trips_distance %>%
   pivot_wider(names_from = mode_type,
               values_from = c("distance", "distance_frac", "waiting_time", "no_of_trips"))
 
+# add fraction of trips done by feeders
+drt_trips_distance_table = drt_trips_distance_table %>%
+  mutate(no_of_trips_feeder_frac = (round(no_of_trips_feeder / (no_of_trips_main + no_of_trips_feeder), 2)) * 100)
+
+
 
 
 
@@ -342,11 +347,15 @@ drt_trips_distance_table = drt_trips_distance %>%
 drt_trips_feeder_lines_table = drt_trips_feeder_lines %>%
   group_by(operator_id, scenario, fleet_size) %>%
   arrange(desc(trips), .by_group = TRUE) %>%  # Ensure sorting within each group
-  summarise(average_feeder_trips_per_route = sum(trips)/ n(),
-            average_feeder_trips_per_route_top_5_routes = mean(trips[1:5])  # Average trips for top 5 routes
-            )
+  summarise(average_feeder_trips_per_route = round(sum(trips)/ n()),
+            average_feeder_trips_per_route_top_5_routes = round(mean(trips[1:5]))  # Average trips for top 5 routes
+            ) %>%
+  ungroup()
 
 
-drt_trips_table = drt_trips_distance_table %>%
+drt_feeder_trips_table = drt_trips_distance_table %>%
   left_join(drt_trips_feeder_lines_table,
             by = c("operator_id", "scenario", "fleet_size"))
+
+
+write_csv(drt_feeder_trips_table, "plots/feeder_stats/drt_feeder_daily_stats.csv")
