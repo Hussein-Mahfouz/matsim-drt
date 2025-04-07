@@ -16,7 +16,7 @@ public class LeedsCostParameters implements ParameterDefinition {
 	public static LeedsCostParameters buildDefault() {
 		LeedsCostParameters parameters = new LeedsCostParameters();
 		// car
-		parameters.carCostPerKm = 0.15;
+		parameters.carCostPerKm = 0.2;
 		// bus
 		parameters.busFare = 2.0;
 		parameters.railFareBase = 3.0;
