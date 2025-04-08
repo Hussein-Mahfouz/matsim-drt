@@ -84,17 +84,20 @@ for CONFIG_FILE in "${config_files[@]}"; do
     VEHICLES_FILE="../../../../data/supply/network_vehicles_${SAMPLE_SIZE}.xml"
 
     # Submit the job using sbatch
-    JOB_ID=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-per-cpu=$MEM_PER_CPU --wrap="\
-        java -Xmx48G -cp $JAR_FILE $MAIN_CLASS \
-        --config-path $FULL_CONFIG_PATH \
-        --global-threads $GLOBAL_THREADS \
-        --qsim-threads $QSIM_THREADS \
-        --iterations $ITERATIONS \
-        --sample-size $SAMPLE_SIZE \
-        --use-rejection-constraint $USE_REJECTION_CONSTRAINT \
-        --output-directory $OUTPUT_DIRECTORY \
-        --input-plans-file $INPUT_PLANS_FILE \
-        --vehicles-file $VEHICLES_FILE" | awk '{print $4}')
+    JOB_ID=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-per-cpu=$MEM_PER_CPU \
+        --output="${OUTPUT_DIRECTORY}/job_%j.out" \
+        --error="${OUTPUT_DIRECTORY}/job_%j.err" \
+        --wrap="\
+            java -Xmx48G -cp $JAR_FILE $MAIN_CLASS \
+            --config-path $FULL_CONFIG_PATH \
+            --global-threads $GLOBAL_THREADS \
+            --qsim-threads $QSIM_THREADS \
+            --iterations $ITERATIONS \
+            --sample-size $SAMPLE_SIZE \
+            --use-rejection-constraint $USE_REJECTION_CONSTRAINT \
+            --output-directory $OUTPUT_DIRECTORY \
+            --input-plans-file $INPUT_PLANS_FILE \
+            --vehicles-file $VEHICLES_FILE" | awk '{print $4}')
     echo "Submitted job $JOB_ID for config file $CONFIG_FILE"
 
 done
