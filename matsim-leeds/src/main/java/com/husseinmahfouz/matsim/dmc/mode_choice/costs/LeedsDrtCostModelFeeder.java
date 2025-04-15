@@ -40,12 +40,16 @@ public class LeedsDrtCostModelFeeder extends AbstractCostModel {
         for (PlanElement element : elements) {
             if (element instanceof Leg) {
                 Leg leg = (Leg) element;
-                String mode = leg.getMode();
+                // String mode = leg.getMode();
 
-                if (mode.contains("feeder")) {
+                // Check the routingMode attribute.
+                // This distinguishes between drt and drt_feeder modes
+                String routingMode = leg.getRoutingMode();
+
+                if (routingMode != null && routingMode.contains("feeder")) {
                     isFeederDrt = true;
                     break; // No need to check further if it's a feeder DRT trip
-                } else if (mode.contains("drt")) {
+                } else if (routingMode != null && routingMode.contains("drt")) {
                     isDrtOnly = true;
                 }
             }
@@ -70,7 +74,7 @@ public class LeedsDrtCostModelFeeder extends AbstractCostModel {
             // area).So even though a person has these mode available, there is no feasible plan
             // with DRT. In that case, it is not an issue
             // logger.warn("LeedsDrtCostModelFeeder received a trip with no DRT legs.");
-            return 100; // Return a high cost as this trip is not feasible with DRT (probably
+            return 10000; // Return a high cost as this trip is not feasible with DRT (probably
             // unnecessary as it is excluded downstream, but we need a number)
         }
     }
