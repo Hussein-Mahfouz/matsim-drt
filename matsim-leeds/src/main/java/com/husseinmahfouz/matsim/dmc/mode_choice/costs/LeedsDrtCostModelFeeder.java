@@ -7,7 +7,6 @@ import java.util.List;
 
 import org.eqasim.core.simulation.mode_choice.cost.AbstractCostModel;
 import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsCostParameters;
-import org.matsim.api.core.v01.TransportMode;
 import org.matsim.api.core.v01.population.Leg;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.PlanElement;
@@ -17,12 +16,13 @@ import com.google.inject.Inject;
 
 /**
  * This DRTCostModel is an alternative to the basic one. It incentivises using DRT as a feeder by
- * making feeder trips free (similar to TfL hopper fare)
+ * making feeder trips free (0r cheaper) (similar to TfL hopper fare)
  **/
 
 public class LeedsDrtCostModelFeeder extends AbstractCostModel {
     // private static final Logger logger = LogManager.getLogger(LeedsDrtCostModelFeeder.class);
     private final LeedsCostParameters costParameters;
+
 
     @Inject
     public LeedsDrtCostModelFeeder(LeedsCostParameters costParameters) {
@@ -33,45 +33,45 @@ public class LeedsDrtCostModelFeeder extends AbstractCostModel {
     @Override
     public double calculateCost_MU(Person person, DiscreteModeChoiceTrip trip,
             List<? extends PlanElement> elements) {
-        boolean hasDrt = false;
-        boolean hasPt = false;
+        boolean isFeederDrt = false;
+        boolean isDrtOnly = false;
 
-        // Iterate through the plan elements to check for DRT and PT modes
-        // If both are present, this is a trip with a DRT feeder
+        // Iterate through the plan elements to check for DRT and feeder DRT modes
         for (PlanElement element : elements) {
             if (element instanceof Leg) {
                 Leg leg = (Leg) element;
-                if (leg.getMode().equals(TransportMode.drt)) {
-                    hasDrt = true;
-                } else if (leg.getMode().equals(TransportMode.pt)) {
-                    hasPt = true;
+                String mode = leg.getMode();
+
+                if (mode.contains("feeder")) {
+                    isFeederDrt = true;
+                    break; // No need to check further if it's a feeder DRT trip
+                } else if (mode.contains("drt")) {
+                    isDrtOnly = true;
                 }
             }
         }
 
-        // Calculate the cost based on the trip type (DRT only, or DRT as feeder to PT)
+        // Calculate the cost based on the trip type
         double tripDistance_km = getInVehicleDistance_km(elements);
-        if (hasDrt && hasPt) {
-            // DRT + PT trip (this is a trip with a DRT feeder)
+        if (isFeederDrt) {
+            // Feeder DRT trip
             // It is much cheaper (same as TfL hopper fare). Add 0.1 to avoid downstream issues
             return (costParameters.drtFareBaseFeeder
                     + costParameters.drtFarePerKmFeeder * tripDistance_km) + 0.1;
-        } else if (hasDrt) {
+        } else if (isDrtOnly) {
             // DRT-only trip
             return (costParameters.drtFareBase + costParameters.drtFarePerKm * tripDistance_km)
                     + 0.1;
         } else {
             // If a trip has no DRT leg, the cost is set to a very high value
             // TODO: figure out why these trips exist. I think it is because
-            // FeederDrtModeAvailabilityWrapper
-            // adds DRT and DRT_feeder modes from the config to all individuals (regardless of drt
-            // service
+            // FeederDrtModeAvailabilityWrapper adds DRT and DRT_feeder modes
+            // from the config to all individuals (regardless of drt service
             // area).So even though a person has these mode available, there is no feasible plan
             // with DRT. In that case, it is not an issue
             // logger.warn("LeedsDrtCostModelFeeder received a trip with no DRT legs.");
             return 100; // Return a high cost as this trip is not feasible with DRT (probably
-                        // unnecessary as it is excluded downstream, but we need a number)
+            // unnecessary as it is excluded downstream, but we need a number)
         }
-        
     }
 }
