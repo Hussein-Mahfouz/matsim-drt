@@ -75,7 +75,7 @@ ggplot(drt_trips_distance, aes(x = operator_id, y = distance, fill = mode_type))
              position = position_stack(vjust = 0.5),
              color = "white", size = 3, label.size = 0) +
   labs(title = "DRT Usage: Feeder vs. Standalone Trips",
-       subtitle = "Share of travel distance by feeder trips vs. full DRT trips for different service areas",
+       subtitle = "Share of travel distance by feeder trips vs. full DRT trips \nfor different service areas",
        x = "Scenario",
        y = "Total Distance (KM)",
        fill = "") +
@@ -105,7 +105,7 @@ ggplot(drt_trips_distance_time, aes(x = departure_time_hr, y = distance, fill = 
   facet_grid(operator_id ~ fleet_size_label) +
   #facet_grid(fleet_size ~ operator_id) +
   labs(title = "DRT Usage: Feeder vs. Standalone Trips throughout the day",
-       subtitle = "Share of travel distance by feeder trips vs. full DRT trips for different service areas",
+       subtitle = "Share of travel distance by feeder trips vs. full DRT trips \nfor different service areas",
        x = "Hour of Day",
        y = "Total Distance (KM)",
        fill = "") +
@@ -298,7 +298,7 @@ tm_shape(scenario_extents) +
   tm_shape(drt_trips_feeder_lines_sf %>%
              filter(!st_is_empty(.))) +
   tm_lines(col = "trips",
-           title.col = "Number of \nfeeder \nDRT trips",
+           title.col = "Number of \nfeeder DRT \ntrips",
            lwd = "trips",
            palette = "Reds",
            scale = 5,
@@ -323,7 +323,7 @@ tm_shape(scenario_extents) +
 
 drt_feeder_bus_count
 
-tmap_save(tm = drt_feeder_bus_count, filename = "plots/feeder_stats/map_drt_feeder_bus_route_count.png", width = 12, dpi = 1080, asp = 0)
+tmap_save(tm = drt_feeder_bus_count, filename = "plots/feeder_stats/map_drt_feeder_bus_route_count.png", width = 8, dpi = 1080, asp = 0)
 
 
 

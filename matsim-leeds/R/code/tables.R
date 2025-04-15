@@ -109,7 +109,8 @@ drt_feeder_table |>
     waiting_time_main = "Standalone",
     waiting_time_feeder = "Feeder",
     average_feeder_trips_per_route = "Feeder trips per bus route",
-    average_feeder_trips_per_route_top_5_routes = "Feeder trips per bus route (top 5 routes)")
+    average_feeder_trips_per_route_top_5_routes = "Feeder trips per bus route (top 5 routes)") %>%
+  as_latex()
 
 
 

@@ -16,6 +16,12 @@ demand_original = read_delim("../scenarios/basic/sample_1.00/eqasim_trips.csv", 
 scenarios <- c("zones", "all")
 fleet_sizes <- c(100, 200, 500, 1000)
 
+# Define scenario names for plot subtitles
+scenario_labels <- c(
+  "zones" = "Zone-based DRT",
+  "all" = "Citywide DRT"
+)
+
 # Function to read and process a file and add identifier column
 read_and_process <- function(scenario, fleet_size, file_name) {
   # Read the data
@@ -88,39 +94,43 @@ write_csv(demand_compare_summary, "plots/mode_share/mode_shift_all.csv")
 
 # ---------- Plots
 
-fleet_size_plot = 1000
-scenario_plot = "all"
+# Loop over combinations and print + save each one
+for (scenario_plot in scenarios) {
+  for (fleet_size_plot in fleet_sizes) {
 
-# Create a static Sankey-like diagram using ggplot and ggalluvial
-ggplot(data = demand_compare_summary %>%
-         filter(fleet_size == fleet_size_plot, scenario == scenario_plot),
-       aes(axis1 = input_mode, axis2 = output_mode, y = trips)) +
-  geom_alluvium(aes(fill = input_mode_trips_with_frac)) +
-  geom_stratum() +
-  geom_text(stat = "stratum", aes(label = input_mode), size = 3) +
-  # ggrepel::geom_text_repel(
-  #   aes(label = input_mode),
-  #   stat = "stratum", size = 4, direction = "y", nudge_x = -.5
-  # ) +
-  ggrepel::geom_text_repel(
-    aes(label = output_mode),
-    stat = "stratum", size = 3, direction = "y", nudge_x = .35
-  ) +
-  scale_x_discrete(limits = c("Before", "After"), expand = c(0.15, 0.15)) +
-  scale_y_continuous(labels = scales::label_comma()) +  # Format y-axis with commas
-  scale_fill_brewer(type = "qual", palette = "Set1") +
-  theme_bw()  +
-  theme(panel.border = element_blank()) +
-  labs(
-    title = "Shifts in Mode Share after introduction of DRT",
-    subtitle = "What modes did all trips transition from?",
-    y = "Number of trips",  # Change the y-axis label here
-    fill = "Initial mode \n(Initial mode share)",  # Change the legend title here
-    caption = paste0("DRT fleet size = ", fleet_size_plot)
-  )
+    # Subset data
+    plot_data <- demand_compare_summary %>%
+      filter(fleet_size == fleet_size_plot, scenario == scenario_plot)
 
+    # Create plot
+    p <- ggplot(data = plot_data,
+                aes(axis1 = input_mode, axis2 = output_mode, y = trips)) +
+      geom_alluvium(aes(fill = input_mode_trips_with_frac)) +
+      geom_stratum() +
+      geom_text(stat = "stratum", aes(label = input_mode), size = 3) +
+      ggrepel::geom_text_repel(
+        aes(label = output_mode),
+        stat = "stratum", size = 3, direction = "y", nudge_x = .35
+      ) +
+      scale_x_discrete(limits = c("Before", "After"), expand = c(0.15, 0.15)) +
+      scale_y_continuous(labels = scales::label_comma()) +
+      scale_fill_brewer(type = "qual", palette = "Set1") +
+      theme_bw() +
+      theme(panel.border = element_blank()) +
+      labs(
+        title = "What modes did all trips transition from?",
+        subtitle = scenario_labels[[scenario_plot]],  # Custom subtitle
+        y = "Number of trips",
+        fill = "Initial mode \n(Initial mode share)",
+        caption = paste0("DRT fleet size = ", fleet_size_plot)
+      )
 
-ggsave(paste0("plots/mode_share/mode_share_sankey_", scenario_plot, "_", fleet_size_plot, ".png"))
+    print(p)
+
+    ggsave(filename = paste0("sankey_", scenario_plot, "_", fleet_size_plot, ".png"),
+           plot = p)
+  }
+}
 
 # ----- Same plot but combine all DRT (no distinction with feeder or specific fleets)
 demand_compare_summary_all <- demand_compare_summary %>%
@@ -134,35 +144,43 @@ demand_compare_summary_all <- demand_compare_summary %>%
   filter(!is.na(output_mode_drt))
 
 
-ggplot(data = demand_compare_summary_all %>%
-         filter(fleet_size == fleet_size_plot, scenario == scenario_plot),
-       aes(axis1 = input_mode, axis2 = output_mode_drt, y = trips)) +
-  geom_alluvium(aes(fill = input_mode_trips_with_frac)) +
-  geom_stratum() +
-  geom_text(stat = "stratum", aes(label = input_mode), size = 3) +
-  # ggrepel::geom_text_repel(
-  #   aes(label = input_mode),
-  #   stat = "stratum", size = 4, direction = "y", nudge_x = -.5
-  # ) +
-  ggrepel::geom_text_repel(
-    aes(label = output_mode_drt),
-    stat = "stratum", size = 3, direction = "y", nudge_x = .35
-  ) +
-  scale_x_discrete(limits = c("Before", "After"), expand = c(0.15, 0.15)) +
-  scale_y_continuous(labels = scales::label_comma()) +  # Format y-axis with commas
-  scale_fill_brewer(type = "qual", palette = "Set1") +
-  theme_bw()  +
-  theme(panel.border = element_blank()) +
-  labs(
-    title = "Shifts in Mode Share after introduction of DRT",
-    subtitle = "What modes did all trips transition from?",
-    y = "Number of trips",  # Change the y-axis label here
-    fill = "Initial mode \n(Initial mode share)",  # Change the legend title here
-    caption = paste0("DRT fleet size = ", fleet_size_plot)
-  )
+for (scenario_plot in scenarios) {
+  for (fleet_size_plot in fleet_sizes) {
 
-ggsave(paste0("plots/mode_share/mode_share_sankey_", scenario_plot, "_", fleet_size_plot, "_sum_drt.png"))
+    # Filter the data
+    plot_data <- demand_compare_summary_all %>%
+      filter(fleet_size == fleet_size_plot, scenario == scenario_plot)
 
+    # Generate the plot
+    p <- ggplot(data = plot_data,
+                aes(axis1 = input_mode, axis2 = output_mode_drt, y = trips)) +
+      geom_alluvium(aes(fill = input_mode_trips_with_frac)) +
+      geom_stratum() +
+      geom_text(stat = "stratum", aes(label = input_mode), size = 3) +
+      ggrepel::geom_text_repel(
+        aes(label = output_mode_drt),
+        stat = "stratum", size = 3, direction = "y", nudge_x = .35
+      ) +
+      scale_x_discrete(limits = c("Before", "After"), expand = c(0.15, 0.15)) +
+      scale_y_continuous(labels = scales::label_comma()) +
+      scale_fill_brewer(type = "qual", palette = "Set1") +
+      theme_bw() +
+      theme(panel.border = element_blank()) +
+      labs(
+        title = "What modes did all trips transition from?",
+        subtitle = scenario_labels[[scenario_plot]],
+        y = "Number of trips",
+        fill = "Initial mode \n(Initial mode share)",
+        caption = paste0("DRT fleet size = ", fleet_size_plot)
+      )
+
+    print(p)
+
+    ggsave(
+      filename = paste0("plots/mode_share/mode_share_sankey_", scenario_plot, "_", fleet_size_plot, "_sum_drt.png"),
+      plot = p)
+  }
+}
 
 
 
@@ -180,27 +198,39 @@ write_csv(demand_compare_summary_drt, "plots/mode_share/mode_shift_drt.csv")
 
 
 
-ggplot(data = demand_compare_summary_drt %>%
-         filter(fleet_size == fleet_size_plot, scenario == scenario_plot),
-       aes(axis1 = input_mode, axis2 = output_mode, y = trips)) +
-  geom_alluvium(aes(fill = mode_with_trips_moved_drt_frac)) +
-  geom_stratum() +
-  geom_text(stat = "stratum", aes(label = input_mode)) +
-  # geom_text(stat = "stratum", aes(label = glue::glue("{input_mode} ({people})")))  +
-  geom_text(stat = "stratum", aes(label = output_mode)) +
-  scale_x_discrete(limits = c("Before", "After"), expand = c(0.15, 0.15)) +
-  scale_fill_brewer(type = "qual", palette = "Set1") +
-  scale_y_continuous(labels = scales::label_comma()) +  # Format y-axis with commas
-  theme_bw() +
-  theme(panel.border = element_blank()) +
-  labs(
-    title = "Shifts in Mode Share after introduction of DRT",
-    subtitle = "What modes did DRT user trips transition from?",
-    y = "Number of trips",  # Change the y-axis label here
-    fill = "Initial mode (% \nof trips that \nshifted to DRT)",  # Change the legend title here
-    caption = paste0("DRT fleet size = ", fleet_size_plot)
-  )
+for (scenario_plot in scenarios) {
+  for (fleet_size_plot in fleet_sizes) {
 
-ggsave(paste0("plots/mode_share/mode_share_sankey_", scenario_plot, "_", fleet_size_plot, "_drt.png"))
+    # Filter the data
+    plot_data <- demand_compare_summary_drt %>%
+      filter(fleet_size == fleet_size_plot, scenario == scenario_plot)
+
+    # Generate the plot
+    p <- ggplot(data = plot_data,
+                aes(axis1 = input_mode, axis2 = output_mode, y = trips)) +
+      geom_alluvium(aes(fill = mode_with_trips_moved_drt_frac)) +
+      geom_stratum() +
+      geom_text(stat = "stratum", aes(label = input_mode)) +
+      # geom_text(stat = "stratum", aes(label = glue::glue("{input_mode} ({people})")))  +
+      geom_text(stat = "stratum", aes(label = output_mode)) +
+      scale_x_discrete(limits = c("Before", "After"), expand = c(0.15, 0.15)) +
+      scale_fill_brewer(type = "qual", palette = "Set1") +
+      scale_y_continuous(labels = scales::label_comma()) +  # Format y-axis with commas
+      theme_bw() +
+      theme(panel.border = element_blank()) +
+      labs(
+        title = "What modes did DRT user trips transition from?",
+        subtitle = scenario_labels[[scenario_plot]],
+        y = "Number of trips",  # Change the y-axis label here
+        fill = "Initial mode (% \nof trips that \nshifted to DRT)",  # Change the legend title here
+        caption = paste0("DRT fleet size = ", fleet_size_plot)
+      )
 
 
+    print(p)
+
+    ggsave(
+      filename = paste0("plots/mode_share/mode_share_sankey_", scenario_plot, "_", fleet_size_plot, "_drt.png"),
+      plot = p)
+  }
+}

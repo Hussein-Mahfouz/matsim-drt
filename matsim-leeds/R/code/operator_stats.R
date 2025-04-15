@@ -277,7 +277,9 @@ drt_km_time_load_factor = drt_km_time %>%
          load_factor_cum = distance_km_cum_pkm / distance_km_cum_vkm)
 
 # plot
-ggplot(drt_km_time_load_factor, aes(x = arrival_time_h, y = load_factor, fill = load_factor)) +
+ggplot(drt_km_time_load_factor %>%
+         filter(arrival_time_h > 3, arrival_time_h < 24),
+       aes(x = arrival_time_h, y = load_factor, fill = load_factor)) +
   geom_col(position = "dodge") +
   labs(title = "Load factor throughout the day",
        subtitle = "pkm / vkm",
@@ -302,7 +304,9 @@ ggsave(paste0(plots_dir, "load_factor_bar_facet_scenario_and_fleet_size.png"), b
 
 # plot (cumulative) - i.e. how load factor is changing
 
-ggplot(drt_km_time_load_factor, aes(x = arrival_time_h, y = load_factor_cum, color = load_factor_cum)) +
+ggplot(drt_km_time_load_factor %>%
+         filter(arrival_time_h > 3, arrival_time_h < 24),
+       aes(x = arrival_time_h, y = load_factor_cum, color = load_factor_cum)) +
   geom_line(lwd = 2) +
   labs(title = "Load Factor Evolution Over the Day (pkm / vkm)",
        subtitle = "Cumulative pkm / vkm from start of day",
