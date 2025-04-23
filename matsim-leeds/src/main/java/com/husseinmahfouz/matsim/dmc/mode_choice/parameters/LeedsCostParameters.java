@@ -12,11 +12,13 @@ public class LeedsCostParameters implements ParameterDefinition {
 	public double railFarePerKm;
 	public double drtFareBase;
 	public double drtFarePerKm;
+	public double drtFareBaseFeeder;
+	public double drtFarePerKmFeeder;
 
 	public static LeedsCostParameters buildDefault() {
 		LeedsCostParameters parameters = new LeedsCostParameters();
 		// car
-		parameters.carCostPerKm = 0.2;
+		parameters.carCostPerKm = 0.3;
 		// bus
 		parameters.busFare = 2.0;
 		parameters.railFareBase = 3.0;
@@ -25,6 +27,9 @@ public class LeedsCostParameters implements ParameterDefinition {
 		// drt
 		parameters.drtFareBase = 2.0;
 		parameters.drtFarePerKm = 0.0;
+		// drt feeder: // to try scenarios where DRT is cheaper when used as a feeder
+		parameters.drtFareBaseFeeder = 0.2;
+		parameters.drtFarePerKmFeeder = 0.0;
 		// taxi
 		parameters.taxi_inititalCharge = 2.5;
 		parameters.taxiCostPerMinute = 0.2;
