@@ -15,7 +15,7 @@ import org.eqasim.core.simulation.modes.feeder_drt.mode_choice.FeederDrtModeAvai
 import org.eqasim.core.simulation.modes.feeder_drt.mode_choice.utilities.estimator.DefaultFeederDrtUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.costs.LeedsCarCostModel;
 import com.husseinmahfouz.matsim.dmc.mode_choice.costs.LeedsPtCostModel;
-import com.husseinmahfouz.matsim.dmc.mode_choice.costs.LeedsDrtCostModelFeeder;
+import com.husseinmahfouz.matsim.dmc.mode_choice.costs.LeedsDrtCostModel;
 import com.husseinmahfouz.matsim.dmc.mode_choice.costs.LeedsTaxiCostModel;
 import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsCostParameters;
 import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsModeParameters;
@@ -52,7 +52,7 @@ public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 	public static final String CAR_COST_MODEL_NAME = "LeedsCarCostModel";
 	public static final String PT_COST_MODEL_NAME = "LeedsPtCostModel";
 	// Add DRT
-	public static final String DRT_COST_MODEL_NAME = "LeedsDrtCostModelFeeder";
+	public static final String DRT_COST_MODEL_NAME = "LeedsDrtCostModel";
 	public static final String TAXI_COST_MODEL_NAME = "LeedsTaxiCostModel";
 
 	public static final String CAR_ESTIMATOR_NAME = "LeedsCarUtilityEstimator";
@@ -79,7 +79,7 @@ public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 		bindCostModel(CAR_COST_MODEL_NAME).to(LeedsCarCostModel.class);
 		bindCostModel(PT_COST_MODEL_NAME).to(LeedsPtCostModel.class);
 		// Add DRT
-		bindCostModel(DRT_COST_MODEL_NAME).to(LeedsDrtCostModelFeeder.class);
+		bindCostModel(DRT_COST_MODEL_NAME).to(LeedsDrtCostModel.class);
 		bindCostModel(TAXI_COST_MODEL_NAME).to(LeedsTaxiCostModel.class);
 
 		bindUtilityEstimator(CAR_ESTIMATOR_NAME).to(LeedsCarUtilityEstimator.class);
