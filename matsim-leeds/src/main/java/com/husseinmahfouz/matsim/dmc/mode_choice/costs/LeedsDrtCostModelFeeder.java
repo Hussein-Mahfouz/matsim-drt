@@ -73,6 +73,9 @@ public class LeedsDrtCostModelFeeder extends AbstractCostModel {
             // from the config to all individuals (regardless of drt service
             // area).So even though a person has these mode available, there is no feasible plan
             // with DRT. In that case, it is not an issue
+            // The serviceareaconstraint is applied right before the MNL (to eliminate modes), but the
+            // utility of each mode is calculated before the constraints are applied?
+
             // logger.warn("LeedsDrtCostModelFeeder received a trip with no DRT legs.");
             return 10000; // Return a high cost as this trip is not feasible with DRT (probably
             // unnecessary as it is excluded downstream, but we need a number)
