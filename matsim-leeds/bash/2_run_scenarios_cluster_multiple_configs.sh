@@ -99,9 +99,7 @@ for CONFIG_FILE in "${config_files[@]}"; do
 
     # Submit the job using sbatch
     JOB_ID=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-per-cpu=$MEM_PER_CPU \
-        # --output="${OUTPUT_DIRECTORY}/job_%j.out" \
-        # --error="${OUTPUT_DIRECTORY}/job_%j.err" \
-        --wrap="\
+=        --wrap="\
             java -Xmx48G -cp $JAR_FILE $MAIN_CLASS \
             --config-path $FULL_CONFIG_PATH \
             --global-threads $GLOBAL_THREADS \
@@ -113,5 +111,23 @@ for CONFIG_FILE in "${config_files[@]}"; do
             --input-plans-file $INPUT_PLANS_FILE \
             --vehicles-file $VEHICLES_FILE" | awk '{print $4}')
     echo "Submitted job $JOB_ID for config file $CONFIG_FILE"
+
+    # --- OLD attampt to use --output and --error flags
+
+    #  JOB_ID=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-per-cpu=$MEM_PER_CPU \
+    #     --output="${OUTPUT_DIRECTORY}/job_%j.out" \
+    #     --error="${OUTPUT_DIRECTORY}/job_%j.err" \
+    #     --wrap="\
+    #         java -Xmx48G -cp $JAR_FILE $MAIN_CLASS \
+    #         --config-path $FULL_CONFIG_PATH \
+    #         --global-threads $GLOBAL_THREADS \
+    #         --qsim-threads $QSIM_THREADS \
+    #         --iterations $ITERATIONS \
+    #         --sample-size $SAMPLE_SIZE \
+    #         --use-rejection-constraint $USE_REJECTION_CONSTRAINT \
+    #         --output-directory $OUTPUT_DIRECTORY \
+    #         --input-plans-file $INPUT_PLANS_FILE \
+    #         --vehicles-file $VEHICLES_FILE" | awk '{print $4}')
+    # echo "Submitted job $JOB_ID for config file $CONFIG_FILE"
 
 done
