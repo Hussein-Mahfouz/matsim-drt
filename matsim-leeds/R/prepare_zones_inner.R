@@ -63,6 +63,48 @@ for (radius in radii) {
   dir.create(output_dir)
 
   # Save shapefile (always named drt_zone.shp)
-  st_write(drt_zone, file.path(output_dir, "drt_zone.shp"),
+  st_write(drt_zone, file.path(output_dir, "drt_zone_inner.shp"),
            driver = "ESRI Shapefile", delete_layer = TRUE)
 }
+
+# ---------- Option 3: Built up area
+
+# Source: https://www.data.gov.uk/dataset/504157a0-136a-4ef6-883a-19556447c832/built-up-areas-december-2024-boundaries-ew-bgg
+
+# Method: Extract biggest BUA in Leeds
+# Corresponds to map here: https://citypopulation.de/en/uk/yorkshireandthehumber/west_yorkshire/E63000784__leeds/
+# BUA24CD: E63007883
+
+
+bua_leeds = st_read("../data/supply/drt/built_up_area_leeds.shp") %>%
+  select(BUA24CD)
+
+bua_leeds_convex = st_convex_hull(bua_leeds)
+bua_leeds_concave  = st_concave_hull(bua_leeds, ratio = 0.25, allow_holes = FALSE)
+
+
+tm_shape(study_area) +
+  tm_fill(col = "grey") +
+tm_shape(bua_leeds) +
+  tm_borders(
+    col = "black",
+    lwd = 2)  +
+tm_shape(bua_leeds_convex) +
+  tm_borders(
+    col = "red",
+    lwd = 2) +
+tm_shape(bua_leeds_concave) +
+  tm_borders(
+    col = "blue",
+    lwd = 2) +
+tm_shape(drt_zone) +
+  tm_borders(
+    col = "green",
+    lwd = 2)
+
+
+# s
+output_dir <- "shapefiles/inner/drt_zone_bua/"
+dir.create(output_dir)
+st_write(bua_leeds_concave, file.path("shapefiles/inner/drt_zone_bua/drt_zone_inner.shp"),
+         driver = "ESRI Shapefile", delete_layer = TRUE)
