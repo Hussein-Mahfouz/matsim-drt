@@ -99,7 +99,7 @@ for CONFIG_FILE in "${config_files[@]}"; do
 
     # Submit the job using sbatch
     JOB_ID=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-per-cpu=$MEM_PER_CPU \
-=        --wrap="\
+        --wrap="\
             java -Xmx48G -cp $JAR_FILE $MAIN_CLASS \
             --config-path $FULL_CONFIG_PATH \
             --global-threads $GLOBAL_THREADS \
