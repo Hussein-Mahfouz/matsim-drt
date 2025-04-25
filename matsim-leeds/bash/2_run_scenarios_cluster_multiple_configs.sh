@@ -36,7 +36,7 @@ MAIN_CLASS="com.husseinmahfouz.matsim.RunDMCSimulationDRTCluster"
 # Define the compute-related parameters
 CPUS_PER_TASK=12
 MEM_PER_CPU=8192
-MAX_RUNTIME="12:00:00"
+MAX_RUNTIME="16:00:00"
 # Should not be higher than CPUS_PER_TASK
 GLOBAL_THREADS=12
 # Should not be higher than CPUS_PER_TASK
