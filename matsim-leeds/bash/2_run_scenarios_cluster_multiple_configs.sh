@@ -53,19 +53,24 @@ USE_REJECTION_CONSTRAINT="true"
 config_files=(
     # "config_simulation_dmc_drt_50_feeder.xml"
     # "config_simulation_dmc_drt_all_50_feeder.xml"
-    # £config_simulation_dmc_drt_inner_50_feeder.xml"
-    "config_simulation_dmc_drt_100_feeder.xml"
-    "config_simulation_dmc_drt_all_100_feeder.xml"
-    "config_simulation_dmc_drt_inner_100_feeder.xml"
-    "config_simulation_dmc_drt_200_feeder.xml"
-    "config_simulation_dmc_drt_all_200_feeder.xml"
-    "config_simulation_dmc_drt_inner_200_feeder.xml"
-    "config_simulation_dmc_drt_500_feeder.xml"
-    "config_simulation_dmc_drt_all_500_feeder.xml"
-    "config_simulation_dmc_drt_inner_500_feeder.xml"
-    "config_simulation_dmc_drt_1000_feeder.xml"
-    "config_simulation_dmc_drt_all_1000_feeder.xml"
-    "config_simulation_dmc_drt_inner_1000_feeder.xml"
+    # "config_simulation_dmc_drt_inner_50_feeder.xml"
+    # "config_simulation_dmc_drt_innerBUA_50_feeder.xml"
+    # "config_simulation_dmc_drt_100_feeder.xml"
+    # "config_simulation_dmc_drt_all_100_feeder.xml"
+    # "config_simulation_dmc_drt_inner_100_feeder.xml"
+    "config_simulation_dmc_drt_innerBUA_100_feeder.xml"
+    # "config_simulation_dmc_drt_200_feeder.xml"
+    # "config_simulation_dmc_drt_all_200_feeder.xml"
+    # "config_simulation_dmc_drt_inner_200_feeder.xml"
+    "config_simulation_dmc_drt_innerBUA_200_feeder.xml"
+    # "config_simulation_dmc_drt_500_feeder.xml"
+    # "config_simulation_dmc_drt_all_500_feeder.xml"
+    # "config_simulation_dmc_drt_inner_500_feeder.xml"
+    "config_simulation_dmc_drt_innerBUA_500_feeder.xml"
+    # "config_simulation_dmc_drt_1000_feeder.xml"
+    # "config_simulation_dmc_drt_all_1000_feeder.xml"
+    # "config_simulation_dmc_drt_inner_1000_feeder.xml"
+    "config_simulation_dmc_drt_innerBUA_1000_feeder.xml"
 )
 
 # Loop through each configuration file and submit a job
@@ -78,6 +83,8 @@ for CONFIG_FILE in "${config_files[@]}"; do
         CONFIG_TYPE="all"
     elif [[ $CONFIG_FILE == *"_inner_"* ]]; then
         CONFIG_TYPE="inner"
+    elif [[ $CONFIG_FILE == *"_innerBUA_"* ]]; then
+        CONFIG_TYPE="innerBUA"
     else
         CONFIG_TYPE="zones"
     fi
