@@ -106,5 +106,5 @@ tm_shape(drt_zone) +
 # s
 output_dir <- "shapefiles/inner/drt_zone_bua/"
 dir.create(output_dir)
-st_write(bua_leeds_concave, file.path("shapefiles/inner/drt_zone_bua/drt_zone_inner.shp"),
+st_write(bua_leeds_concave, file.path("shapefiles/inner/drt_zone_bua/drt_zone_innerBUA.shp"),
          driver = "ESRI Shapefile", delete_layer = TRUE)

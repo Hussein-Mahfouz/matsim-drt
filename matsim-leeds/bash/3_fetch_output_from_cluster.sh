@@ -13,15 +13,17 @@ MATSIM_DIR="$(pwd)"
 # rsync command. This is useful for excluding large directories (Such as ITERS) that are not needed locally. 
  
 EXCLUDE_DIRS=("ITERS" "sample_0.05")
-EXCLUDE_FILES=("output_events.xml.gz")
+EXCLUDE_FILES=("output_events.xml.gz" "output_plans.xml.gz")
 
 
 
 # Declare an associative array to map remote directories to their corresponding local directories
 declare -A DIR_PAIRS=(
-    ["$REMOTE_DIR/scenarios/fleet_sizing_minCostFlow/all"]="$MATSIM_DIR/scenarios/fleet_sizing/all"
-    ["$REMOTE_DIR/scenarios/fleet_sizing_minCostFlow/zones"]="$MATSIM_DIR/scenarios/fleet_sizing/zones"
- #   ["$REMOTE_DIR/scenarios/basic/sample_1.00"]="$MATSIM_DIR/scenarios/basic/sample_1.00"
+    # ["$REMOTE_DIR/scenarios/fleet_sizing_minCostFlow/all"]="$MATSIM_DIR/scenarios/fleet_sizing/all"
+    # ["$REMOTE_DIR/scenarios/fleet_sizing_minCostFlow/zones"]="$MATSIM_DIR/scenarios/fleet_sizing/zones"
+    # ["$REMOTE_DIR/scenarios/fleet_sizing_minCostFlow/inner"]="$MATSIM_DIR/scenarios/fleet_sizing/inner"
+    ["$REMOTE_DIR/scenarios/fleet_sizing_minCostFlow/innerBUA"]="$MATSIM_DIR/scenarios/fleet_sizing/innerBUA"
+    # ["$REMOTE_DIR/scenarios/basic/sample_1.00"]="$MATSIM_DIR/scenarios/basic/sample_1.00"
 
 )
 

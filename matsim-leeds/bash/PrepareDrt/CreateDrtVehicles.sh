@@ -19,6 +19,7 @@ declare -a serviceAreaArgsArray=(
     "drt_fleet_nw_ data/supply/drt/nw_cluster_08_00_11_00.shp 4 nw"
     "drt_fleet_ne_ data/supply/drt/ne_cluster_08_00_11_00.shp 4 ne"
     "drt_fleet_inner_ data/supply/drt/drt_zone_inner.shp 4 inner"
+    "drt_fleet_innerBUA_ data/supply/drt/drt_zone_innerBUA.shp 4 innerBUA"
     "drt_fleet_all_ all_study_area 4 all"  # No specific service area
 )
 
