@@ -13,13 +13,18 @@ demand_original = read_delim("../scenarios/basic/sample_1.00/eqasim_trips.csv", 
 
 
 # Set up a list of scenarios and fleet sizes to read in (file directories should exist)
-scenarios <- c("zones", "all")
+scenarios <- c("zones",
+               "all",
+               "innerBUA")
 fleet_sizes <- c(100, 200, 500, 1000)
+
+
 
 # Define scenario names for plot subtitles
 scenario_labels <- c(
   "zones" = "Zone-based DRT",
-  "all" = "Citywide DRT"
+  "all" = "Citywide DRT",
+  "innerBUA" = "Zone-based DRT (inner)"
 )
 
 # Function to read and process a file and add identifier column

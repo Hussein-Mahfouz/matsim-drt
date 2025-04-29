@@ -1,9 +1,10 @@
 library(tidyverse)
+library(sf)
 library(tidytransit)
 library(tmap)
 
 # Set up a list of scenarios and fleet sizes to read in (file directories should exist)
-scenarios <- c("zones", "all")
+scenarios <- c("zones", "all", "innerBUA")
 fleet_sizes <- c(100, 200, 500, 1000)
 
 # Function to read and process a file and add identifier column
@@ -263,11 +264,18 @@ cluster_ne = st_read("../data/supply/drt/ne_cluster_08_00_11_00.shp") %>%
   st_transform(3857) %>%
   mutate(scenario = "drtNE")
 
+# Inner zone based on Built up area
+inner_zone = st_read("../data/supply/drt/built_up_area_leeds.shp") %>%
+  st_transform(3857) %>%
+  mutate(scenario = "drtInner")
+
 # bind together for plotting
 scenario_extents =
   study_area %>%
   bind_rows(cluster_ne) %>%
-  bind_rows(cluster_nw)
+  bind_rows(cluster_nw) %>%
+  bind_rows(inner_zone)
+
 
 # Expand scenario_extents for each fleet size (for facet plot)
 scenario_extents <- scenario_extents %>%
@@ -288,7 +296,7 @@ tm_shape(study_area) +
   tm_fill(col = "white") +
 tm_shape(scenario_extents) +
   tm_borders(col = "darkgreen",
-             lwd = 3.5,
+             lwd = 2.5,
              lty = "dashed") +
   tm_facets(by = c("scenario", "fleet_size"),
             free.coords = FALSE) +
@@ -301,13 +309,13 @@ tm_shape(scenario_extents) +
            title.col = "Number of \nfeeder DRT \ntrips",
            lwd = "trips",
            palette = "Reds",
-           scale = 5,
+           scale = 10,
            legend.lwd.show = FALSE) +
   # tm_facets(by = c("operator_id", "fleet_size"),
   tm_facets(by = c("operator_id", "fleet_size"),
             free.coords = FALSE) +
   tm_layout(fontfamily = 'Georgia',
-            main.title = "Number of Feeder DRT trips connecting to each bus routes",
+            main.title = "Number of Feeder DRT trips connecting to each bus route",
             main.title.size = 1.1,
             main.title.color = "azure4",
             main.title.position = "left",
@@ -325,6 +333,67 @@ drt_feeder_bus_count
 
 tmap_save(tm = drt_feeder_bus_count, filename = "plots/feeder_stats/map_drt_feeder_bus_route_count.png", width = 8, dpi = 1080, asp = 0)
 
+
+# Same plot with Overline
+
+drt_trips_feeder_lines_sf_overline = drt_trips_feeder_lines_sf %>%
+  group_by(operator_id, scenario, fleet_size, fleet_size_label) %>%
+  nest() %>%
+  mutate(trips_all = map(data, ~ stplanr::overline(sl = .x,
+                                          attrib = "trips",
+                                          ncores = 3,
+                                          fun = sum))) %>%
+  select(-data) %>%
+  # turn back into one big sf
+  unnest(trips_all) %>%
+  ungroup() %>%
+  st_as_sf()
+
+
+# --- Plot
+
+tm_shape(study_area) +
+  tm_borders(lwd = 3) +
+  tm_shape(study_area) +
+  tm_fill(col = "white") +
+  tm_shape(scenario_extents) +
+  tm_borders(col = "darkgreen",
+             lwd = 2.5,
+             lty = "dashed") +
+  tm_facets(by = c("scenario", "fleet_size"),
+            free.coords = FALSE) +
+  # tm_shape(gtfs_sf$shapes) +
+  #   tm_lines(col = "grey75",
+  #            alpha = 0.2) +
+  tm_shape(drt_trips_feeder_lines_sf_overline %>%
+             filter(!st_is_empty(.))) +
+  tm_lines(col = "trips",
+           title.col = "Number of \nfeeder DRT \ntrips",
+           lwd = "trips",
+           palette = "Reds",
+           scale = 10,
+           legend.lwd.show = FALSE) +
+  # tm_facets(by = c("operator_id", "fleet_size"),
+  tm_facets(by = c("operator_id", "fleet_size"),
+            free.coords = FALSE) +
+  tm_layout(fontfamily = 'Georgia',
+            main.title = "Spatial concentration of bus routes used by feeder DRT trips",
+            main.title.size = 1.1,
+            main.title.color = "azure4",
+            main.title.position = "left",
+            bg.color = "#FAF9F6",
+            # legend.outside = TRUE,
+            # legend.outside.position = "bottom",
+            # legend.stack = "horizontal",
+            # panel.label.size = 1,
+            # panel.label.bg.color = "grey",
+            #panel.labels = 1:length(unique(clusters_vis_mode_poly_filt_max$cluster)),
+            frame = FALSE)  +
+  tm_add_legend(type = "line", labels = 'Service area', col = 'darkgreen', lwd = 2, lty = "dashed") -> drt_feeder_bus_count_overline
+
+drt_feeder_bus_count_overline
+
+tmap_save(tm = drt_feeder_bus_count_overline, filename = "plots/feeder_stats/map_drt_feeder_bus_route_count_overline.png", width = 8, dpi = 1080, asp = 0)
 
 
 
