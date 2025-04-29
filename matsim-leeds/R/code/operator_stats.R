@@ -15,7 +15,6 @@ dir.create(plots_dir, recursive = TRUE, showWarnings = FALSE)
 scenarios <- c("all", "zones", "innerBUA")
 fleet_sizes <- c(100, 200, 500, 1000)
 
-
 # Function to read and process results of multiple scenarios, and combine them into one df
 # This is used specifically for output_occupancy_time_profiles .txt files
 # Unique identifier columns are add (scenario, fleet_size)
@@ -491,3 +490,4 @@ drt_table = drt_km_time_table %>%
 
 
 write_csv(drt_table, paste0(plots_dir, "drt_daily_stats.csv"))
+

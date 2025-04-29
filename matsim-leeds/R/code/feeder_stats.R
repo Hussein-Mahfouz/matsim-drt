@@ -9,16 +9,26 @@ fleet_sizes <- c(100, 200, 500, 1000)
 
 # Function to read and process a file and add identifier column
 read_and_process <- function(scenario, fleet_size, file_name) {
-  # Read the data
+  # Construct the file path
   file_path <- paste0("../scenarios/fleet_sizing/", scenario, "/", fleet_size, "/sample_1.00/", file_name, ".csv")
-  data <- read_delim(file_path, delim = ";")
 
-  # Add the scenario and fleet size columns
+  # Check if file exists
+  if (!file.exists(file_path)) {
+    warning(paste("File not found:", file_path))
+    return(NULL)  # Safe fail
+  }
+
+  # Print status
+  print(paste("Reading file:", file_path))
+  # Read the file
+  data <- read_delim(file_path, delim = ";")
+  # Add identifiers
   data <- data %>%
     mutate(scenario = scenario, fleet_size = fleet_size)
 
   return(data)
 }
+
 
 # Create a data frame of all combinations of scenarios and fleet sizes to read in
 combinations <- expand.grid(scenario = scenarios, fleet_size = fleet_sizes)
