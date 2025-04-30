@@ -22,9 +22,8 @@ declare -A DIR_PAIRS=(
     # ["$REMOTE_DIR/scenarios/fleet_sizing_minCostFlow/all"]="$MATSIM_DIR/scenarios/fleet_sizing/all"
     # ["$REMOTE_DIR/scenarios/fleet_sizing_minCostFlow/zones"]="$MATSIM_DIR/scenarios/fleet_sizing/zones"
     # ["$REMOTE_DIR/scenarios/fleet_sizing_minCostFlow/inner"]="$MATSIM_DIR/scenarios/fleet_sizing/inner"
-    ["$REMOTE_DIR/scenarios/fleet_sizing_minCostFlow/innerBUA"]="$MATSIM_DIR/scenarios/fleet_sizing/innerBUA"
+    # ["$REMOTE_DIR/scenarios/fleet_sizing_minCostFlow/innerBUA"]="$MATSIM_DIR/scenarios/fleet_sizing/innerBUA"
     # ["$REMOTE_DIR/scenarios/basic/sample_1.00"]="$MATSIM_DIR/scenarios/basic/sample_1.00"
-
 )
 
 # Build the rsync exclude options
