@@ -281,10 +281,10 @@ ggplot(drt_km_time_load_factor %>%
          filter(arrival_time_h > 3, arrival_time_h < 24),
        aes(x = arrival_time_h, y = load_factor, fill = load_factor)) +
   geom_col(position = "dodge") +
-  labs(title = "Load factor throughout the day",
-       subtitle = "pkm / vkm",
+  labs(title = "Ratio of occupied km throughout the day",
+       subtitle = "passenger km / vehicle km",
        x = "",
-       y = "Load factor (pkm / vkm)",
+       y = "pkm / vkm",
        fill = "Load factor") +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
@@ -308,10 +308,10 @@ ggplot(drt_km_time_load_factor %>%
          filter(arrival_time_h > 3, arrival_time_h < 24),
        aes(x = arrival_time_h, y = load_factor_cum, color = load_factor_cum)) +
   geom_line(lwd = 2) +
-  labs(title = "Load Factor Evolution Over the Day (pkm / vkm)",
+  labs(title = "Ratio of occupied km (Evolution over the day)",
        subtitle = "Cumulative pkm / vkm from start of day",
        x = "",
-       y = "Load factor (pkm / vkm)",
+       y = "pkm / vkm",
        color = "Cumulative \nload factor") +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),

@@ -113,8 +113,8 @@ drt_trips_distance_time = drt_trips %>%
 
 ggplot(drt_trips_distance_time, aes(x = departure_time_hr, y = distance, fill = mode_type)) +
   geom_bar(stat = "identity") +
-  facet_grid(operator_id ~ fleet_size_label) +
-  #facet_grid(fleet_size ~ operator_id) +
+  #facet_grid(operator_id ~ fleet_size_label) +
+  facet_grid(fleet_size_label ~ operator_id) +
   labs(title = "DRT Usage: Feeder vs. Standalone Trips throughout the day",
        subtitle = "Share of travel distance by feeder trips vs. full DRT trips \nfor different service areas",
        x = "Hour of Day",
@@ -303,12 +303,12 @@ drt_trips_feeder_lines_sf = drt_trips_feeder_lines %>%
 tm_shape(study_area) +
   tm_borders(lwd = 3) +
 tm_shape(study_area) +
-  tm_fill(col = "white") +
+  tm_fill(col = "grey70") +
 tm_shape(scenario_extents) +
   tm_borders(col = "darkgreen",
-             lwd = 2.5,
+             lwd = 3.5,
              lty = "dashed") +
-  tm_facets(by = c("scenario", "fleet_size"),
+  tm_facets(by = c("fleet_size", "scenario"),
             free.coords = FALSE) +
   # tm_shape(gtfs_sf$shapes) +
   #   tm_lines(col = "grey75",
@@ -322,7 +322,7 @@ tm_shape(scenario_extents) +
            scale = 10,
            legend.lwd.show = FALSE) +
   # tm_facets(by = c("operator_id", "fleet_size"),
-  tm_facets(by = c("operator_id", "fleet_size"),
+  tm_facets(by = c("fleet_size_label", "operator_id"),
             free.coords = FALSE) +
   tm_layout(fontfamily = 'Georgia',
             main.title = "Number of Feeder DRT trips connecting to each bus route",
@@ -365,12 +365,12 @@ drt_trips_feeder_lines_sf_overline = drt_trips_feeder_lines_sf %>%
 tm_shape(study_area) +
   tm_borders(lwd = 3) +
   tm_shape(study_area) +
-  tm_fill(col = "white") +
+  tm_fill(col = "grey70") +
   tm_shape(scenario_extents) +
   tm_borders(col = "darkgreen",
              lwd = 2.5,
              lty = "dashed") +
-  tm_facets(by = c("scenario", "fleet_size"),
+  tm_facets(by = c("fleet_size", "scenario"),
             free.coords = FALSE) +
   # tm_shape(gtfs_sf$shapes) +
   #   tm_lines(col = "grey75",
@@ -384,7 +384,7 @@ tm_shape(study_area) +
            scale = 10,
            legend.lwd.show = FALSE) +
   # tm_facets(by = c("operator_id", "fleet_size"),
-  tm_facets(by = c("operator_id", "fleet_size"),
+  tm_facets(by = c("fleet_size", "operator_id"),
             free.coords = FALSE) +
   tm_layout(fontfamily = 'Georgia',
             main.title = "Spatial concentration of bus routes used by feeder DRT trips",

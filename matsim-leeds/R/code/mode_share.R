@@ -31,6 +31,14 @@ scenario_labels <- c(
 read_and_process <- function(scenario, fleet_size, file_name) {
   # Read the data
   file_path <- paste0("../scenarios/fleet_sizing/", scenario, "/", fleet_size, "/sample_1.00/", file_name, ".csv")
+  # Check if file exists
+  if (!file.exists(file_path)) {
+    warning(paste("File not found:", file_path))
+    return(NULL)  # Safe fail
+  }
+  # Print status
+  print(paste("Reading file:", file_path))
+  # Read
   data <- read_delim(file_path, delim = ";")
 
   # Add the scenario and fleet size columns
@@ -132,7 +140,7 @@ for (scenario_plot in scenarios) {
 
     print(p)
 
-    ggsave(filename = paste0("sankey_", scenario_plot, "_", fleet_size_plot, ".png"),
+    ggsave(filename = paste0("plots/mode_share/sankey_", scenario_plot, "_", fleet_size_plot, ".png"),
            plot = p)
   }
 }

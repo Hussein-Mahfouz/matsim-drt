@@ -8,8 +8,14 @@ drt_feeder_table = read_csv("plots/feeder_stats/drt_feeder_daily_stats.csv")
 # mode shift tables
 mode_shift_all = read_csv("plots/mode_share/mode_shift_all.csv")
 mode_shift_drt = read_csv("plots/mode_share/mode_shift_drt.csv")
+# vkm table
+vkm_change = read_csv("plots/global_vkm/global_vkm_change.csv")
 
+# some pre-processing
 
+# round columns
+mode_shift_drt = mode_shift_drt %>%
+  mutate(trips_moved_drt_frac = round(trips_moved_drt_frac, 1))
 # ------ Summary statistics tables
 
 # --- Table for overall DRT stats
@@ -125,6 +131,7 @@ mode_shift_drt = mode_shift_drt %>%
     `Service Area` = case_when(
       str_starts(output_mode, "drtNE") ~ "drtNE",
       str_starts(output_mode, "drtNW") ~ "drtNW",
+      str_starts(output_mode, "drtInner") ~ "drtInner",
       str_starts(output_mode, "drt") ~ "drt",
       TRUE ~ NA_character_
   ),
@@ -138,7 +145,8 @@ mode_shift_drt = mode_shift_drt %>%
 mode_shift_drt_table = mode_shift_drt %>%
   select(c(input_mode, trips, Feeder, trips_moved_drt_frac, fleet_size, `Service Area`)) %>%
   pivot_wider(names_from = c(Feeder, input_mode),
-              values_from = c(trips, trips_moved_drt_frac))
+              values_from = c(trips, trips_moved_drt_frac),
+              values_fill = 0)
 
 
 # Create 2 columns for each mode: <mode>(frac to drt) | <mode>(fract_to_drt_feeder)
@@ -201,7 +209,12 @@ mode_shift_drt_table |>
     trips_walk_feeder = "Feeder",
     trips_taxi_standalone = "Standalone",
     trips_taxi_feeder = "Feeder") |>
-  tab_source_note(source_note = "How to read: 150 (0.03) = 150 trips shifted to DRT (0.03% of Mode total shifted to DRT")
+  tab_source_note(source_note = "How to read: 150 (0.03) = 150 trips shifted to DRT (0.03% of Mode total shifted to DRT") -> mode_shift_drt_table_ltx
+
+mode_shift_drt_table_ltx
+
+mode_shift_drt_table_ltx %>%
+  as_latex()
 
 
 # --- Plot mode shift: Spanner groups = Standalone | Feeder
@@ -231,3 +244,67 @@ mode_shift_drt_table |>
     trips_taxi_standalone = "Taxi",
     trips_taxi_feeder = "Taxi") |>
   tab_source_note(source_note = "How to read: 150 (0.03) = 150 trips shifted to DRT (0.03% of Mode total shifted to DRT)")
+
+
+
+
+# Plot vkm change
+
+
+# --- Table for overall DRT stats
+
+# pivot wider for gt table
+vkm_change_table = vkm_change %>%
+  pivot_wider(
+    id_cols = c(scenario, fleet_size),
+    names_from = mode,
+    values_from = c(
+      total_distance_km_orig,
+      total_distance_km,
+      delta_km,
+      pct_change,
+      `Delta (Thousands of km)`
+    ),
+    names_sep = "_"
+  ) %>%
+  select(fleet_size, scenario,
+         total_distance_km_orig_car, total_distance_km_orig_taxi, total_distance_km_orig_TOTAL,
+         total_distance_km_drt,
+         `Delta (Thousands of km)_car`, `Delta (Thousands of km)_taxi`, `Delta (Thousands of km)_TOTAL`) %>%
+  # divide distance by 1000
+  mutate(across(contains("total_distance_km"), ~ round(.x / 1000)))
+
+
+vkm_change_table |>
+  group_by(fleet_size) |>
+  gt() |>
+  cols_hide(columns = c(scenario)) |>
+  tab_options(row_group.as_column = TRUE) |>
+  tab_header(title = "VKM Change per mode",
+             subtitle = "Values are in Thousands of KM"
+  ) |>
+  tab_spanner(
+    label = "DRT",
+    columns = c(total_distance_km_drt)
+  ) |>
+  tab_spanner(
+    label = "Car",
+    columns = c(total_distance_km_orig_car, `Delta (Thousands of km)_car`)
+  ) |>
+  tab_spanner(
+    label = "Taxi",
+    columns = c(total_distance_km_orig_taxi, `Delta (Thousands of km)_taxi`)
+  ) |>
+  tab_spanner(
+    label = "Total",
+    columns = c(total_distance_km_orig_TOTAL, `Delta (Thousands of km)_TOTAL`)
+  ) |>
+  cols_label(
+    total_distance_km_drt = "Km travelled",
+    total_distance_km_orig_car = "Original",
+    total_distance_km_orig_taxi = "Original",
+    total_distance_km_orig_TOTAL = "Original",
+    `Delta (Thousands of km)_car` = "Change (%)",
+    `Delta (Thousands of km)_taxi` = "Change (%)",
+    `Delta (Thousands of km)_TOTAL` = "Change (%)")
+
