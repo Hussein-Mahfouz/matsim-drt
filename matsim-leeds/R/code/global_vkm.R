@@ -36,7 +36,8 @@ scenario_labels <- c(
 # vehicular modes
 modes = c("car","taxi")
 
-demand_original = read_delim("../scenarios/basic/sample_1.00/eqasim_legs.csv", delim =";")
+demand_original = read_delim("../scenarios/basic/sample_1.00/eqasim_trips.csv", delim =";")
+
 
 
 # ----- STEP 1b: VKM for different scenarios (after introduction of DRT)
@@ -70,7 +71,7 @@ combinations <- expand.grid(scenario = scenarios, fleet_size = fleet_sizes)
 
 # Use purrr::pmap_dfr to read and process each combination. All dfs are binded together
 demand_matsim <- purrr::pmap_dfr(combinations, function(scenario, fleet_size) {
-  read_and_process(scenario, fleet_size, "eqasim_legs")
+  read_and_process(scenario, fleet_size, "eqasim_trips")
 })
 
 # ----- STEP 2: Join input and output trips and calculate % change in VKM

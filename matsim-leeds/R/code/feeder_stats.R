@@ -84,7 +84,7 @@ ggplot(drt_trips_distance, aes(x = operator_id, y = distance, fill = mode_type))
   geom_label(aes(label = paste0(distance_frac, "%"),
                  hjust = ifelse(mode_type == "feeder", -0.5, 1)),  # Feeder goes right, standalone goes left
              position = position_stack(vjust = 0.5),
-             color = "white", size = 3, label.size = 0) +
+             color = "white", size = 2, label.size = 0) +
   labs(title = "DRT Usage: Feeder vs. Standalone Trips",
        subtitle = "Share of travel distance by feeder trips vs. full DRT trips \nfor different service areas",
        x = "Scenario",

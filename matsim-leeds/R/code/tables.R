@@ -39,12 +39,17 @@ drt_table |>
   cols_label(
     operator_id = "Scenario",
     pkm = "Km travelled",
-    passenger_distance_per_trip = "Average distance per trip (km)",
+    passenger_distance_per_trip = "Avg distance per trip (km)",
     vkm = "Km travelled",
-    vehicle_distance_per_trip = "Average distance per trip (km)",
-    average_load_factor = "Average load factor",
+    vehicle_distance_per_trip = "Avg distance per trip (km)",
+    average_load_factor = "pkm / vkm",
 
-  )
+  ) -> distance_drt_table_latex
+
+distance_drt_table_latex
+
+distance_drt_table_latex %>%
+  as_latex()
 
 
 # --- Feeder table (spanners: Main | Feeder)
@@ -115,9 +120,47 @@ drt_feeder_table |>
     waiting_time_main = "Standalone",
     waiting_time_feeder = "Feeder",
     average_feeder_trips_per_route = "Feeder trips per bus route",
-    average_feeder_trips_per_route_top_5_routes = "Feeder trips per bus route (top 5 routes)") %>%
-  as_latex()
+    average_feeder_trips_per_route_top_5_routes = "Feeder trips per bus route (top 5 routes)")
 
+
+# --- Feeder table (spanners: Trips | Distances | PT connections)
+
+
+drt_feeder_table |>
+  select(!contains("waiting_time")) |>
+  mutate(distance_feeder = paste0(distance_feeder, " (", distance_frac_feeder, "%)"),
+         no_of_trips_feeder = paste0(no_of_trips_feeder, " (", no_of_trips_feeder_frac, "%)")) |>
+  group_by(fleet_size) |>
+  gt() |>
+  cols_hide(columns = c(scenario, fleet_size_label, distance_frac_main, distance_frac_feeder, no_of_trips_feeder_frac)) |>
+  tab_options(row_group.as_column = TRUE) |>
+  tab_header(title = "DRT feeder statistics",
+             subtitle = "Distinguishing between standalone and feeder DRT trips") |>
+  tab_spanner(
+    label = "Distance travelled (km)",
+    columns = c(distance_main, distance_feeder)
+  ) |>
+  tab_spanner(
+    label = "No. of trips",
+    columns = c(no_of_trips_main, no_of_trips_feeder)
+  ) |>
+  tab_spanner(
+    label = "PT connections",
+    columns = c(average_feeder_trips_per_route, average_feeder_trips_per_route_top_5_routes)
+  ) |>
+  cols_label(
+    operator_id = "Service Area",
+    distance_main = "Standalone",
+    distance_feeder = "Feeder (%)",
+    no_of_trips_main = "Standalone",
+    no_of_trips_feeder = "Feeder (%)",
+    average_feeder_trips_per_route = "Avg no. of feeder trips per bus route served",
+    average_feeder_trips_per_route_top_5_routes = "Avg no. of feeder trips per bus route served (top 5 routes)") -> feeder_drt_table_ltx
+
+feeder_drt_table_ltx
+
+feeder_drt_table_ltx %>%
+  as_latex()
 
 
 
@@ -274,11 +317,15 @@ vkm_change_table = vkm_change %>%
   # divide distance by 1000
   mutate(across(contains("total_distance_km"), ~ round(.x / 1000)))
 
+# edit column order for table
+vkm_change_table = vkm_change_table %>%
+  relocate("total_distance_km_drt", .after = scenario)
+
 
 vkm_change_table |>
   group_by(fleet_size) |>
   gt() |>
-  cols_hide(columns = c(scenario)) |>
+  cols_hide(columns = c(total_distance_km_orig_car, total_distance_km_orig_taxi, total_distance_km_orig_TOTAL)) |>
   tab_options(row_group.as_column = TRUE) |>
   tab_header(title = "VKM Change per mode",
              subtitle = "Values are in Thousands of KM"
@@ -289,22 +336,31 @@ vkm_change_table |>
   ) |>
   tab_spanner(
     label = "Car",
-    columns = c(total_distance_km_orig_car, `Delta (Thousands of km)_car`)
+    columns = c(#total_distance_km_orig_car,
+                `Delta (Thousands of km)_car`)
   ) |>
   tab_spanner(
     label = "Taxi",
-    columns = c(total_distance_km_orig_taxi, `Delta (Thousands of km)_taxi`)
+    columns = c(#total_distance_km_orig_taxi,
+                `Delta (Thousands of km)_taxi`)
   ) |>
   tab_spanner(
     label = "Total",
-    columns = c(total_distance_km_orig_TOTAL, `Delta (Thousands of km)_TOTAL`)
+    columns = c(#total_distance_km_orig_TOTAL,
+                `Delta (Thousands of km)_TOTAL`)
   ) |>
   cols_label(
     total_distance_km_drt = "Km travelled",
-    total_distance_km_orig_car = "Original",
-    total_distance_km_orig_taxi = "Original",
-    total_distance_km_orig_TOTAL = "Original",
+    # total_distance_km_orig_car = "Original",
+    # total_distance_km_orig_taxi = "Original",
+    # total_distance_km_orig_TOTAL = "Original",
     `Delta (Thousands of km)_car` = "Change (%)",
     `Delta (Thousands of km)_taxi` = "Change (%)",
-    `Delta (Thousands of km)_TOTAL` = "Change (%)")
+    `Delta (Thousands of km)_TOTAL` = "Change (%)") -> vkm_global_table_ltx
+
+vkm_global_table_ltx
+
+vkm_global_table_ltx %>%
+  as_latex()
+
 
