@@ -74,6 +74,44 @@ demand_matsim <- purrr::pmap_dfr(combinations, function(scenario, fleet_size) {
   read_and_process(scenario, fleet_size, "eqasim_trips")
 })
 
+
+##### ------- DEBUG (Calculate number of people in each scenario (THEY SHOULD BE THE SAME!!!))
+# This is to (a) diagnose and (b) use as a temporary workaround for https://github.com/Hussein-Mahfouz/matsim-drt/issues/49
+
+# --- no. of unique agents in original scenario (NO DRT)
+people_orignal = n_distinct(demand_original$person_id)
+
+# no of unique agents in drt scenarios
+people_scenario = demand_matsim %>%
+  group_by(scenario, fleet_size) %>% summarise(unique_persons = n_distinct(person_id),
+                                               unique_proportion = round((unique_persons / people_orignal) * 100, 2))
+
+
+# FIX (TEMP): KEEP ONLY PEOPLE THAT EXIST IN ALL SCENARIOS!!!
+
+# Step 1: Count how many unique groups there are
+n_groups <- demand_matsim %>%
+  distinct(scenario, fleet_size) %>%
+  nrow()
+
+# Step 2: Count how many groups each person appears in
+person_group_counts <- demand_matsim %>%
+  distinct(person_id, scenario, fleet_size) %>%
+  count(person_id, name = "n_groups_present") %>%
+  filter(n_groups_present == n_groups)
+
+# Step 3: Filter df to keep only person_ids that exist across ALL SCENARIOS
+demand_matsim <- demand_matsim %>%
+  filter(person_id %in% person_group_counts$person_id)
+
+demand_original <- demand_original %>%
+  filter(person_id %in% person_group_counts$person_id)
+
+##### ------- DEBUG (END)
+
+
+
+
 # ----- STEP 2: Join input and output trips and calculate % change in VKM
 
 # Get total distance per mode - ORIGINAL SCENARIO
