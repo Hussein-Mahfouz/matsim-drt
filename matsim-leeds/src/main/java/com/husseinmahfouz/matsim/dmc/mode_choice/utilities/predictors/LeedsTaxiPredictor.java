@@ -33,7 +33,7 @@ public class LeedsTaxiPredictor extends CachedVariablePredictor<TaxiVariables> {
 		double taxiTravelTime_min = 0;
 		double accessEgressTime_min = 0;
 		// TODO: See https://github.com/Hussein-Mahfouz/matsim-drt/issues/33#issuecomment-2639537703
-		double waitingTime_min = 7.0;
+		double waitingTime_min = 10.0;
 
 		boolean foundTaxi = false;
 

@@ -36,13 +36,13 @@ MAIN_CLASS="com.husseinmahfouz.matsim.RunDMCSimulationDRTCluster"
 # Define the compute-related parameters
 CPUS_PER_TASK=12
 MEM_PER_CPU=8192
-MAX_RUNTIME="8:00:00"
+MAX_RUNTIME="16:00:00"
 # Should not be higher than CPUS_PER_TASK
 GLOBAL_THREADS=12
 # Should not be higher than CPUS_PER_TASK
 QSIM_THREADS=12
 # Number of iterations
-ITERATIONS=50
+ITERATIONS=55
 
 # Define the population sample size being used (plans and vehicles files need to exist for this sample size)
 SAMPLE_SIZE="1.00" # 0.50, 0.20, 0.10, 0.05, 0.01
@@ -51,50 +51,84 @@ USE_REJECTION_CONSTRAINT="true"
 
 # Define the list of configuration files relative to MATSIM_DIR
 config_files=(
-    "config_simulation_dmc_drt_50_feeder.xml"
-    "config_simulation_dmc_drt_all_50_feeder.xml"
-    "config_simulation_dmc_drt_100_feeder.xml"
-    "config_simulation_dmc_drt_all_100_feeder.xml"
-    "config_simulation_dmc_drt_200_feeder.xml"
-    "config_simulation_dmc_drt_all_200_feeder.xml"
-    "config_simulation_dmc_drt_500_feeder.xml"
-    "config_simulation_dmc_drt_all_500_feeder.xml"
-    "config_simulation_dmc_drt_1000_feeder.xml"
-    "config_simulation_dmc_drt_all_1000_feeder.xml"
+    # "config_simulation_dmc_drt_50_feeder.xml"
+    # "config_simulation_dmc_drt_all_50_feeder.xml"
+    # "config_simulation_dmc_drt_inner_50_feeder.xml"
+    # "config_simulation_dmc_drt_innerBUA_50_feeder.xml"
+    # "config_simulation_dmc_drt_100_feeder.xml"
+    # "config_simulation_dmc_drt_all_100_feeder.xml"
+    # "config_simulation_dmc_drt_inner_100_feeder.xml"
+    "config_simulation_dmc_drt_innerBUA_100_feeder.xml"
+    # "config_simulation_dmc_drt_200_feeder.xml"
+    # "config_simulation_dmc_drt_all_200_feeder.xml"
+    # "config_simulation_dmc_drt_inner_200_feeder.xml"
+    "config_simulation_dmc_drt_innerBUA_200_feeder.xml"
+    # "config_simulation_dmc_drt_500_feeder.xml"
+    # "config_simulation_dmc_drt_all_500_feeder.xml"
+    # "config_simulation_dmc_drt_inner_500_feeder.xml"
+    "config_simulation_dmc_drt_innerBUA_500_feeder.xml"
+    # "config_simulation_dmc_drt_1000_feeder.xml"
+    # "config_simulation_dmc_drt_all_1000_feeder.xml"
+    # "config_simulation_dmc_drt_inner_1000_feeder.xml"
+    "config_simulation_dmc_drt_innerBUA_1000_feeder.xml"
 )
 
 # Loop through each configuration file and submit a job
 for CONFIG_FILE in "${config_files[@]}"; do
     # Prepend MATSIM_DIR to the config file path
-    FULL_CONFIG_PATH="$MATSIM_DIR/src/main/resources/fleet_sizing/$CONFIG_FILE"
+    FULL_CONFIG_PATH="$MATSIM_DIR/src/main/resources/fleet_sizing_minCostFlow/$CONFIG_FILE"
 
     # Extract the fleet size and whether it is an "all" configuration or not
     if [[ $CONFIG_FILE == *"_all_"* ]]; then
         CONFIG_TYPE="all"
+    elif [[ $CONFIG_FILE == *"_inner_"* ]]; then
+        CONFIG_TYPE="inner"
+    elif [[ $CONFIG_FILE == *"_innerBUA_"* ]]; then
+        CONFIG_TYPE="innerBUA"
     else
         CONFIG_TYPE="zones"
     fi
     FLEET_SIZE=$(echo $CONFIG_FILE | grep -oP '\d+')
 
     # Define the output directory based on the configuration file name
-    OUTPUT_DIRECTORY="scenarios/fleet_sizing/${CONFIG_TYPE}/${FLEET_SIZE}/sample_${SAMPLE_SIZE}"
+    OUTPUT_DIRECTORY="scenarios/fleet_sizing_minCostFlow/${CONFIG_TYPE}/${FLEET_SIZE}/sample_${SAMPLE_SIZE}"
     # Define the input plans file
     INPUT_PLANS_FILE="../../../../data/demand/plans_sample_eqasim_${SAMPLE_SIZE}.xml"
     # Define the vehicles file (it differs based on the population sample - see NetworkVehicleInserter.java)
     VEHICLES_FILE="../../../../data/supply/network_vehicles_${SAMPLE_SIZE}.xml"
 
     # Submit the job using sbatch
-    JOB_ID=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-per-cpu=$MEM_PER_CPU --wrap="\
-        java -Xmx48G -cp $JAR_FILE $MAIN_CLASS \
-        --config-path $FULL_CONFIG_PATH \
-        --global-threads $GLOBAL_THREADS \
-        --qsim-threads $QSIM_THREADS \
-        --iterations $ITERATIONS \
-        --sample-size $SAMPLE_SIZE \
-        --use-rejection-constraint $USE_REJECTION_CONSTRAINT \
-        --output-directory $OUTPUT_DIRECTORY \
-        --input-plans-file $INPUT_PLANS_FILE \
-        --vehicles-file $VEHICLES_FILE" | awk '{print $4}')
+    JOB_ID=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-per-cpu=$MEM_PER_CPU \
+        --job-name="FleetSizing_${CONFIG_TYPE}_${FLEET_SIZE}" \
+        --wrap="\
+            java -Xmx48G -cp $JAR_FILE $MAIN_CLASS \
+            --config-path $FULL_CONFIG_PATH \
+            --global-threads $GLOBAL_THREADS \
+            --qsim-threads $QSIM_THREADS \
+            --iterations $ITERATIONS \
+            --sample-size $SAMPLE_SIZE \
+            --use-rejection-constraint $USE_REJECTION_CONSTRAINT \
+            --output-directory $OUTPUT_DIRECTORY \
+            --input-plans-file $INPUT_PLANS_FILE \
+            --vehicles-file $VEHICLES_FILE" | awk '{print $4}')
     echo "Submitted job $JOB_ID for config file $CONFIG_FILE"
+
+    # --- OLD attampt to use --output and --error flags
+
+    #  JOB_ID=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-per-cpu=$MEM_PER_CPU \
+    #     --output="${OUTPUT_DIRECTORY}/job_%j.out" \
+    #     --error="${OUTPUT_DIRECTORY}/job_%j.err" \
+    #     --wrap="\
+    #         java -Xmx48G -cp $JAR_FILE $MAIN_CLASS \
+    #         --config-path $FULL_CONFIG_PATH \
+    #         --global-threads $GLOBAL_THREADS \
+    #         --qsim-threads $QSIM_THREADS \
+    #         --iterations $ITERATIONS \
+    #         --sample-size $SAMPLE_SIZE \
+    #         --use-rejection-constraint $USE_REJECTION_CONSTRAINT \
+    #         --output-directory $OUTPUT_DIRECTORY \
+    #         --input-plans-file $INPUT_PLANS_FILE \
+    #         --vehicles-file $VEHICLES_FILE" | awk '{print $4}')
+    # echo "Submitted job $JOB_ID for config file $CONFIG_FILE"
 
 done

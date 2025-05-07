@@ -39,7 +39,10 @@ public class LeedsDrtUtilityEstimator extends DrtUtilityEstimator {
     protected double estimateTravelTimeUtility(DrtVariables variables) {
         double utility = 0.0;
 
-        utility += parameters.drt.betaTravelTime_u_min * variables.travelTime_min;
+        // box-cox transformation (same as in LeedsPtUtilityEstimator)
+        double lambda = parameters.leedsPT.lambdaTravelTime;
+        utility += parameters.drt.betaTravelTime_u_min
+                * ((Math.pow(variables.travelTime_min, lambda) - 1) / lambda);
 
         return utility;
     }
