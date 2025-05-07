@@ -28,7 +28,7 @@ MATSIM_DIR="$(pwd)"   # This automatically sets the current directory to MATSIM_
 
 
 # Define the adjustment step for the ASCs at each iteration
-STEP=0.5 #0.05
+STEP=5 #0.05
 
 # Define maximum iterations. Each iterations is a full simulation run (with it's own number of iterations). 
 # Between each simulation run, the ASCs are adjusted based on the mode shares.
@@ -44,7 +44,7 @@ MAIN_CLASS="com.husseinmahfouz.matsim.dmc.calibration.RunDMCSimulationCalibratio
 # Define the sample size
 SAMPLE_SIZE="0.05"  
 # Define the number of iterations WITHIN each simulation run
-ITERATIONS=10
+ITERATIONS=5
 
 # Define the input plans file
 INPUT_PLANS_FILE="../../../../data/demand/plans_sample_eqasim_${SAMPLE_SIZE}.xml"
@@ -87,12 +87,12 @@ for ((i=1; i<=MAX_ITER; i++)); do
         --sample-size $SAMPLE_SIZE \
         --iterations $ITERATIONS \
         --output-directory "$OUTPUT_DIRECTORY" \
-        --mode-choice-parameter car.alpha_u=$ASC_CAR \
-        --mode-choice-parameter leedsPT.alpha_u_Bus=$ASC_BUS \
-        --mode-choice-parameter leedsPT.alpha_u_Rail=$ASC_RAIL \
-        --mode-choice-parameter leedsTaxi.alpha_u=$ASC_TAXI \
-        --mode-choice-parameter bike.alpha_u=$ASC_BIKE \
-        --mode-choice-parameter walk.alpha_u=$ASC_WALK
+        --mode-choice-parameter:car.alpha_u=$ASC_CAR \
+        --mode-choice-parameter:leedsPT.alpha_u_Bus=$ASC_BUS \
+        --mode-choice-parameter:leedsPT.alpha_u_Rail=$ASC_RAIL \
+        --mode-choice-parameter:leedsTaxi.alpha_u=$ASC_TAXI \
+        --mode-choice-parameter:bike.alpha_u=$ASC_BIKE \
+        --mode-choice-parameter:walk.alpha_u=$ASC_WALK
 
     # Check if the simulation ran successfully
     if [ $? -ne 0 ]; then
