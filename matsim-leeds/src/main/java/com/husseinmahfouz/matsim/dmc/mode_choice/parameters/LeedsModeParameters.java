@@ -136,12 +136,12 @@ public class LeedsModeParameters extends ModeParameters {
 		parameters.leedsTaxi.lambdaTravelTime = 0.5424;
 
 
-		// DRT (taken from bus for now)
-		parameters.drt.alpha_u = -0.0929;
-		parameters.drt.betaTravelTime_u_min = -0.1281;
-		parameters.drt.betaWaitingTime_u_min = -1.1484;
-		parameters.drt.betaAccessEgressTime_u_min = -1.1484;
-		// parameters.drt.betaOutofVehicleTime_u_min = -1.1484;
+		// // DRT (taken from bus for now)
+		// parameters.drt.alpha_u = -0.0929;
+		// parameters.drt.betaTravelTime_u_min = -0.1281;
+		// parameters.drt.betaWaitingTime_u_min = -1.1484;
+		// parameters.drt.betaAccessEgressTime_u_min = -1.1484;
+		// // parameters.drt.betaOutofVehicleTime_u_min = -1.1484;
 
 		return parameters;
 	}
