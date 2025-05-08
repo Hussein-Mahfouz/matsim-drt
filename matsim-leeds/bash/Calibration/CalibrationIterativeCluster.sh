@@ -157,8 +157,8 @@ for ((i=1; i<=MAX_ITER; i++)); do
     # Run the simulation
     java -Xmx$JAVA_MEMORY -cp $JAR_FILE $MAIN_CLASS \
         --config-path $CONFIG_PATH \
-        --globalThreads $GLOBAL_THREADS \
-        --qsimThreads $QSIM_THREADS \
+        --global-threads $GLOBAL_THREADS \
+        --qsim-threads $QSIM_THREADS \
         --sample-size $SAMPLE_SIZE \
         --iterations $ITERATIONS \
         --output-directory $OUTPUT_DIRECTORY \

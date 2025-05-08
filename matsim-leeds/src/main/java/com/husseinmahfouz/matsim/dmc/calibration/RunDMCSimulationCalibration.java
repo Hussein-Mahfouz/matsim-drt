@@ -18,7 +18,9 @@ public class RunDMCSimulationCalibration {
         // Parse command-line arguments
         CommandLine cmd = new CommandLine.Builder(args)
                 .requireOptions("config-path") // Require the configuration file path
-                .allowOptions("sample-size", "iterations", "output-directory", "input-plans-file", "vehicles-file") //
+                .allowOptions("sample-size", "iterations", 
+                "output-directory", "input-plans-file", "vehicles-file",
+                "global-threads", "qsim-threads") //
                 .allowPrefixes("mode-choice-parameter") // Allow mode choice parameters to be passed
                 .build();
 
@@ -39,10 +41,29 @@ public class RunDMCSimulationCalibration {
             config.qsim().setStorageCapFactor(sampleSize);
         }
 
+        // Update the global number of threads if specified
+        if (cmd.hasOption("global-threads")) {
+            int globalThreads = Integer.parseInt(cmd.getOptionStrict("global-threads"));
+            config.global().setNumberOfThreads(globalThreads);
+        } else {
+            config.global().setNumberOfThreads(8); // Default to 8 threads
+        }
+
+        // Update the QSim number of threads if specified
+        if (cmd.hasOption("qsim-threads")) {
+            int qsimThreads = Integer.parseInt(cmd.getOptionStrict("qsim-threads"));
+            config.qsim().setNumberOfThreads(qsimThreads);
+        } else {
+            config.qsim().setNumberOfThreads(8); // Default to 8 threads
+        }
+
         // Set the number of iterations if specified
         if (cmd.hasOption("iterations")) {
             int iterations = Integer.parseInt(cmd.getOptionStrict("iterations"));
             config.controller().setLastIteration(iterations);
+        } else {
+            // Default to 50 iterations if not specified
+            config.controller().setLastIteration(50);
         }
 
         // Update the output directory if specified
