@@ -1,5 +1,95 @@
 #!/bin/bash
-set -e
+
+# Run this file from the following directory: matsim-leeds
+# If file is in matsim-leeds/bash, run "bash bash/Calibration/CalibrationIterative.sh"
+
+# This script is used to iteratively calibrate the MATSim simulation for Leeds using the DMC extension.
+# --- Step 1: 
+# Define the (a) reference mode shares (REF_<MODE>) and the (b) initial ASC values (ASC_<MODE>). 
+# Th ASC values are from the existing choice model in LeedsModeParameters.
+# --- Step 2:
+# Define the convergence thresholds for each mode (THRESHOLD_<MODE>). If actual mode share is 
+# within the threshold of the reference mode share, we consider it converged.
+# --- Step 3:
+# Define the adjustment step for the ASCs at each iteration (STEP). 
+# This is the amount by which we adjust the ASC of each mode if the mode share is outside the threshold.
+# --- Step 4:
+# Define the maximum number of iterations (MAX_ITER). Each iteration is a full simulation run (with its own number of iterations).
+# Between each simulation run, the ASCs are adjusted based on the mode shares. Mode shares are extracted from the modestats.csv file.
+# Note: The modestats.csv file is expected to have the following columns:
+# car, pt, bike, walk, taxi
+# The process can finish early if convergence is achieved before reaching the maximum number of iterations.
+# --- Other parmeters to define:
+# Number of iterations WITHIN each simulation run (ITERATIONS),
+# Sample size (SAMPLE_SIZE), (You need to have the input plans file and vehicles file for the sample size)
+# Input plans file (INPUT_PLANS_FILE) and vehicles file (VEHICLES_FILE) for the sample size
+# parent directory for all scenarios (PARENT_DIRECTORY),
+# --- Output
+# The script will create a centralized CSV file for storing mode shares (MODE_SHARE_CSV) and
+# a centralized CSV file for storing ASCs (ASC_CSV) in the parent directory for all scenarios (PARENT_DIRECTORY).
+
+
+#!/bin/bash
+#SBATCH --job-name=calibration        # Name of the job
+#SBATCH --output=slurm-%j.out         # Standard output log (%j = Job ID)
+#SBATCH --error=slurm-%j.err          # Standard error log
+#SBATCH --time=16:00:00               # Wall time limit (hh:mm:ss)
+#SBATCH --ntasks=1                    # Number of tasks (one process)
+#SBATCH --cpus-per-task=16            # Number of CPU cores per task
+#SBATCH --mem-per-cpu=8192            # Memory per CPU core in MB (8192 MB = 8 GB)
+
+# ================================
+# Load necessary modules
+# ================================
+module load gcc/14.2.0               # Load GCC version 14.2.0
+module load java/jdk-21.0.6         # Load Java JDK 21.0.6
+
+# Load local Maven (installed manually)
+export MAVEN_HOME="$HOME/maven"
+export PATH="$MAVEN_HOME/bin:$PATH"
+
+
+# ================================
+# Compute-related parameters
+# ================================
+CPUS_PER_TASK=${SLURM_CPUS_PER_TASK:-12}  # Total CPUs assigned per task. Default to 12 if not set
+MEM_PER_CPU=${SLURM_MEM_PER_CPU:-8192}   # (in MB) Default to 8192 MB if not set
+JAVA_MEMORY=$(echo "0.9 * $CPUS_PER_TASK * $MEM_PER_CPU" | bc | awk '{printf "%.0f", $1}')m # Java memory allocation (90% of total memory)
+MAX_RUNTIME="16:00:00"   # Max wall time (used above in SBATCH)
+
+# MATSim-specific thread settings
+
+GLOBAL_THREADS=$CPUS_PER_TASK # For global MATSim tasks (should not exceed CPUS_PER_TASK)
+QSIM_THREADS=$CPUS_PER_TASK  # For queue simulation threads (should not exceed CPUS_PER_TASK)
+
+# ================================
+# File paths and parameters
+# ================================
+
+# Get the current working directory (assuming you run this script from the matsim-leeds directory)
+MATSIM_DIR="$(pwd)"   # This automatically sets the current directory to MATSIM_DIR
+
+# Path to the JAR file
+JAR_FILE="$MATSIM_DIR/target/matsim-leeds-1.0.jar"
+MAIN_CLASS="com.husseinmahfouz.matsim.dmc.calibration.RunDMCSimulationCalibration"
+
+# Define the parent directory for all scenarios
+PARENT_DIRECTORY="$MATSIM_DIR/scenarios/calibration_${SAMPLE_SIZE}"
+mkdir -p $PARENT_DIRECTORY
+
+# Define the sample size
+SAMPLE_SIZE="0.25"  
+
+# Define the input plans file
+INPUT_PLANS_FILE="../../../../data/demand/plans_sample_eqasim_${SAMPLE_SIZE}.xml"
+# Define the vehicles file (it differs based on the population sample - see NetworkVehicleInserter.java)
+VEHICLES_FILE="../../../../data/supply/network_vehicles_${SAMPLE_SIZE}.xml"
+
+
+# ================================
+# Calibration-related parameters
+# ================================
+
 
 # Define reference mode shares
 REF_CAR=0.55  # car-passenger is fixed at 25%
@@ -11,7 +101,7 @@ REF_TAXI=0.03
 # Define initial ASC values
 ASC_CAR=0.0  # Fixed, will not change
 ASC_BUS=-0.0929
-ASC_RAIL=-0.0080
+ASC_RAIL=2.4421
 ASC_BIKE=-4.0728
 ASC_WALK=3.0294
 ASC_TAXI=-1.8075
@@ -23,39 +113,13 @@ THRESHOLD_BIKE=0.01
 THRESHOLD_WALK=0.01
 THRESHOLD_TAXI=0.01
 
-# Get the current working directory (assuming you run this script from the matsim-leeds directory)
-MATSIM_DIR="$(pwd)"   # This automatically sets the current directory to MATSIM_DIR
-
 
 # Define the adjustment step for the ASCs at each iteration
-STEP=5 #0.05
+STEP=0.05 #0.05
 
 # Define maximum iterations. Each iterations is a full simulation run (with it's own number of iterations). 
 # Between each simulation run, the ASCs are adjusted based on the mode shares.
-MAX_ITER=3
-
-# Path to configuration file
-CONFIG_PATH="$MATSIM_DIR/src/main/resources/calibration/config_simulation_dmc_calibration.xml"
-
-# Path to the JAR file
-JAR_FILE="$MATSIM_DIR/target/matsim-leeds-1.0.jar"
-MAIN_CLASS="com.husseinmahfouz.matsim.dmc.calibration.RunDMCSimulationCalibration"
-
-# Define the sample size
-SAMPLE_SIZE="0.05"  
-# Define the number of iterations WITHIN each simulation run
-ITERATIONS=5
-
-# Define the input plans file
-INPUT_PLANS_FILE="../../../../data/demand/plans_sample_eqasim_${SAMPLE_SIZE}.xml"
-# Define the vehicles file (it differs based on the population sample - see NetworkVehicleInserter.java)
-VEHICLES_FILE="../../../../data/supply/network_vehicles_${SAMPLE_SIZE}.xml"
-
-
-
-# Define the parent directory for all scenarios
-PARENT_DIRECTORY="$MATSIM_DIR/scenarios/calibration"
-mkdir -p $PARENT_DIRECTORY
+MAX_ITER=50
 
 # Create a centralized CSV file for storing mode shares
 MODE_SHARE_CSV="$PARENT_DIRECTORY/mode_shares.csv"
@@ -65,6 +129,15 @@ echo "Iteration,Car,PT,Bike,Walk,Taxi" > "$MODE_SHARE_CSV"
 ASC_CSV="$PARENT_DIRECTORY/asc_values.csv"
 echo "Iteration,ASC_CAR,ASC_BUS,ASC_RAIL,ASC_BIKE,ASC_WALK,ASC_TAXI" > "$ASC_CSV"
 
+# ================================
+# Individual simulation parameters
+# ================================
+
+# Path to configuration file
+CONFIG_PATH="$MATSIM_DIR/src/main/resources/calibration/config_simulation_dmc_calibration.xml"
+
+# Define the number of iterations WITHIN each simulation run
+ITERATIONS=55
 
 # Iterative calibration loop
 for ((i=1; i<=MAX_ITER; i++)); do
@@ -82,11 +155,13 @@ for ((i=1; i<=MAX_ITER; i++)); do
     MODESTATS_PATH="$OUTPUT_DIRECTORY/modestats.csv"
 
     # Run the simulation
-    java -Xmx32g -cp $JAR_FILE $MAIN_CLASS \
+    java -Xmx$JAVA_MEMORY -cp $JAR_FILE $MAIN_CLASS \
         --config-path $CONFIG_PATH \
+        --globalThreads $GLOBAL_THREADS \
+        --qsimThreads $QSIM_THREADS \
         --sample-size $SAMPLE_SIZE \
         --iterations $ITERATIONS \
-        --output-directory "$OUTPUT_DIRECTORY" \
+        --output-directory $OUTPUT_DIRECTORY \
         --mode-choice-parameter:car.alpha_u=$ASC_CAR \
         --mode-choice-parameter:leedsPT.alpha_u_Bus=$ASC_BUS \
         --mode-choice-parameter:leedsPT.alpha_u_Rail=$ASC_RAIL \
@@ -170,6 +245,8 @@ for ((i=1; i<=MAX_ITER; i++)); do
         echo "Convergence achieved after $i iterations."
         break
     fi
+    # Add a delay before the next iteration (in seconds)
+    sleep 10
 done
 
 if ! $CONVERGED; then
