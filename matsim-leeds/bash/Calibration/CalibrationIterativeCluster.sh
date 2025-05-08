@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Run this file from the following directory: matsim-leeds
-# If file is in matsim-leeds/bash, run "bash bash/Calibration/CalibrationIterative.sh"
+# If file is in matsim-leeds/bash, run "sbatch bash/Calibration/CalibrationIterative.sh"
 
 # This script is used to iteratively calibrate the MATSim simulation for Leeds using the DMC extension.
 # --- Step 1: 
@@ -33,7 +33,7 @@
 #SBATCH --job-name=calibration        # Name of the job
 #SBATCH --output=slurm-%j.out         # Standard output log (%j = Job ID)
 #SBATCH --error=slurm-%j.err          # Standard error log
-#SBATCH --time=16:00:00               # Wall time limit (hh:mm:ss)
+#SBATCH --time=36:00:00               # Wall time limit (hh:mm:ss)
 #SBATCH --ntasks=1                    # Number of tasks (one process)
 #SBATCH --cpus-per-task=16            # Number of CPU cores per task
 #SBATCH --mem-per-cpu=8192            # Memory per CPU core in MB (8192 MB = 8 GB)
@@ -55,7 +55,7 @@ export PATH="$MAVEN_HOME/bin:$PATH"
 CPUS_PER_TASK=${SLURM_CPUS_PER_TASK:-12}  # Total CPUs assigned per task. Default to 12 if not set
 MEM_PER_CPU=${SLURM_MEM_PER_CPU:-8192}   # (in MB) Default to 8192 MB if not set
 JAVA_MEMORY=$(echo "0.9 * $CPUS_PER_TASK * $MEM_PER_CPU" | bc | awk '{printf "%.0f", $1}')m # Java memory allocation (90% of total memory)
-MAX_RUNTIME="16:00:00"   # Max wall time (used above in SBATCH)
+MAX_RUNTIME="36:00:00" # Maximum runtime for the job (hh:mm:ss)
 
 # MATSim-specific thread settings
 
@@ -65,6 +65,9 @@ QSIM_THREADS=$CPUS_PER_TASK  # For queue simulation threads (should not exceed C
 # ================================
 # File paths and parameters
 # ================================
+
+# Define the sample size
+SAMPLE_SIZE="0.25"  
 
 # Get the current working directory (assuming you run this script from the matsim-leeds directory)
 MATSIM_DIR="$(pwd)"   # This automatically sets the current directory to MATSIM_DIR
@@ -76,9 +79,6 @@ MAIN_CLASS="com.husseinmahfouz.matsim.dmc.calibration.RunDMCSimulationCalibratio
 # Define the parent directory for all scenarios
 PARENT_DIRECTORY="$MATSIM_DIR/scenarios/calibration_${SAMPLE_SIZE}"
 mkdir -p $PARENT_DIRECTORY
-
-# Define the sample size
-SAMPLE_SIZE="0.25"  
 
 # Define the input plans file
 INPUT_PLANS_FILE="../../../../data/demand/plans_sample_eqasim_${SAMPLE_SIZE}.xml"
