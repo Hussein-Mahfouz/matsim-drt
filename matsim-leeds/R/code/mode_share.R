@@ -16,7 +16,7 @@ demand_original = read_delim("../scenarios/basic/sample_1.00/eqasim_trips.csv", 
 scenarios <- c("zones",
                "all",
                "innerBUA")
-fleet_sizes <- c(100, 200, 500, 1000)
+fleet_sizes <- c(100, 200, 500)
 
 
 
@@ -247,3 +247,64 @@ for (scenario_plot in scenarios) {
       plot = p)
   }
 }
+
+
+
+
+
+
+
+
+
+# --- Facet plot --- What % of DRT trips is coming from each mode?
+demand_compare_summary_drt_facet = demand_compare_summary_drt %>%
+  mutate(scenario = case_when(
+    str_detect(output_mode, "drtNE") ~ "drtNE",
+    str_detect(output_mode, "drtNW") ~ "drtNW",
+    # for consistency
+    str_detect(scenario, "innerBUA") ~ "drtInner",
+    str_detect(scenario, "all") ~ "drt",
+    TRUE ~ scenario
+  )) %>%
+  group_by(fleet_size, scenario) %>%
+  mutate(pct_drt_from_mode = trips / sum(trips)) %>%
+  # rename output mode to drt | feeder
+  mutate(output_mode = case_when(
+    str_detect(output_mode, "feeder") ~ "feeder",
+    TRUE ~ "standalone"
+  )) %>%
+  ungroup()
+
+
+
+ggplot(data = demand_compare_summary_drt_facet %>%
+         filter(fleet_size != 1000, input_mode != "bike"),
+       aes(axis1 = input_mode, axis2 = output_mode, y = pct_drt_from_mode)) +
+  geom_alluvium(aes(fill = input_mode_trips_with_frac)) +
+  geom_stratum() +
+  ggrepel::geom_text_repel(
+    aes(label = input_mode),
+    stat = "stratum", size = 3, direction = "y", nudge_x = -.35
+  ) +
+  # geom_text(stat = "stratum", aes(label = input_mode), size = 3) +
+  ggrepel::geom_text_repel(
+    aes(label = output_mode),
+    stat = "stratum", size = 3, direction = "y", nudge_x = .35
+  ) +
+  scale_x_discrete(limits = c("Before", "After"), expand = c(0.15, 0.15)) +
+  scale_y_continuous(labels = scales::label_comma()) +
+  scale_fill_brewer(type = "qual", palette = "Set1") +
+  theme_bw() +
+  theme(panel.border = element_blank(),
+        legend.position="bottom") +
+  labs(
+    title = "What modes did DRT trips transition from?",
+    subtitle = "Proportion of DRT trips coming from each mode",
+    y = "Number of trips",
+    fill = "Initial mode \n(Initial mode share)",
+    caption = paste0("Modes not shown: Bike (~2%), Car Passenger (~25%) ")
+    ) +
+  facet_grid(vars(fleet_size), vars(scenario))
+
+
+ggsave(filename = "plots/mode_share/mode_share_sankey_drt_facet.png", width = 14, height = 10)
