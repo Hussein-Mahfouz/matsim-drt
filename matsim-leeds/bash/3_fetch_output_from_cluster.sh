@@ -12,7 +12,7 @@ MATSIM_DIR="$(pwd)"
 # List of directory names to exclude. All directories with these names will be excluded from the 
 # rsync command. This is useful for excluding large directories (Such as ITERS) that are not needed locally. 
  
-EXCLUDE_DIRS=("ITERS" "sample_0.05")
+EXCLUDE_DIRS=("ITERS" "sample_0.05" "iteration*/")
 EXCLUDE_FILES=("output_events.xml.gz" "output_plans.xml.gz")
 
 
@@ -24,12 +24,13 @@ declare -A DIR_PAIRS=(
     # ["$REMOTE_DIR/scenarios/fleet_sizing_minCostFlow/inner"]="$MATSIM_DIR/scenarios/fleet_sizing/inner"
     # ["$REMOTE_DIR/scenarios/fleet_sizing_minCostFlow/innerBUA"]="$MATSIM_DIR/scenarios/fleet_sizing/innerBUA"
     # ["$REMOTE_DIR/scenarios/basic/sample_1.00"]="$MATSIM_DIR/scenarios/basic/sample_1.00"
+    ["$REMOTE_DIR/scenarios/calibration_0.25"]="$MATSIM_DIR/scenarios/calibration_0.25"
 )
 
 # Build the rsync exclude options
 EXCLUDE_OPTIONS=()
 for DIR in "${EXCLUDE_DIRS[@]}"; do
-    EXCLUDE_OPTIONS+=("--exclude=*/${DIR}/")
+    EXCLUDE_OPTIONS+=("--exclude=${DIR}")
 done
 
 for FILE in "${EXCLUDE_FILES[@]}"; do
