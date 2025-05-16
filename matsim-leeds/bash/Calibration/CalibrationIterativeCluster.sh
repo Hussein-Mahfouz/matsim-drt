@@ -137,7 +137,7 @@ echo "Iteration,ASC_CAR,ASC_BUS,ASC_RAIL,ASC_BIKE,ASC_WALK,ASC_TAXI" > "$ASC_CSV
 CONFIG_PATH="$MATSIM_DIR/src/main/resources/calibration/config_simulation_dmc_calibration.xml"
 
 # Define the number of iterations WITHIN each simulation run
-ITERATIONS=55
+ITERATIONS=65
 
 # Iterative calibration loop
 for ((i=1; i<=MAX_ITER; i++)); do
