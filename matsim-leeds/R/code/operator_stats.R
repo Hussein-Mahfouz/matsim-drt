@@ -13,7 +13,7 @@ dir.create(plots_dir, recursive = TRUE, showWarnings = FALSE)
 
 # Set up a list of scenarios and fleet sizes to read in (file directories should exist)
 scenarios <- c("all", "zones", "innerBUA")
-fleet_sizes <- c(100, 200, 500, 1000)
+fleet_sizes <- c(100, 200, 500)
 
 # Function to read and process results of multiple scenarios, and combine them into one df
 # This is used specifically for output_occupancy_time_profiles .txt files

@@ -5,7 +5,7 @@ library(tmap)
 
 # Set up a list of scenarios and fleet sizes to read in (file directories should exist)
 scenarios <- c("zones", "all", "innerBUA")
-fleet_sizes <- c(100, 200, 500, 1000)
+fleet_sizes <- c(100, 200, 500)
 
 # Function to read and process a file and add identifier column
 read_and_process <- function(scenario, fleet_size, file_name) {
@@ -86,7 +86,7 @@ ggplot(drt_trips_distance, aes(x = operator_id, y = distance, fill = mode_type))
              position = position_stack(vjust = 0.5),
              color = "white", size = 2, label.size = 0) +
   labs(title = "DRT Usage: Feeder vs. Standalone Trips",
-       subtitle = "Share of travel distance by feeder trips vs. full DRT trips \nfor different service areas",
+       subtitle = "Share of travel distance by feeder trips vs. full DRT trips for different service areas",
        x = "Scenario",
        y = "Total Distance (KM)",
        fill = "") +
@@ -94,7 +94,7 @@ ggplot(drt_trips_distance, aes(x = operator_id, y = distance, fill = mode_type))
   theme_light() +
   facet_wrap(. ~ fleet_size_label)
 
-ggsave(paste0("plots/feeder_stats/standalone_vs_feeder_bar_facet_fleet_size.png"))
+ggsave(paste0("plots/feeder_stats/standalone_vs_feeder_bar_facet_fleet_size.png"), width = 10)
 
 
 # ----- Distance travelled by feeder vs standalone (bucketed by hour of day)
@@ -438,3 +438,56 @@ drt_feeder_trips_table = drt_trips_distance_table %>%
 
 
 write_csv(drt_feeder_trips_table, "plots/feeder_stats/drt_feeder_daily_stats.csv")
+
+
+
+
+
+
+# ------- Plot DRT service areas under different scenarios (descriptive)
+
+gtfs_headway = st_read("../../../drt-potential/data/interim/gtfs_freq/gtfs_bus_sf.geojson")
+
+
+gtfs_headway = gtfs_headway %>%
+  mutate(buses_per_hr = round(3600/headway_secs))
+
+tm_shape(study_area) +
+  tm_borders(lwd = 3) +
+  tm_shape(study_area) +
+  tm_fill(col = "grey70") +
+  tm_shape(scenario_extents) +
+  tm_borders(col = "darkgreen",
+             #lty = "dashed",
+             lwd = 2.5) +
+  tm_facets(by = "scenario",
+            free.coords = FALSE) +
+  tm_shape(gtfs_headway %>%
+             filter(buses_per_hr > 1)) +
+    tm_lines(title.col = "Buses/hr",
+             col = "buses_per_hr",
+             lwd = "buses_per_hr",
+             alpha = 0.8,
+             palette = "Reds",
+             scale = 5,
+             legend.lwd.show = FALSE) +
+  tm_layout(fontfamily = 'Georgia',
+            main.title = "DRT operating zones for different scenarios",
+            main.title.size = 1.1,
+            main.title.color = "azure4",
+            main.title.position = "left",
+            bg.color = "#FAF9F6",
+            legend.outside = TRUE,
+            legend.outside.position = "bottom",
+            legend.stack = "horizontal",
+            # panel.label.size = 1,
+            # panel.label.bg.color = "grey",
+            #panel.labels = 1:length(unique(clusters_vis_mode_poly_filt_max$cluster)),
+            frame = FALSE)  +
+  tm_add_legend(type = "line", labels = 'DRT service area', col = 'darkgreen', lwd = 2, lty = "dashed") -> drt_service_areas
+
+drt_service_areas
+
+tmap_save(tm = drt_service_areas, filename = "plots/drt_service_areas.png", width = 8, dpi = 1080, asp = 0)
+
+
