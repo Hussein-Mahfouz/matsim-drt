@@ -92,6 +92,7 @@ VEHICLES_FILE="../../../../data/supply/network_vehicles_${SAMPLE_SIZE}.xml"
 
 
 # Define reference mode shares (from: https://s3-eu-west-2.amazonaws.com/commonplace-customer-assets/leedstransportstrategy/Leeds%20Transport%20Strategy_p11.pdf)
+# See also https://committees.parliament.uk/writtenevidence/106339/pdf/
 REF_CAR=0.36  # car-passenger is fixed at 25%
 REF_PT=0.10 # bus: 9% rail:1%
 REF_BIKE=0.01
