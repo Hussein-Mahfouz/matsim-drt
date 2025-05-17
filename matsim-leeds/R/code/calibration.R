@@ -15,10 +15,10 @@ asc_values = read_csv("../scenarios/calibration_0.25/asc_values.csv")
 # DEFINE REFERENCE MODE SHARES
 # ================
 
-# Reference mode shares (# car-passenger is fixed at 25%)
+# Reference mode shares (# car-passenger is fixed at 23%)
 mode_share_ref = tibble(
   mode = c("Car", "PT", "Bike", "Walk", "Taxi"),
-  mode_share_ref = c(0.55, 0.07, 0.02, 0.08, 0.03)) %>%
+  mode_share_ref = c(0.38, 0.10, 0.01, 0.25, 0.03)) %>%
   mutate(mode_share_ref = mode_share_ref * 100)
 
 
