@@ -93,7 +93,7 @@ VEHICLES_FILE="../../../../data/supply/network_vehicles_${SAMPLE_SIZE}.xml"
 
 # Define reference mode shares (from: https://s3-eu-west-2.amazonaws.com/commonplace-customer-assets/leedstransportstrategy/Leeds%20Transport%20Strategy_p11.pdf)
 # See also https://committees.parliament.uk/writtenevidence/106339/pdf/
-REF_CAR=0.36  # car-passenger is fixed at 25%
+REF_CAR=0.38  # car-passenger is fixed at 23%
 REF_PT=0.10 # bus: 9% rail:1%
 REF_BIKE=0.01
 REF_WALK=0.25
@@ -120,7 +120,7 @@ STEP=0.05 #0.05
 
 # Define maximum iterations. Each iterations is a full simulation run (with it's own number of iterations). 
 # Between each simulation run, the ASCs are adjusted based on the mode shares.
-MAX_ITER=50
+MAX_ITER=75
 
 # Create a centralized CSV file for storing mode shares
 MODE_SHARE_CSV="$PARENT_DIRECTORY/mode_shares.csv"
@@ -138,7 +138,7 @@ echo "Iteration,ASC_CAR,ASC_BUS,ASC_RAIL,ASC_BIKE,ASC_WALK,ASC_TAXI" > "$ASC_CSV
 CONFIG_PATH="$MATSIM_DIR/src/main/resources/calibration/config_simulation_dmc_calibration.xml"
 
 # Define the number of iterations WITHIN each simulation run
-ITERATIONS=65
+ITERATIONS=60
 
 # Iterative calibration loop
 for ((i=1; i<=MAX_ITER; i++)); do
