@@ -91,7 +91,7 @@ public class LeedsModeParameters extends ModeParameters {
 		// parameters.pt.betaWaitingTime_u_min = -0.0484;
 		// parameters.pt.betaAccessEgressTime_u_min = -0.0804;
 
-		parameters.leedsPT.alpha_u_Bus = -0.0929;
+		parameters.leedsPT.alpha_u_Bus = -0.4429; // -0.0929;
 		parameters.leedsPT.alpha_u_Rail = 2.4421;
 		parameters.leedsPT.betaInVehicleTimeBus_u_min = -0.1281;
 		parameters.leedsPT.betaInVehicleTimeRail_u_min = -0.0080;
@@ -117,7 +117,7 @@ public class LeedsModeParameters extends ModeParameters {
 
 
 		// Walk
-		parameters.walk.alpha_u = 3.0294;
+		parameters.walk.alpha_u = 5.6294; //3.0294;
 		parameters.walk.betaTravelTime_u_min = -0.6774;
 
 		parameters.leedsWalk.betaStudent = 0.6964;
