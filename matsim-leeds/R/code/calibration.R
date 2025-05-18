@@ -52,7 +52,7 @@ ggplot(mode_share_plot, aes(x = Iteration, y = mode_share, color = mode)) +
     data = mode_share_ref,
     inherit.aes = FALSE,
     aes(xmin = -Inf, xmax = Inf,
-        ymin = mode_share_ref - 1, ymax = mode_share_ref + 1,
+        ymin = mode_share_ref - 2, ymax = mode_share_ref + 2,
         fill = mode),
     alpha = 0.2
   ) +
@@ -79,7 +79,7 @@ ggplot(mode_share_plot, aes(x = Iteration, y = mode_share, color = mode)) +
     data = mode_share_ref,
     inherit.aes = FALSE,
     aes(xmin = -Inf, xmax = Inf,
-        ymin = mode_share_ref - 1, ymax = mode_share_ref + 1,
+        ymin = mode_share_ref - 2, ymax = mode_share_ref + 2,
         fill = mode),
     alpha = 0.2
   ) +
@@ -103,15 +103,15 @@ ggsave("plots/calibration/calibration_mode_share_facet.png")
 
 mode_share_plot_car_passenger = mode_share_plot %>%
          # add car_passenger to mode share of CAR
-  mutate(mode_share = case_when(mode == "Car" ~ mode_share + 25,
+  mutate(mode_share = case_when(mode == "Car" ~ mode_share + 23,
                           .default = mode_share),
          # add car_passenger to refernce mode share of CAR
-         mode_share_ref = case_when(mode == "Car" ~ mode_share_ref + 25,
+         mode_share_ref = case_when(mode == "Car" ~ mode_share_ref + 23,
                                 .default = mode_share_ref))
 
 # update the reference table
 mode_share_ref_car_passenger = mode_share_ref %>%
-  mutate(mode_share_ref = case_when(mode == "Car" ~ mode_share_ref + 25,
+  mutate(mode_share_ref = case_when(mode == "Car" ~ mode_share_ref + 23,
                                 .default = mode_share_ref))
 
 
@@ -124,7 +124,7 @@ ggplot(mode_share_plot_car_passenger, aes(x = Iteration, y = mode_share, color =
     data = mode_share_ref_car_passenger,
     inherit.aes = FALSE,
     aes(xmin = -Inf, xmax = Inf,
-        ymin = mode_share_ref - 1, ymax = mode_share_ref + 1,
+        ymin = mode_share_ref - 2, ymax = mode_share_ref + 2,
         fill = mode),
     alpha = 0.2
   ) +
@@ -151,7 +151,7 @@ ggplot(mode_share_plot_car_passenger, aes(x = Iteration, y = mode_share, color =
     data = mode_share_ref_car_passenger,
     inherit.aes = FALSE,
     aes(xmin = -Inf, xmax = Inf,
-        ymin = mode_share_ref - 1, ymax = mode_share_ref + 1,
+        ymin = mode_share_ref - 2, ymax = mode_share_ref + 2,
         fill = mode),
     alpha = 0.3
   ) +
