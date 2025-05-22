@@ -16,7 +16,7 @@ library(tidyverse)
 scenarios <- c("zones",
                "all",
                "innerBUA")
-fleet_sizes <- c(100, 200, 500)
+fleet_sizes <- c(100, 200, 500, 1000)
 
 
 

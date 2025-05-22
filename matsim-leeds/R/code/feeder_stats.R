@@ -5,7 +5,7 @@ library(tmap)
 
 # Set up a list of scenarios and fleet sizes to read in (file directories should exist)
 scenarios <- c("zones", "all", "innerBUA")
-fleet_sizes <- c(100, 200, 500)
+fleet_sizes <- c(100, 200, 500, 1000)
 
 # Function to read and process a file and add identifier column
 read_and_process <- function(scenario, fleet_size, file_name) {
