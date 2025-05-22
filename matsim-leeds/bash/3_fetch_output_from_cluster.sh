@@ -30,6 +30,8 @@ declare -A DIR_PAIRS=(
 EXCLUDE_OPTIONS=()
 for DIR in "${EXCLUDE_DIRS[@]}"; do
     EXCLUDE_OPTIONS+=("--exclude=*/${DIR}/")
+    EXCLUDE_OPTIONS+=("--exclude=${DIR}/")
+    EXCLUDE_OPTIONS+=("--exclude=${DIR}")
 done
 
 for FILE in "${EXCLUDE_FILES[@]}"; do
