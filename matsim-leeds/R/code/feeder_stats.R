@@ -40,6 +40,11 @@ drt_trips <- purrr::pmap_dfr(combinations, function(scenario, fleet_size) {
   read_and_process(scenario, fleet_size, "eqasim_drt_passenger_rides")
 })
 
+# edit "drt" scenario name
+drt_trips = drt_trips %>%
+  mutate(operator_id = case_when(operator_id == "drt" ~ "drtAll",
+                                 .default = operator_id))
+
 # Add a column to identify if this is a feeder or not
 drt_trips <- drt_trips %>%
   mutate(mode_type = ifelse(str_detect(main_mode, "_feeder"), "feeder", "main")) %>%
@@ -52,6 +57,8 @@ drt_trips <- drt_trips %>%
 drt_feeder_trips <- purrr::pmap_dfr(combinations, function(scenario, fleet_size) {
   read_and_process(scenario, fleet_size, "eqasim_feeder_drt_trips")
 })
+
+
 # where are feeder trips happening?
 # what PT routes are they connecting to?
 
@@ -123,7 +130,7 @@ ggplot(drt_trips_distance_time, aes(x = departure_time_hr, y = distance, fill = 
   scale_y_continuous(labels = scales::comma) +  # Add commas to the y-axis values
   theme_light()
 
-ggsave(paste0("plots/feeder_stats/standalone_vs_feeder_bar_temporal_facet_fleet_size.png"))
+ggsave(paste0("plots/feeder_stats/standalone_vs_feeder_bar_temporal_facet_fleet_size.png"), width = 10)
 
 
 
@@ -264,7 +271,7 @@ study_area = st_read("../data/external/study_area_boundary.geojson") %>%
   st_transform(3857) %>%
   st_as_sf() %>%
   rename(geometry = x) %>%
-  mutate(scenario = "drt")
+  mutate(scenario = "drtAll")
 
 cluster_nw = st_read("../data/supply/drt/nw_cluster_08_00_11_00.shp") %>%
   st_transform(3857) %>%

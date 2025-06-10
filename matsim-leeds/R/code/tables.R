@@ -30,18 +30,20 @@ drt_table |>
              ) |>
   tab_spanner(
     label = "Vehicle",
-    columns = c(vkm, vehicle_distance_per_trip, average_load_factor)
+    columns = c(vkm, vehicle_distance_per_trip, vkm_per_vehicle, average_load_factor)
   ) |>
   tab_spanner(
     label = "Passenger",
-    columns = c(pkm, passenger_distance_per_trip)
+    columns = c(pkm, passenger_distance_per_trip, pkm_per_vehicle)
   ) |>
   cols_label(
     operator_id = "Scenario",
     pkm = "Km travelled",
     passenger_distance_per_trip = "Avg distance per trip (km)",
+    pkm_per_vehicle = "Avg distance per vehicle (km)",
     vkm = "Km travelled",
     vehicle_distance_per_trip = "Avg distance per trip (km)",
+    vkm_per_vehicle = "Avg distance per vehicle (km)",
     average_load_factor = "pkm / vkm",
 
   ) -> distance_drt_table_latex
@@ -175,7 +177,7 @@ mode_shift_drt = mode_shift_drt %>%
       str_starts(output_mode, "drtNE") ~ "drtNE",
       str_starts(output_mode, "drtNW") ~ "drtNW",
       str_starts(output_mode, "drtInner") ~ "drtInner",
-      str_starts(output_mode, "drt") ~ "drt",
+      str_starts(output_mode, "drt") ~ "drtAll",
       TRUE ~ NA_character_
   ),
     Feeder = case_when(
@@ -190,6 +192,29 @@ mode_shift_drt_table = mode_shift_drt %>%
   pivot_wider(names_from = c(Feeder, input_mode),
               values_from = c(trips, trips_moved_drt_frac),
               values_fill = 0)
+
+# add total number of trips shifted to drt
+mode_shift_drt_table = mode_shift_drt_table %>%
+  mutate(
+    trips_standalone_all = rowSums(select(., starts_with("trips_standalone_")), na.rm = TRUE),
+    trips_feeder_all = rowSums(select(., starts_with("trips_feeder_")), na.rm = TRUE)#,
+   # trips_all = trips_standalone_all + trips_feeder_all
+  )
+
+
+# Calculate the percentage of trips moved to DRT (global)
+# 1. Get total number of trips (hacky)
+trips_total = mode_shift_all %>% distinct(input_mode, .keep_all = TRUE)
+trips_total = sum(trips_total$input_mode_trips)
+# 2. Add column to mode_shift_drt_table
+mode_shift_drt_table = mode_shift_drt_table %>%
+  mutate(
+    trips_moved_drt_frac_standalone_all = round((trips_standalone_all / trips_total) * 100, 1),
+    trips_moved_drt_frac_feeder_all = round((trips_feeder_all / trips_total) * 100, 1)
+  )
+
+
+
 
 
 # Create 2 columns for each mode: <mode>(frac to drt) | <mode>(fract_to_drt_feeder)
@@ -209,7 +234,11 @@ mode_shift_drt_table = mode_shift_drt_table %>%
     trips_walk_feeder = paste0(trips_feeder_walk, " (", trips_moved_drt_frac_feeder_walk, ")"),
     # taxi
     trips_taxi_standalone = paste0(trips_standalone_taxi, " (", trips_moved_drt_frac_standalone_taxi, ")"),
-    trips_taxi_feeder = paste0(trips_feeder_taxi, " (", trips_moved_drt_frac_feeder_taxi, ")")) %>%
+    trips_taxi_feeder = paste0(trips_feeder_taxi, " (", trips_moved_drt_frac_feeder_taxi, ")"),
+    # all
+    trips_all_standalone = paste0(trips_standalone_all, " (", trips_moved_drt_frac_standalone_all, ")"),
+    trips_all_feeder = paste0(trips_feeder_all, " (", trips_moved_drt_frac_feeder_all, ")")
+    ) %>%
   select(fleet_size, `Service Area`,
          ends_with("_standalone"), ends_with("_feeder"))
 
@@ -241,6 +270,10 @@ mode_shift_drt_table |>
     label = "Taxi",
     columns = c(trips_taxi_standalone, trips_taxi_feeder)
   ) |>
+  tab_spanner(
+    label = "Total",
+    columns = c(trips_all_standalone, trips_all_feeder)
+  ) |>
   cols_label(
     trips_car_standalone = "Standalone",
     trips_car_feeder = "Feeder",
@@ -251,8 +284,10 @@ mode_shift_drt_table |>
     trips_walk_standalone = "Standalone",
     trips_walk_feeder = "Feeder",
     trips_taxi_standalone = "Standalone",
-    trips_taxi_feeder = "Feeder") |>
-  tab_source_note(source_note = "How to read: 150 (0.03) = 150 trips shifted to DRT (0.03% of Mode total shifted to DRT") -> mode_shift_drt_table_ltx
+    trips_taxi_feeder = "Feeder",
+    trips_all_standalone = "Standalone",
+    trips_all_feeder = "Feeder") |>
+  tab_source_note(source_note = "How to read: Standalone: 918 (0.2) = 918 trips shifted to DRT (0.2% of origin mode total shifted to DRT). Feeder: 26 (0) = 26 trips shifted to feeder DRT (0% of origin mode total shifted to feeder DRT)") -> mode_shift_drt_table_ltx
 
 mode_shift_drt_table_ltx
 

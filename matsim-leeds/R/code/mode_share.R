@@ -263,7 +263,7 @@ demand_compare_summary_drt_facet = demand_compare_summary_drt %>%
     str_detect(output_mode, "drtNW") ~ "drtNW",
     # for consistency
     str_detect(scenario, "innerBUA") ~ "drtInner",
-    str_detect(scenario, "all") ~ "drt",
+    str_detect(scenario, "all") ~ "drtAll",
     TRUE ~ scenario
   )) %>%
   group_by(fleet_size, scenario) %>%
@@ -278,7 +278,7 @@ demand_compare_summary_drt_facet = demand_compare_summary_drt %>%
 
 
 ggplot(data = demand_compare_summary_drt_facet %>%
-         filter(fleet_size != 1000, input_mode != "bike"),
+         filter(input_mode != "bike"),
        aes(axis1 = input_mode, axis2 = output_mode, y = pct_drt_from_mode)) +
   geom_alluvium(aes(fill = input_mode_trips_with_frac)) +
   geom_stratum() +
