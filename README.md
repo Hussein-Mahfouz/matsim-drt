@@ -40,3 +40,7 @@ This repository contains the codebase for a MATSim model of the city of Leeds, U
 See the [Wiki](https://github.com/Hussein-Mahfouz/matsim-drt/wiki) for detailed installation instructions, setup steps, and script run order.
 
 > **Warning:** The instructions and notes in the [Wiki](https://github.com/Hussein-Mahfouz/matsim-drt/wiki) were compiled by me as I was learning to use MATSim and its relevant extensions. They contain observations / options for how to do things. I think it is useful as not everything is documented well when it comes to data preperation, but it is not a fully fledged instruction manual :)
+
+## Using the model
+
+I plan to develop the documentation in the wiki so that anyone can run this model on their own. In the meantime, if you are interested in using it, reach out and I can help you get started
