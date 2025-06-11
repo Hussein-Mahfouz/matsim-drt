@@ -24,6 +24,6 @@ public class LeedsCarCostModel extends AbstractCostModel {
 	public double calculateCost_MU(Person person, DiscreteModeChoiceTrip trip,
 			List<? extends PlanElement> elements) {
 		// add 0.1 to avoid log(0) in CarUtilityEstimator: Math.log(variables.cost_MU)
-		return (costParameters.carCost_EUR_km * getInVehicleDistance_km(elements)) + 0.1;
+		return (costParameters.carCostPerKm * getInVehicleDistance_km(elements)) + 0.1;
 	}
 }

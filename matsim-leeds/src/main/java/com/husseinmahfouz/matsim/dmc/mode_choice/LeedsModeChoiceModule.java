@@ -10,8 +10,12 @@ import org.eqasim.core.simulation.mode_choice.ParameterDefinition;
 import org.eqasim.core.simulation.mode_choice.cost.CostModel;
 import org.eqasim.core.simulation.mode_choice.parameters.ModeParameters;
 import org.eqasim.core.simulation.mode_choice.tour_finder.ActivityTourFinderWithExcludedActivities;
+import org.eqasim.core.simulation.modes.drt.mode_choice.DrtModeAvailabilityWrapper;
+import org.eqasim.core.simulation.modes.feeder_drt.mode_choice.FeederDrtModeAvailabilityWrapper;
+import org.eqasim.core.simulation.modes.feeder_drt.mode_choice.utilities.estimator.DefaultFeederDrtUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.costs.LeedsCarCostModel;
 import com.husseinmahfouz.matsim.dmc.mode_choice.costs.LeedsPtCostModel;
+import com.husseinmahfouz.matsim.dmc.mode_choice.costs.LeedsDrtCostModel;
 import com.husseinmahfouz.matsim.dmc.mode_choice.costs.LeedsTaxiCostModel;
 import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsCostParameters;
 import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsModeParameters;
@@ -19,6 +23,7 @@ import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsBikeU
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsCarUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsPtUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsWalkUtilityEstimator;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsDrtUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsTaxiUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsPersonPredictor;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsSpatialPredictor;
@@ -34,20 +39,29 @@ import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.Provider;
 import com.google.inject.name.Named;
+import org.matsim.core.config.Config;
+
 
 public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 	private final CommandLine commandLine;
 
-	public static final String MODE_AVAILABILITY_NAME = "LeedsModeAvailability";
+	// public static final String MODE_AVAILABILITY_NAME = "LeedsDrtModeAvailability";
+	public static final String MODE_AVAILABILITY_NAME = "FeederDrtModeAvailabilityWrapper";
+
 
 	public static final String CAR_COST_MODEL_NAME = "LeedsCarCostModel";
 	public static final String PT_COST_MODEL_NAME = "LeedsPtCostModel";
+	// Add DRT
+	public static final String DRT_COST_MODEL_NAME = "LeedsDrtCostModel";
 	public static final String TAXI_COST_MODEL_NAME = "LeedsTaxiCostModel";
 
 	public static final String CAR_ESTIMATOR_NAME = "LeedsCarUtilityEstimator";
 	public static final String BIKE_ESTIMATOR_NAME = "LeedsBikeUtilityEstimator";
 	public static final String WALK_ESTIMATOR_NAME = "LeedsWalkUtilityEstimator";
 	public static final String PT_ESTIMATOR_NAME = "LeedsPtUtilityEstimator";
+	// Add DRT
+	public static final String DRT_ESTIMATOR_NAME = "LeedsDrtUtilityEstimator";
+	public static final String FEEDER_DRT_ESTIMATOR_NAME = "DefaultFeederDrtUtilityEstimator";
 	public static final String TAXI_ESTIMATOR_NAME = "LeedsTaxiUtilityEstimator";
 
 	public static final String ISOLATED_OUTSIDE_TOUR_FINDER_NAME = "IsolatedOutsideTrips";
@@ -58,18 +72,25 @@ public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 
 	@Override
 	protected void installEqasimExtension() {
-		bindModeAvailability(MODE_AVAILABILITY_NAME).to(LeedsModeAvailability.class);
+		bindModeAvailability(MODE_AVAILABILITY_NAME).to(FeederDrtModeAvailabilityWrapper.class);
 
 		bind(LeedsPersonPredictor.class);
 
 		bindCostModel(CAR_COST_MODEL_NAME).to(LeedsCarCostModel.class);
 		bindCostModel(PT_COST_MODEL_NAME).to(LeedsPtCostModel.class);
+		// Add DRT
+		bindCostModel(DRT_COST_MODEL_NAME).to(LeedsDrtCostModel.class);
 		bindCostModel(TAXI_COST_MODEL_NAME).to(LeedsTaxiCostModel.class);
 
 		bindUtilityEstimator(CAR_ESTIMATOR_NAME).to(LeedsCarUtilityEstimator.class);
 		bindUtilityEstimator(BIKE_ESTIMATOR_NAME).to(LeedsBikeUtilityEstimator.class);
 		bindUtilityEstimator(WALK_ESTIMATOR_NAME).to(LeedsWalkUtilityEstimator.class);
 		bindUtilityEstimator(PT_ESTIMATOR_NAME).to(LeedsPtUtilityEstimator.class);
+		// Add DRT
+		bindUtilityEstimator(DRT_ESTIMATOR_NAME).to(LeedsDrtUtilityEstimator.class);
+		bindUtilityEstimator(FEEDER_DRT_ESTIMATOR_NAME).to(DefaultFeederDrtUtilityEstimator.class);
+
+
 		bindUtilityEstimator(TAXI_ESTIMATOR_NAME).to(LeedsTaxiUtilityEstimator.class);
 		bind(LeedsSpatialPredictor.class);
 		bind(LeedsPtPredictor.class);
@@ -93,6 +114,22 @@ public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 
 		ParameterDefinition.applyCommandLine("mode-choice-parameter", commandLine, parameters);
 		return parameters;
+	}
+
+	// @Provides
+	// @Singleton
+	// public FeederDrtModeAvailabilityWrapper provideFeederDrtModeAvailabilityWrapper(Config
+	// config) {
+	// return new FeederDrtModeAvailabilityWrapper(config, new LeedsDrtModeAvailability());
+	// }
+
+	// Get DRT modes and then Feeder DRT modes
+	@Provides
+	@Singleton
+	public FeederDrtModeAvailabilityWrapper provideFeederDrtModeAvailabilityWrapper(Config config) {
+		DrtModeAvailabilityWrapper drtModeAvailabilityWrapper =
+				new DrtModeAvailabilityWrapper(config, new LeedsModeAvailability());
+		return new FeederDrtModeAvailabilityWrapper(config, drtModeAvailabilityWrapper);
 	}
 
 	@Provides

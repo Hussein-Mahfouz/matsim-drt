@@ -6,6 +6,13 @@
     "configurations": [
         {
             "type": "java",
+            "name": "RunAdaptConfigForDrt",
+            "request": "launch",
+            "mainClass": "com.husseinmahfouz.matsim.drt.RunAdaptConfigForDrt",
+            "projectName": "matsim-leeds"
+        },
+        {
+            "type": "java",
             "name": "Current File",
             "request": "launch",
             "mainClass": "${file}"
@@ -36,8 +43,8 @@
                 "data/external/study_area_gtfs_merged.zip",
                 "20230814",
                 "EPSG:3857",
-                "data/supply/schedule_unmapped.xml.gz",
-                "data/supply/vehicles_unmapped.xml"
+                "src/main/resources/data/supply/schedule_unmapped.xml.gz",
+                "src/main/resources/data/supply/vehicles_unmapped.xml"
             ]
         },
         {
@@ -66,8 +73,12 @@
             "projectName": "matsim-leeds",
             "cwd": "${workspaceFolder}/matsim-leeds",
             "args": [
+                "--input",
                 "data/demand/plans.xml",
-                "scenarios/test/plans.xml"
+                "--output",
+                "src/main/resources/data/demand/plans_sample_0.05.xml",
+                "--sample",
+                "0.05"
             ]
         },
         {
@@ -88,9 +99,9 @@
             "cwd": "${workspaceFolder}/matsim-leeds",
             "args": [
                 "src/main/resources/config_simulation_dmc.xml",
-                "scenarios/test/plans.xml",
-                "scenarios/test/network_vehicles.xml",
-                "scenarios/test/plans_eqasim.xml"
+                "src/main/resources/data/demand/plans_sample.xml",
+                "src/main/resources/data/supply/network_vehicles.xml",
+                "src/main/resources/data/demand/plans_sample_eqasim.xml"
             ]
         },
         {
@@ -113,6 +124,44 @@
             "projectName": "matsim-leeds",
             "cwd": "${workspaceFolder}/matsim-leeds",
             "args": "--config-path src/main/resources/config_simulation_dmc.xml"
+        },
+        {
+            "type": "java",
+            "name": "RunDMCSimulationDRT",
+            "request": "launch",
+            "mainClass": "com.husseinmahfouz.matsim.RunDMCSimulationDRT",
+            "projectName": "matsim-leeds",
+            "cwd": "${workspaceFolder}/matsim-leeds",
+            "args": [
+                "--config-path",
+                "src/main/resources/config_simulation_dmc_drt_feeder_3pct.xml",
+                "--use-rejection-constraint",
+                "true",
+                "--sample-size",
+                "0.05"
+            ],
+            "vmArgs": "-Xmx32G"
+        },
+        {
+            "type": "java",
+            "name": "RunDMCSimulationDRTCluster",
+            "request": "launch",
+            "mainClass": "com.husseinmahfouz.matsim.RunDMCSimulationDRTCluster",
+            "projectName": "matsim-leeds",
+            "cwd": "${workspaceFolder}/matsim-leeds",
+            "args": [
+                "--config-path",
+                "src/main/resources/fleet_sizing/config_simulation_dmc_drt_50_feeder.xml",
+                "--use-rejection-constraint",
+                "true",
+                "--sample-size",
+                "0.05",
+                "--global-threads",
+                "8",
+                "--iterations",
+                "5"
+            ],
+            "vmArgs": "-Xmx32G"
         }
     ]
 }
