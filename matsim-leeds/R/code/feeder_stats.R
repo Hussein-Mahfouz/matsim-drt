@@ -463,21 +463,21 @@ tm_shape(study_area) +
   tm_borders(lwd = 3) +
   tm_shape(study_area) +
   tm_fill(col = "grey70") +
-  tm_shape(scenario_extents) +
-  tm_borders(col = "darkgreen",
-             #lty = "dashed",
-             lwd = 2.5) +
-  tm_facets(by = "scenario",
-            free.coords = FALSE) +
-  tm_shape(gtfs_headway %>%
+tm_shape(gtfs_headway %>%
              filter(buses_per_hr > 1)) +
-    tm_lines(title.col = "Buses/hr",
+  tm_lines(title.col = "Buses/hr",
              col = "buses_per_hr",
              lwd = "buses_per_hr",
              alpha = 0.8,
              palette = "Reds",
              scale = 5,
              legend.lwd.show = FALSE) +
+tm_shape(scenario_extents) +
+  tm_borders(col = "darkgreen",
+             #lty = "dashed",
+             lwd = 2.5) +
+  tm_facets(by = "scenario",
+            free.coords = FALSE) +
   tm_layout(fontfamily = 'Georgia',
             main.title = "DRT operating zones for different scenarios",
             main.title.size = 1.1,
