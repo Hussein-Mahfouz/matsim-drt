@@ -8,7 +8,9 @@ library(tidyverse)
 
 # Set up a list of scenarios and fleet sizes to read in (file directories should exist)
 scenarios <- c("zones", "all", "innerBUA")
-fleet_sizes <- c(100, 200, 500, 1000)
+# fleet_sizes <- c(100, 200, 500, 1000)
+fleet_sizes <- c(100, 200)
+
 
 # Function to read and process a file and add identifier column
 read_and_process <- function(scenario, fleet_size, file_name) {
@@ -29,7 +31,15 @@ read_and_process <- function(scenario, fleet_size, file_name) {
   data <- data %>%
     mutate(scenario = scenario, fleet_size = fleet_size)
 
-  return(data)
+  # We are only interested in trips that have a drt leg. Let's do this pre-processing step here
+  # instead of on the whole dataset
+  trips_with_drt = data %>%
+    group_by(person_id, person_trip_id, scenario, fleet_size) %>%
+    # keep only the groups where "drt" exists in one of the rows in the mode column
+    filter(any(str_detect(mode, "drt"))) %>%
+    ungroup()
+
+  return(trips_with_drt)
 }
 
 
@@ -43,13 +53,12 @@ legs <- purrr::pmap_dfr(combinations, function(scenario, fleet_size) {
   read_and_process(scenario, fleet_size, "eqasim_legs")
 })
 
-
-# keep only trips (unique: person_id + person_trip_id) that have at least one row where mode is drt
-trips_with_drt = legs %>%
-  group_by(person_id, person_trip_id, scenario, fleet_size) %>%
-  # keep only the groups where "drt" exists in one of the rows in the mode column
-  filter(any(str_detect(mode, "drt"))) %>%
-  ungroup()
+# convert any mode that contains "drt" to "drt"
+legs <- legs %>%
+  mutate(mode = case_when(
+    str_detect(mode, "drt") ~ "drt",
+    TRUE ~ mode
+  ))
 
 #############################################################################################
 # -------- Analysis 1: Get distinct combination of trip chains that include a feeder DRT trip
@@ -62,10 +71,10 @@ collapse_consecutive <- function(x) {
 }
 
 # Step 1: Collapse consecutive identical modes
-trip_chains <- trips_with_drt %>%
-  tidytable::arrange(scenario, fleet_size, person_trip_id, leg_index) %>%
-  tidytable::group_by(person_id, person_trip_id, scenario, fleet_size) %>%
-  tidytable::summarise(
+trip_chains <- legs %>%
+  arrange(scenario, fleet_size, person_trip_id, leg_index) %>%
+  group_by(person_id, person_trip_id, scenario, fleet_size) %>%
+  summarise(
     trip_chain = paste(collapse_consecutive(mode), collapse = "->"),
     #trip_chain = paste(mode, collapse = "-"),
     .groups = "drop"
@@ -77,16 +86,19 @@ trip_chains_unique = trip_chains %>%
   summarise(count = n()) %>%
   ungroup() %>%
   arrange(desc(count)) %>%
-  # calculate the percentage of each trip chain
-  mutate(percentage = round(count / sum(count) * 100))
+  group_by(scenario, fleet_size) %>%
+  mutate(percentage = round(count / sum(count) * 100)) %>%
+  ungroup()
 
 # Plot the distribution of trip chains
-ggplot(trip_chains_unique, aes(x = reorder(trip_chain, count), y = percentage)) +
+ggplot(trip_chains_unique %>%
+         filter(percentage >=1)
+       , aes(x = reorder(trip_chain, count), y = percentage)) +
   geom_bar(stat = "identity") +
   coord_flip() +
   labs(title = "Distribution of Trip Chains with DRT", x = "Trip Chain", y = "Percent") +
-  theme_minimal() +
-  facet_grid(scenario ~ fleet_size) +
+  theme_bw() +
+  facet_grid(scenario ~ fleet_size)
 
 
 
@@ -97,9 +109,9 @@ ggplot(trip_chains_unique, aes(x = reorder(trip_chain, count), y = percentage)) 
 
 
 # Step 1: Add the trip chain for each unique person trip (for grouping)
-trips_with_drt_chain <- trips_with_drt %>%
-  arrange(person_id, person_trip_id, leg_index) %>%
-  group_by(person_id, person_trip_id) %>%
+trips_with_drt_chain <- legs %>%
+  arrange(person_id, person_trip_id, leg_index, scenario, fleet_size) %>%
+  group_by(person_id, person_trip_id, scenario, fleet_size) %>%
   mutate(
     trip_chain = paste(collapse_consecutive(mode), collapse = "->")
     #trip_chain = paste(mode, collapse = "-"),
@@ -110,8 +122,8 @@ trips_with_drt_chain <- trips_with_drt %>%
 
 # a: identify legs where there is no mode transition
 trips_with_drt_chain = trips_with_drt_chain %>%
-  arrange(person_id, person_trip_id, leg_index) %>%
-  group_by(person_id, person_trip_id) %>%
+  arrange(person_id, person_trip_id, leg_index, scenario, fleet_size) %>%
+  group_by(person_id, person_trip_id, scenario, fleet_size) %>%
   # is the mode different from the previous mode?
   mutate(mode_shift = mode != lag(mode, default = "")) %>%
   # group is based on the mode_shift, if mode changes, then group increases by one
@@ -121,21 +133,21 @@ trips_with_drt_chain = trips_with_drt_chain %>%
 # b: use the group column to remove consecutive walk legs
 trips_with_drt_chain = trips_with_drt_chain  %>%
   # summarise to remove consecutive walk legs
-  group_by(person_id, person_trip_id, group, trip_chain) %>%
+  group_by(person_id, person_trip_id, group, trip_chain, scenario, fleet_size) %>%
   summarise(
-    person_id = first(person_id),
-    person_trip_id = first(person_trip_id),
-    leg_index = first(leg_index),  # optional
+    #person_id = first(person_id),
+    #person_trip_id = first(person_trip_id),
+    #leg_index = first(leg_index),  # optional
+    # trip_chain = first(trip_chain),
     mode = first(mode),
-    travel_time = sum(travel_time),
-    trip_chain = first(trip_chain)) %>%
+    travel_time = sum(travel_time)) %>%
   ungroup()
 
 # Step 3: Plot
 
 # Join the unique counts / percentages onto the trips
 trips_with_drt_chain <- trips_with_drt_chain %>%
-  inner_join(trip_chains_unique, by = "trip_chain")
+  inner_join(trip_chains_unique, by = c("trip_chain", "scenario", "fleet_size"))
 
 # Keep only chains where % is higher than a certain threshold of occurrences
 trips_with_drt_chain_sample <- trips_with_drt_chain %>%
@@ -143,7 +155,7 @@ trips_with_drt_chain_sample <- trips_with_drt_chain %>%
 
 # a: Add column with leg index. We use this for the whisker plot
 trips_with_drt_chain_plot <- trips_with_drt_chain_sample %>%
-  group_by(person_id, person_trip_id) %>%
+  group_by(person_id, person_trip_id, scenario, fleet_size) %>%
   mutate(leg_index = row_number()) %>%
   ungroup() %>%
   # new mode column (mode - leg_index)
@@ -154,16 +166,19 @@ trips_with_drt_chain_plot <- trips_with_drt_chain_sample %>%
 
 
 # b: Create the whisker plot (boxplot)
-ggplot(trips_with_drt_chain_plot, aes(x = mode_leg, y = travel_time, fill = mode)) +
+ggplot(trips_with_drt_chain_plot %>%
+         filter(scenario == "zones"),
+       aes(x = mode_leg, y = travel_time, fill = mode)) +
   geom_boxplot(outlier.alpha = 0.3) +
-  facet_wrap(~ trip_chain_pct, scales = "free_x") +
+  #facet_wrap(~ trip_chain_pct, scales = "free_x") +
   labs(
     x = "Mode (in order of appearance)",
     y = "Travel Time (minutes)",
     title = "Distribution of Travel Time by Mode in Each Unique Trip Chain"
   ) +
-  theme_minimal(base_size = 12) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme_bw(base_size = 12) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  facet_grid(fleet_size ~ trip_chain)
 
 
 
@@ -188,6 +203,9 @@ ggplot(trips_with_drt_chain_plot, aes(x = mode_leg, y = travel_time, fill = mode
 
 
 
+##################################################################
+# Same analysis but only for one scenario and fleet size
+##################################################################
 
 
 
@@ -296,12 +314,9 @@ trips_with_drt_chain = trips_with_drt_chain  %>%
   # summarise to remove consecutive walk legs
   group_by(person_id, person_trip_id, group, trip_chain) %>%
   summarise(
-    person_id = first(person_id),
-    person_trip_id = first(person_trip_id),
     leg_index = first(leg_index),  # optional
     mode = first(mode),
-    travel_time = sum(travel_time),
-    trip_chain = first(trip_chain)) %>%
+    travel_time = sum(travel_time)) %>%
   ungroup()
 
 # Step 3: Plot
