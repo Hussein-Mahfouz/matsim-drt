@@ -9,7 +9,7 @@ library(tidyverse)
 # Set up a list of scenarios and fleet sizes to read in (file directories should exist)
 scenarios <- c("zones", "all", "innerBUA")
 # fleet_sizes <- c(100, 200, 500, 1000)
-fleet_sizes <- c(100, 200)
+fleet_sizes <- c(100, 200, 500)
 
 
 # Function to read and process a file and add identifier column
@@ -96,10 +96,12 @@ ggplot(trip_chains_unique %>%
        , aes(x = reorder(trip_chain, count), y = percentage)) +
   geom_bar(stat = "identity") +
   coord_flip() +
-  labs(title = "Distribution of Trip Chains with DRT", x = "Trip Chain", y = "Percent") +
+  labs(title = "Distribution of trip chains: all trips with a DRT leg", x = "Trip Chain", y = "Percent") +
   theme_bw() +
   facet_grid(scenario ~ fleet_size)
 
+# save plot (name should include fleet_sizes)
+ggsave("plots/trip_chains_drt/trip_chain_combinations.png", width = 10, height = 6)
 
 
 
@@ -144,7 +146,6 @@ trips_with_drt_chain = trips_with_drt_chain  %>%
   ungroup()
 
 # Step 3: Plot
-
 # Join the unique counts / percentages onto the trips
 trips_with_drt_chain <- trips_with_drt_chain %>%
   inner_join(trip_chains_unique, by = c("trip_chain", "scenario", "fleet_size"))
@@ -165,20 +166,25 @@ trips_with_drt_chain_plot <- trips_with_drt_chain_sample %>%
          trip_chain_pct = paste0(trip_chain, " (", percentage, "%)"))
 
 
+scenario = "zones"
 # b: Create the whisker plot (boxplot)
 ggplot(trips_with_drt_chain_plot %>%
-         filter(scenario == "zones"),
+         filter(scenario ==scenario),
        aes(x = mode_leg, y = travel_time, fill = mode)) +
   geom_boxplot(outlier.alpha = 0.3) +
   #facet_wrap(~ trip_chain_pct, scales = "free_x") +
   labs(
     x = "Mode (in order of appearance)",
     y = "Travel Time (minutes)",
-    title = "Distribution of Travel Time by Mode in Each Unique Trip Chain"
+    title = "Distribution of travel time by mode for each unique trip chain"
   ) +
   theme_bw(base_size = 12) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        strip.text = element_text(size = 6)) +
   facet_grid(fleet_size ~ trip_chain)
+
+# save plot
+ggsave(paste0("plots/trip_chains_drt/trip_chains_unique-travel_time_distributions-scenario_", scenario, ".png"), width = 16)
 
 
 
@@ -278,8 +284,10 @@ ggplot(trip_chains_unique, aes(x = reorder(trip_chain, count), y = percentage)) 
   geom_bar(stat = "identity") +
   coord_flip() +
   labs(title = "Distribution of Trip Chains with DRT", x = "Trip Chain", y = "Percent") +
-  theme_minimal()
+  theme_bw()
 
+# save plot
+ggsave(paste0("plots/trip_chains_drt/trip_chain_combinations_fleet_size_", fleet_size, "_scenario_", scenario, ".png"), width = 10, height = 6)
 
 
 #############################################################################################
@@ -350,7 +358,10 @@ ggplot(trips_with_drt_chain_plot, aes(x = mode_leg, y = travel_time, fill = mode
     y = "Travel Time (minutes)",
     title = "Distribution of Travel Time by Mode in Each Unique Trip Chain"
   ) +
-  theme_minimal(base_size = 12) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        strip.text = element_text(size = 6))
 
+# save plot
+ggsave(paste0("plots/trip_chains_drt/trip_chains_unique-travel_time_distributions_fleet_size_", fleet_size, "_scenario_", scenario, ".png"), width = 12)
 
