@@ -199,14 +199,14 @@ summary_table <- legs_pt_drt_fare %>%
   ) %>%
   # Add a source note
   tab_source_note(
-    source_note = "'Change' columns compare to the no-DRT calibrated base scenario."
+    source_note = "'Change' columns compare to the no-DRT calibrated base scenario. No. of PT trips in the base scenario: 169,822"
   )
 
 # Print the table
 print(summary_table)
 
 
-
+summary_table %>% as_latex()
 
 
 
@@ -461,7 +461,7 @@ summary_table_revenue_cost <- revenue_and_cost %>%
 # Print the table
 print(summary_table_revenue_cost)
 
-
+summary_table_revenue_cost %>% as_latex()
 
 
 ##################
