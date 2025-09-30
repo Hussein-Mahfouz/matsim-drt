@@ -28,6 +28,8 @@ public class RunDMCSimulationDRTMultipleGTFSNoDRT {
     static public void main(String[] args) throws ConfigurationException {
         CommandLine cmd = new CommandLine.Builder(args).requireOptions("config-path")
                 .allowOptions("use-rejection-constraint", "sample-size", "iterations",
+                        // input files that change based on sample size
+                        "input-plans-file", "vehicles-file",
                         // where to save run data
                         "output-directory",
                         // number of threads
@@ -51,6 +53,17 @@ public class RunDMCSimulationDRTMultipleGTFSNoDRT {
             config.qsim().setStorageCapFactor(sampleSize);
             EqasimConfigGroup eqasimConfig = EqasimConfigGroup.get(config);
             eqasimConfig.setSampleSize(sampleSize);
+        }
+        // Update the input plans file if specified
+        if (cmd.hasOption("input-plans-file")) {
+            String inputPlansFile = cmd.getOptionStrict("input-plans-file");
+            config.plans().setInputFile(inputPlansFile);
+        }
+
+        // Update the vehicles file if specified
+        if (cmd.hasOption("vehicles-file")) {
+            String vehiclesFile = cmd.getOptionStrict("vehicles-file");
+            config.vehicles().setVehiclesFile(vehiclesFile);
         }
 
         // Update the number of iterations if specified
