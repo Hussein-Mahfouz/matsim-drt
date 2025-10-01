@@ -22,7 +22,8 @@ export PATH="$MAVEN_HOME/bin:$PATH"
 MATSIM_DIR="$(pwd)"
 
 # Directory containing GTFS feed subfolders
-FEEDS_PARENT_DIR="$MATSIM_DIR/data/external/gtfs_optimisation/min_variance_stops"
+# FEEDS_PARENT_DIR="$MATSIM_DIR/data/external/gtfs_optimisation/min_variance_stops"
+FEEDS_PARENT_DIR="$MATSIM_DIR/data/external/gtfs_optimisation/max_min_theoretical"
 
 # Path to the template config file (relative to project root)
 TEMPLATE_CONFIG="$MATSIM_DIR/src/main/resources/fleet_sizing/config_simulation_dmc_drt_100_feeder.xml"
