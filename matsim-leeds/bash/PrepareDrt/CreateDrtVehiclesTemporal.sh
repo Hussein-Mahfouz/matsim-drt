@@ -1,40 +1,28 @@
 #!/bin/bash
-
-# Run this file from the following directory: matsim-leeds
-# If file is in matsim-leeds/bash, run ./bash/CreateDrtVehiclesByTime.sh
+# filepath: bash/PrepareDrt/CreateAllDrtVehiclesTemporal.sh
 
 # This script takes a DRT service area and create a fleet of DRT vehicles for different time ranges.
 # You can specify a different fleet size for each time range in the last argument of timeRanges.
 
-# Define the fixed arguments
-networkPath="data/supply/network_mapped.xml.gz"
-randomSeed="1234"
-networkModes="car"
+# Pre-generate all DRT vehicle files for all fleet sizes and time intervals.
+# Run from matsim-leeds root: bash/PrepareDrt/CreateAllDrtVehiclesTemporal.sh
 
-# Define the service area arguments
-serviceAreaArgs="drt_fleet_nw_ data/supply/drt/nw_cluster_08_00_11_00.shp 4 nw"
-# serviceAreaArgs="drt_fleet_ne_ data/supply/drt/ne_cluster_08_00_11_00.shp 4"
+set -e
 
-
-# Define the list of time ranges (in hours, seconds, and fleet size)
-declare -a timeRanges=(
-    "5 8 18000 28800 50"  # 5:00 - 8:00, 50 vehicles
-    "8 11 28800 39600 100"  # 8:00 - 11:00, 100 vehicles
-    "11 13 39600 46800 150"  # 11:00 - 13:00, 150 vehicles
-    "14 17 50400 61200 200"  # 14:00 - 17:00, 200 vehicles
-    "17 20 61200 72000 250"  # 17:00 - 20:00, 250 vehicles
-)
-
-# Get the classpath for all dependencies and append target/classes (the former has core functionality e.g. core eqasim, the latter has the classes I wrote and compile)
+# Get the classpath for all dependencies and append target/classes
 mvn dependency:build-classpath -Dmdep.outputFile=cp.txt
 CLASSPATH=$(cat cp.txt):target/classes
 
-# Extract service area arguments
-set -- $serviceAreaArgs
-vehicleIdPrefix=$1
-serviceAreaPath=$2
-vehiclesCapacity=$3
-subdirectory=$4
+# Fixed arguments
+networkPath="data/supply/network_mapped.xml.gz"
+randomSeed="1234"
+networkModes="car"
+vehiclesCapacity=4
+
+# Service area configuration
+serviceAreaPath="data/supply/drt/ne_cluster_08_00_11_00.shp"
+vehicleIdPrefix="drt_fleet_ne_"
+outputSubdirectory="ne"
 
 # Check if the shapefile exists
 if [ ! -f "$serviceAreaPath" ]; then
@@ -42,32 +30,47 @@ if [ ! -f "$serviceAreaPath" ]; then
     exit 1
 fi
 
-# Create the subdirectory if it doesn't exist
-mkdir -p "data/supply/drt/$subdirectory/fleets/temporal/"
+# Create output directory
+mkdir -p "data/supply/drt/$outputSubdirectory/fleets/temporal/"
 
-# Loop through the time ranges to run the Java program
-for timeRange in "${timeRanges[@]}"; do
-    set -- $timeRange
-    beginHour=$1
-    endHour=$2
-    serviceBeginTime=$3
-    serviceEndTime=$4
-    fleetSize=$5
+# Define fleet sizes
+fleet_sizes=(0 10 25 50 100)
 
-    outputVehiclesPath="data/supply/drt/$subdirectory/fleets/temporal/${vehicleIdPrefix}_${beginHour}-${endHour}_${fleetSize}.xml"
+# Define time intervals (beginHour endHour serviceBeginTime serviceEndTime)
+time_intervals=(
+    "0 4 0 14400"
+    "4 8 14400 28800"
+    "8 12 28800 43200"
+    "12 16 43200 57600"
+    "16 20 57600 72000"
+    "20 24 72000 86400"
+)
 
-    # Log the output file path
-    echo "Creating vehicles file: $outputVehiclesPath"
+# Generate vehicle files for all combinations
+for fleet_size in "${fleet_sizes[@]}"; do
+    for interval in "${time_intervals[@]}"; do
+        set -- $interval
+        beginHour=$1
+        endHour=$2
+        serviceBeginTime=$3
+        serviceEndTime=$4
 
-    java -cp $CLASSPATH com.husseinmahfouz.matsim.drt.RunCreateDrtVehicles \
-        --network-path $networkPath \
-        --output-vehicles-path $outputVehiclesPath \
-        --vehicles-number $fleetSize \
-        --vehicles-capacity $vehiclesCapacity \
-        --service-begin-time $serviceBeginTime \
-        --service-end-time $serviceEndTime \
-        --random-seed $randomSeed \
-        --vehicle-id-prefix $vehicleIdPrefix \
-        --service-area-path $serviceAreaPath \
-        --network-modes $networkModes
+        outputVehiclesPath="data/supply/drt/$outputSubdirectory/fleets/temporal/drt_fleet_${fleet_size}_${beginHour}-${endHour}.xml"
+
+        echo "Creating: $outputVehiclesPath"
+
+        java -cp $CLASSPATH com.husseinmahfouz.matsim.drt.RunCreateDrtVehicles \
+            --network-path $networkPath \
+            --output-vehicles-path $outputVehiclesPath \
+            --vehicles-number $fleet_size \
+            --vehicles-capacity $vehiclesCapacity \
+            --service-begin-time $serviceBeginTime \
+            --service-end-time $serviceEndTime \
+            --random-seed $randomSeed \
+            --vehicle-id-prefix $vehicleIdPrefix \
+            --service-area-path $serviceAreaPath \
+            --network-modes $networkModes
+    done
 done
+
+echo "All DRT vehicle files generated successfully."
