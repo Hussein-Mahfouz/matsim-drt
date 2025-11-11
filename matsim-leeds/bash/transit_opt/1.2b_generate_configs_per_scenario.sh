@@ -193,8 +193,8 @@ for json_file in "$JSON_INPUT_DIR"/combined_solution_*_drt.json; do
         --cost-models "LeedsDrtCostModel,LeedsDrtCostModel" \
         --estimators "LeedsDrtUtilityEstimator,LeedsDrtUtilityEstimator" \
         --mode-availability "LeedsDrtModeAvailability" \
-        --config:multiModeDrt.drt[mode=drtNW].drtServiceAreaShapeFile=data/supply/drt/nw_cluster_08_00_11_00.shp \
-        --config:multiModeDrt.drt[mode=drtNE].drtServiceAreaShapeFile=data/supply/drt/ne_cluster_08_00_11_00.shp
+        --config:multiModeDrt.drt[mode=drtNW].drtServiceAreaShapeFile=../../../drt/nw_cluster_08_00_11_00.shp \
+        --config:multiModeDrt.drt[mode=drtNE].drtServiceAreaShapeFile=../../../drt/ne_cluster_08_00_11_00.shp
     
     if [ $? -ne 0 ]; then
         echo "❌ Error creating DRT config for $scenario_id"
