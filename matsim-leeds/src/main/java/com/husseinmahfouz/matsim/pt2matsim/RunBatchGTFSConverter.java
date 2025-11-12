@@ -1,5 +1,9 @@
 package com.husseinmahfouz.matsim.pt2matsim;
 
+import org.matsim.core.config.Config;
+import org.matsim.core.config.ConfigUtils;
+import org.matsim.pt2matsim.config.PublicTransitMappingConfigGroup;
+
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
@@ -37,29 +41,25 @@ public class RunBatchGTFSConverter {
             RunPTConverter.main(new String[] {feed.getAbsolutePath(), serviceDate, crs,
                     scheduleFile, vehiclesFile});
 
-            // Step 2: Prepare a config file for PTMapper with standard output names in the
-            // subfolder
+            // Step 2: Update PT2MATSim config - Prepare a config file for PTMapper with standard
+            // output names in the subfolder
             String mappedNetworkFile = feedOutputDir + "/network_mapped.xml.gz";
             String mappedScheduleFile = feedOutputDir + "/schedule_mapped.xml.gz";
             String tempConfigPath = feedOutputDir + "/pt2matsim_config.xml";
 
-            // Copy template config to temp config
             Files.copy(new File(pt2matsimConfigTemplate).toPath(),
                     new File(tempConfigPath).toPath(), StandardCopyOption.REPLACE_EXISTING);
 
-            // Read and update config
-            String configContent =
-                    new String(Files.readAllBytes(new File(tempConfigPath).toPath()));
-            configContent = configContent.replaceAll(
-                    "<param name=\"inputScheduleFile\" value=\"[^\"]*\" ?/>",
-                    "<param name=\"inputScheduleFile\" value=\"" + scheduleFile + "\" />");
-            configContent = configContent.replaceAll(
-                    "<param name=\"outputNetworkFile\" value=\"[^\"]*\" ?/>",
-                    "<param name=\"outputNetworkFile\" value=\"" + mappedNetworkFile + "\" />");
-            configContent = configContent.replaceAll(
-                    "<param name=\"outputScheduleFile\" value=\"[^\"]*\" ?/>",
-                    "<param name=\"outputScheduleFile\" value=\"" + mappedScheduleFile + "\" />");
-            Files.write(new File(tempConfigPath).toPath(), configContent.getBytes());
+            // Load config, modify, and save
+            Config tempConfig = ConfigUtils.loadConfig(tempConfigPath);
+            PublicTransitMappingConfigGroup ptmConfig =
+                    ConfigUtils.addOrGetModule(tempConfig, PublicTransitMappingConfigGroup.class);
+
+            ptmConfig.setInputScheduleFile(scheduleFile);
+            ptmConfig.setOutputNetworkFile(mappedNetworkFile);
+            ptmConfig.setOutputScheduleFile(mappedScheduleFile);
+
+            ConfigUtils.writeConfig(tempConfig, tempConfigPath);
 
             // Step 3: Map the transit schedule to the MATSim network
             System.out.println("Mapping schedule for: " + feedName);

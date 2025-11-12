@@ -40,6 +40,8 @@ public class RunDMCSimulationDRTMultipleGTFS {
                         "global-threads", "qsim-threads",
                         // drt input files
                         // "drt-vehicles-file",
+                        // cleanup option (to reduce disk usage)
+                        "clean-iters-at-end",
                         // transit data
                         "transit-vehicles-file", "transit-schedule-file",
                         // network data
@@ -94,6 +96,12 @@ public class RunDMCSimulationDRTMultipleGTFS {
         // Dynamically update config parameters if specified
         if (cmd.hasOption("output-directory")) {
             config.controller().setOutputDirectory(cmd.getOptionStrict("output-directory"));
+        }
+        // Keep or delete the ITERS/ directory
+        if (cmd.hasOption("clean-iters-at-end")) {
+            String cleanIters = cmd.getOptionStrict("clean-iters-at-end");
+            config.controller()
+                    .setCleanItersAtEnd(ControllerConfigGroup.CleanIterations.valueOf(cleanIters));
         }
 
         if (cmd.hasOption("transit-vehicles-file")) {

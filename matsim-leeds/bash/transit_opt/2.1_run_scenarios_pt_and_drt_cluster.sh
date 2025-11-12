@@ -44,6 +44,8 @@ ITERATIONS=55
 USE_REJECTION_CONSTRAINT="true"
 GLOBAL_THREADS=12
 QSIM_THREADS=12
+CLEAN_ITERS_AT_END="delete"  # Delete the ITERS/ directory? Options (keep, delete)
+
 
 # Cluster resource parameters (TODO: learn if MATSim is memory-bound or cpu-bound)
 CPUS_PER_TASK=12
@@ -77,11 +79,21 @@ for SOLUTION_DIR in "$SCENARIO_DIR"/combined_solution_*/; do
     TRANSIT_VEHICLES_FILE="${SOLUTION_DIR}vehicles_unmapped.xml"
     NETWORK_FILE="${SOLUTION_DIR}network_mapped.xml.gz"
     
+    # Define output directory
+    OUTPUT_DIR="${SOLUTION_DIR}output"
+
+    # Separate directory for SLURM logs (persistent across runs) - OUTPUT_DIR is deleted by 
+    # MATSim deleteDirectoryifExists
+
+    SLURM_LOG_DIR="${SOLUTION_DIR}slurm_logs"
+    mkdir -p "$SLURM_LOG_DIR"
+
     # Submit job to cluster
     sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK \
         --time=$MAX_RUNTIME \
         --mem-per-cpu=$MEM_PER_CPU \
-        --job-name="PTDRT_${SCENARIO_NAME}_${SOLUTION_NAME}" \
+        --job-name="${SCENARIO_NAME}_${SOLUTION_NAME}" \
+        --output="${SLURM_LOG_DIR}/slurm-%j.out" \ 
         --wrap="java -Xmx80G -cp $JAR_FILE $MAIN_CLASS \
             --config-path $TEMPLATE_CONFIG \
             --global-threads $GLOBAL_THREADS \
@@ -89,6 +101,7 @@ for SOLUTION_DIR in "$SCENARIO_DIR"/combined_solution_*/; do
             --use-rejection-constraint $USE_REJECTION_CONSTRAINT \
             --iterations $ITERATIONS \
             --sample-size $SAMPLE_SIZE \
+            --clean-iters-at-end $CLEAN_ITERS_AT_END \
             --output-directory $OUTPUT_DIR \
             --input-plans-file $INPUT_PLANS_FILE \
             --vehicles-file $VEHICLES_FILE \
