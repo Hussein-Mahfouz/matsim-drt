@@ -15,6 +15,8 @@ import com.husseinmahfouz.matsim.dmc.mode_choice.LeedsDrtModeAvailability;
 import com.husseinmahfouz.matsim.dmc.mode_choice.costs.LeedsDrtCostModel;
 import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsCostParameters;
 // import org.eqasim.core.simulation.modes.drt.mode_choice.utilities.estimators.DrtUtilityEstimator;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsDrtPredictor;
+import com.husseinmahfouz.matsim.drt.waiting.DrtWaitingTimeProvider;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsDrtUtilityEstimator;
 import org.matsim.contrib.drt.estimator.DrtEstimator;
 import org.matsim.contrib.drt.optimizer.DrtOptimizer;
@@ -42,9 +44,13 @@ public class LeedsDrtModule extends AbstractEqasimExtension {
 		bindUtilityEstimator("drt").to(LeedsDrtUtilityEstimator.class);
 		bindCostModel("drt").to(LeedsDrtCostModel.class);
 		bind(DrtPredictor.class).to(DefaultDrtPredictor.class);
+		bind(LeedsDrtPredictor.class); // bind custom predictor
+
+		bind(DrtWaitingTimeProvider.class).asEagerSingleton();
+		addControlerListenerBinding().to(DrtWaitingTimeProvider.class);
 
 		bindUtilityEstimator("feederDrt").to(DefaultFeederDrtUtilityEstimator.class);
-		
+
 
 		// Define filter for trip analysis
 		// bind(PersonAnalysisFilter.class).to(DrtPersonAnalysisFilter.class);

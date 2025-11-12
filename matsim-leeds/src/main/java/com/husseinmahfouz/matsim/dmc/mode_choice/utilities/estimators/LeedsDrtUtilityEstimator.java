@@ -4,10 +4,10 @@ import java.util.List;
 
 import org.eqasim.core.simulation.modes.drt.mode_choice.utilities.estimators.DrtUtilityEstimator;
 import org.eqasim.core.simulation.mode_choice.utilities.variables.PtVariables;
-import org.eqasim.core.simulation.modes.drt.mode_choice.predictors.DrtPredictor;
 import org.eqasim.core.simulation.modes.drt.mode_choice.variables.DrtVariables;
 import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsModeParameters;
 
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsDrtPredictor;  
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsPersonPredictor;
 
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.LeedsPersonVariables;
@@ -21,12 +21,12 @@ import com.google.inject.Inject;
 public class LeedsDrtUtilityEstimator extends DrtUtilityEstimator {
     private final LeedsModeParameters parameters;
     private final LeedsPersonPredictor personPredictor;
-    private final DrtPredictor drtPredictor;
+    private final LeedsDrtPredictor drtPredictor;
 
     @Inject
     public LeedsDrtUtilityEstimator(LeedsModeParameters parameters,
             // LeedsSpatialPredictor spatialPredictor,
-            LeedsPersonPredictor personPredictor, DrtPredictor drtPredictor) {
+            LeedsPersonPredictor personPredictor, LeedsDrtPredictor drtPredictor) {
         super(parameters, drtPredictor);
 
         this.parameters = parameters;
