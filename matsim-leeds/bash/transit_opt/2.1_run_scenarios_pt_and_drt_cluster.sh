@@ -93,7 +93,7 @@ for SOLUTION_DIR in "$SCENARIO_DIR"/combined_solution_*/; do
         --time=$MAX_RUNTIME \
         --mem-per-cpu=$MEM_PER_CPU \
         --job-name="${SCENARIO_NAME}_${SOLUTION_NAME}" \
-        --output="${SLURM_LOG_DIR}/slurm-%j.out" \ 
+        --output="${SLURM_LOG_DIR}/slurm-%j.out" \
         --wrap="java -Xmx80G -cp $JAR_FILE $MAIN_CLASS \
             --config-path $TEMPLATE_CONFIG \
             --global-threads $GLOBAL_THREADS \
