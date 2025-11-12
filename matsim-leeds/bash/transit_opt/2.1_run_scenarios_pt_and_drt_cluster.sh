@@ -39,7 +39,7 @@ JAR_FILE="$MATSIM_DIR/target/matsim-leeds-1.0.jar"
 MAIN_CLASS="com.husseinmahfouz.matsim.RunDMCSimulationDRTMultipleGTFS"
 
 # Simulation parameters
-SAMPLE_SIZE="0.05"
+SAMPLE_SIZE="1.00" # 0.50, 0.20, 0.10, 0.05, 0.01
 ITERATIONS=55
 USE_REJECTION_CONSTRAINT="true"
 GLOBAL_THREADS=12
@@ -50,7 +50,7 @@ CLEAN_ITERS_AT_END="delete"  # Delete the ITERS/ directory? Options (keep, delet
 # Cluster resource parameters (TODO: learn if MATSim is memory-bound or cpu-bound)
 CPUS_PER_TASK=12
 MEM_PER_CPU=8192  # MB per CPU (8GB)
-MAX_RUNTIME="16:00:00"  # 16 hours
+MAX_RUNTIME="18:00:00"  # 16:00:00 = 16 hours
 
 # Shared input files (based on sample size)
 INPUT_PLANS_FILE="$MATSIM_DIR/data/demand/plans_sample_eqasim_${SAMPLE_SIZE}.xml"
