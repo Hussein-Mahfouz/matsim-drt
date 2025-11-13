@@ -60,7 +60,10 @@ public class RunDMCSimulationDRT {
     static public void main(String[] args) throws ConfigurationException {
         CommandLine cmd = new CommandLine.Builder(args) //
                 .requireOptions("config-path") //
-                .allowOptions("use-rejection-constraint", "sample-size", "iterations") //
+                .allowOptions("use-rejection-constraint", "sample-size", "iterations",
+                        "global-threads", "qsim-threads", "output-directory", "input-plans-file",
+                        "vehicles-file", "transit-vehicles-file", "transit-schedule-file",
+                        "network-input-file") //
                 .allowPrefixes("mode-choice-parameter", "cost-parameter") //
                 .build();
 
@@ -118,6 +121,56 @@ public class RunDMCSimulationDRT {
         if (cmd.hasOption("iterations")) {
             int iterations = Integer.parseInt(cmd.getOptionStrict("iterations"));
             config.controller().setLastIteration(iterations);
+        }
+
+
+        // Update the input plans file if specified
+        if (cmd.hasOption("input-plans-file")) {
+            String inputPlansFile = cmd.getOptionStrict("input-plans-file");
+            config.plans().setInputFile(inputPlansFile);
+        }
+
+        // Update the vehicles file if specified
+        if (cmd.hasOption("vehicles-file")) {
+            String vehiclesFile = cmd.getOptionStrict("vehicles-file");
+            config.vehicles().setVehiclesFile(vehiclesFile);
+        }
+
+        // Update the number of threads if specified
+        if (cmd.hasOption("global-threads")) {
+            int globalThreads = Integer.parseInt(cmd.getOptionStrict("global-threads"));
+            config.global().setNumberOfThreads(globalThreads);
+        } else {
+            config.global().setNumberOfThreads(8);
+        }
+
+        // Update the qsim number of threads if specified
+        if (cmd.hasOption("qsim-threads")) {
+            int qsimThreads = Integer.parseInt(cmd.getOptionStrict("qsim-threads"));
+            config.qsim().setNumberOfThreads(qsimThreads);
+        } else {
+            config.qsim().setNumberOfThreads(8);
+        }
+
+        if (cmd.hasOption("transit-vehicles-file")) {
+            if (config.getModules().containsKey("transit")) {
+                config.getModules().get("transit").addParam("vehiclesFile",
+                        cmd.getOptionStrict("transit-vehicles-file"));
+            }
+        }
+        if (cmd.hasOption("transit-schedule-file")) {
+            if (config.getModules().containsKey("transit")) {
+                config.getModules().get("transit").addParam("transitScheduleFile",
+                        cmd.getOptionStrict("transit-schedule-file"));
+            }
+        }
+
+        if (cmd.hasOption("network-input-file")) {
+            config.network().setInputFile(cmd.getOptionStrict("network-input-file"));
+        }
+
+        if (cmd.hasOption("output-directory")) {
+            config.controller().setOutputDirectory(cmd.getOptionStrict("output-directory"));
         }
 
 

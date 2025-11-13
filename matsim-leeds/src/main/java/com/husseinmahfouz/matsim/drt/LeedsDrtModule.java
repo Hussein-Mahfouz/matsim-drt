@@ -43,8 +43,8 @@ public class LeedsDrtModule extends AbstractEqasimExtension {
 		// Configure choice alternative for DRT
 		bindUtilityEstimator("drt").to(LeedsDrtUtilityEstimator.class);
 		bindCostModel("drt").to(LeedsDrtCostModel.class);
-		bind(DrtPredictor.class).to(DefaultDrtPredictor.class);
-		bind(LeedsDrtPredictor.class); // bind custom predictor
+
+		bind(LeedsDrtPredictor.class);
 
 		bind(DrtWaitingTimeProvider.class).asEagerSingleton();
 		addControlerListenerBinding().to(DrtWaitingTimeProvider.class);

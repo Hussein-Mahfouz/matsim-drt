@@ -27,7 +27,7 @@ public class LeedsDrtUtilityEstimator extends DrtUtilityEstimator {
     public LeedsDrtUtilityEstimator(LeedsModeParameters parameters,
             // LeedsSpatialPredictor spatialPredictor,
             LeedsPersonPredictor personPredictor, LeedsDrtPredictor drtPredictor) {
-        super(parameters, drtPredictor);
+        super(parameters, drtPredictor.delegate);
 
         this.parameters = parameters;
         // this.spatialPredictor = spatialPredictor;

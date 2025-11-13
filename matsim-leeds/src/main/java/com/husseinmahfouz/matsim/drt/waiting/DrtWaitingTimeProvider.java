@@ -1,6 +1,7 @@
 package com.husseinmahfouz.matsim.drt.waiting;
 
 import org.matsim.contrib.drt.run.MultiModeDrtConfigGroup;
+import org.matsim.contrib.drt.run.DrtConfigGroup;
 import org.matsim.core.config.Config;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.controler.listener.IterationEndsListener;
@@ -19,7 +20,8 @@ public class DrtWaitingTimeProvider implements IterationEndsListener {
     // Map: mode -> (timebin -> average wait time in seconds)
     private final Map<String, Map<Integer, Double>> waitingTimesByModeAndTime = new HashMap<>();
     private final String outputDirectory;
-    private final Set<String> drtModes;  // Auto-detected from config
+    private final Set<String> drtModes;
+    private final Map<String, Double> defaultWaitTimesByMode = new HashMap<>();
 
     @Inject
     public DrtWaitingTimeProvider(Config config) {
@@ -28,15 +30,32 @@ public class DrtWaitingTimeProvider implements IterationEndsListener {
         // Auto-detect DRT modes from config
         MultiModeDrtConfigGroup multiModeDrtConfig = MultiModeDrtConfigGroup.get(config);
         this.drtModes = multiModeDrtConfig.getModalElements().stream()
-            .map(drtConfig -> drtConfig.getMode())
+            .map(DrtConfigGroup::getMode)
             .collect(Collectors.toSet());
         
-        // Initialize with default values
-        for (String mode : drtModes) {
+        // Initialize with mode-specific maxWaitTime from config
+        for (DrtConfigGroup drtConfig : multiModeDrtConfig.getModalElements()) {
+            String mode = drtConfig.getMode();
+
+            // Get (or create) the wrapper and the default constraints set
+            var constraintsParams = drtConfig.addOrGetDrtOptimizationConstraintsParams();
+            var defaultConstraints = constraintsParams.addOrGetDefaultDrtOptimizationConstraintsSet();
+            
+            double maxWaitTime = defaultConstraints.maxWaitTime;
+            
+            // Handle NaN or infinite case (if maxWaitTime not set in config)
+            if (Double.isNaN(maxWaitTime) || !Double.isFinite(maxWaitTime)) {
+                maxWaitTime = 600.0; // Default 10 min
+                System.err.println("⚠️ maxWaitTime not set for mode " + mode + 
+                                 ". Using default: " + maxWaitTime + " seconds");
+            }
+            
+            defaultWaitTimesByMode.put(mode, maxWaitTime);
             waitingTimesByModeAndTime.put(mode, new HashMap<>());
+            
+            System.out.println("DrtWaitingTimeProvider: Mode " + mode + 
+                             " initialized with maxWaitTime: " + maxWaitTime + " seconds");
         }
-        
-        System.out.println("DrtWaitingTimeProvider initialized for modes: " + drtModes);
     }
 
     @Override
@@ -45,17 +64,33 @@ public class DrtWaitingTimeProvider implements IterationEndsListener {
 
         // Read wait stats for each DRT mode
         for (String mode : drtModes) {
-            String statsFile = outputDirectory + "/ITERS/it." + iteration + "/" + iteration
-                    + ".waitStats_" + mode + ".csv";
+            String statsFile = outputDirectory + "/ITERS/it." + iteration + "/" + 
+                             iteration + ".waitStats_" + mode + ".csv";
 
             try {
                 Map<Integer, Double> timeBinnedWaits = parseWaitStats(statsFile);
                 waitingTimesByModeAndTime.put(mode, timeBinnedWaits);
-                System.out.println(
-                        "✓ Updated wait times for " + mode + " from iteration " + iteration);
+                
+                // Calculate statistics for logging
+                int totalBins = timeBinnedWaits.size();
+                int validBins = (int) timeBinnedWaits.values().stream()
+                    .filter(v -> v > 0)
+                    .count();
+                double avgWaitTime = timeBinnedWaits.values().stream()
+                    .filter(v -> v > 0)  // Only include non-zero values
+                    .mapToDouble(Double::doubleValue)
+                    .average()
+                    .orElse(defaultWaitTimesByMode.get(mode));
+                
+                System.out.println(String.format(
+                    "✓ Loaded wait times for %s from iteration %d " +
+                    "(avg: %.1f sec across %d/%d valid time bins)",
+                    mode, iteration, avgWaitTime, validBins, totalBins));
+                    
             } catch (Exception e) {
-                System.err.println(
-                        "⚠️ Could not read wait stats for " + mode + ": " + e.getMessage());
+                System.err.println("⚠️ Could not read wait stats for " + mode + 
+                                 ": " + e.getMessage() + 
+                                 ". Using default maxWaitTime.");
             }
         }
     }
@@ -63,26 +98,32 @@ public class DrtWaitingTimeProvider implements IterationEndsListener {
     private Map<Integer, Double> parseWaitStats(String filepath) throws Exception {
         Map<Integer, Double> timeBinnedWaits = new HashMap<>();
 
-        BufferedReader reader = new BufferedReader(new FileReader(filepath));
-        String header = reader.readLine(); // Skip header
-        String line;
+        try (BufferedReader reader = new BufferedReader(new FileReader(filepath))) {
+            String header = reader.readLine(); // Skip header
+            String line;
 
-        while ((line = reader.readLine()) != null) {
-            String[] parts = line.split(";");
-            String timebinStr = parts[0]; // e.g., "08:00:00"
-            double avgWait = Double.parseDouble(parts[2]); // "average_wait" column
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split("\t");  // Assuming tab-separated values
+                if (parts.length < 3) continue; // Skip malformed lines
+                
+                String timebinStr = parts[0].trim(); // e.g., "08:00:00"
+                int legs = Integer.parseInt(parts[1].trim());
+                double avgWait = Double.parseDouble(parts[2].trim()); // "average_wait" column
 
-            // Convert time string to seconds since midnight
-            int timebinSeconds = parseTimeToSeconds(timebinStr);
-            timeBinnedWaits.put(timebinSeconds, avgWait);
+                int timebinSeconds = parseTimeToSeconds(timebinStr);
+                
+                // ✅ Only store if there were actual requests (legs > 0 AND avgWait > 0)
+                if (legs > 0 && avgWait > 0) {
+                    timeBinnedWaits.put(timebinSeconds, avgWait);
+                }
+                // Otherwise, skip this bin (will use default when queried)
+            }
         }
 
-        reader.close();
         return timeBinnedWaits;
     }
 
     private int parseTimeToSeconds(String timeStr) {
-        // "08:00:00" -> 28800 seconds
         String[] parts = timeStr.split(":");
         int hours = Integer.parseInt(parts[0]);
         int minutes = Integer.parseInt(parts[1]);
@@ -92,21 +133,31 @@ public class DrtWaitingTimeProvider implements IterationEndsListener {
 
     /**
      * Get average waiting time for a DRT mode at a specific time of day
-     * 
-     * @param mode DRT mode (e.g., "drtNW")
-     * @param departureTime Time in seconds since midnight
-     * @return Estimated wait time in seconds
      */
     public double getWaitingTime(String mode, double departureTime) {
         Map<Integer, Double> timeBinnedWaits = waitingTimesByModeAndTime.get(mode);
 
+        // Case 1: No data loaded yet OR no valid time bins
         if (timeBinnedWaits == null || timeBinnedWaits.isEmpty()) {
-            return 300.0; // Default 5 minutes
+            return defaultWaitTimesByMode.get(mode);
         }
 
-        // Find the closest time bin
+        // Find the closest time bin with actual data
         int closestBin = findClosestTimebin(timeBinnedWaits, (int) departureTime);
-        return timeBinnedWaits.getOrDefault(closestBin, 300.0);
+        
+        // Case 2: No valid bin found (shouldn't happen but safety check)
+        if (closestBin == -1) {
+            return defaultWaitTimesByMode.get(mode);
+        }
+        
+        double waitTime = timeBinnedWaits.get(closestBin);
+        
+        // Case 3: Bin exists but has zero value (shouldn't happen after filtering, but safety check)
+        if (waitTime <= 0) {
+            return defaultWaitTimesByMode.get(mode);
+        }
+        
+        return waitTime;
     }
 
     private int findClosestTimebin(Map<Integer, Double> timeBinnedWaits, int time) {
