@@ -101,7 +101,7 @@ public class LeedsDrtUtilityEstimator extends DrtUtilityEstimator {
         // utility += estimateAccessEgressTimeUtility(drtVariables);
         utility += estimateOutOfVehicleTimeUtility(drtVariables);
         utility += estimateMonetaryCostUtility(drtVariables);
-        utility += estimateRejectionPenalty();
+        utility += estimateRejectionPenalty(trip);
 
         return utility;
     }

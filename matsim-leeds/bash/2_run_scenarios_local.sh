@@ -34,13 +34,13 @@ OUTPUT_DIRECTORY="$MATSIM_DIR/scenarios/test/results_dmc_waiting"
 # Define the population sample size being used
 SAMPLE_SIZE="0.03" 
 USE_REJECTION_CONSTRAINT="true"
-ITERATIONS=5
+ITERATIONS=15
 GLOBAL_THREADS=8
 QSIM_THREADS=8
 
 # DRT parameters (to control rejection rate) See issue #55
 TARGET_REJECTION_RATE="0.05"  # 5% target
-CONTROLLER_GAIN="1.0"         # Proportional gain
+CONTROLLER_GAIN="3.0"         # Proportional gain
 
 # Run the simulation directly
 java -Xmx48G -cp $JAR_FILE $MAIN_CLASS \

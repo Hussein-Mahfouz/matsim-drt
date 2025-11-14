@@ -41,13 +41,6 @@ public class RejectionModule extends AbstractDiscreteModeChoiceExtension {
 	}
 
 	@Provides
-	@Singleton
-	public DrtPenaltyController providePenaltyController(
-			RejectionTracker tracker, DrtPenaltyConfig config) {
-		return new DrtPenaltyController(tracker, config);	
-	}
-
-	@Provides
     @Singleton
     public DrtPenaltyConfig providePenaltyConfig() {
         DrtPenaltyConfig config = new DrtPenaltyConfig();
