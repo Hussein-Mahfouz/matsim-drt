@@ -88,6 +88,8 @@
                     <Implementation-Vendor>Eqasim</Implementation-Vendor>
                     <Implementation-Version>
                                 ${parent.groupId}</Implementation-Version>
+                    <!-- So that any logging I add works: https://github.com/matsim-org/matsim-libs/issues/2318 -->
+                    <Multi-Release>true</Multi-Release>
                   </manifestEntries>
                 </transformer>
               </transformers>
