@@ -24,7 +24,6 @@ public class RejectionModule extends AbstractDiscreteModeChoiceExtension {
 		addEventHandlerBinding().to(RejectionTracker.class);
 		bindTripConstraintFactory(RejectionConstraint.NAME).to(RejectionConstraint.Factory.class);
 
-    	addControlerListenerBinding().to(DrtPenaltyController.class);
 	}
 
 	@Provides
@@ -40,29 +39,4 @@ public class RejectionModule extends AbstractDiscreteModeChoiceExtension {
 		return new RejectionConstraint.Factory(tracker, random, modes);
 	}
 
-	@Provides
-    @Singleton
-    public DrtPenaltyConfig providePenaltyConfig() {
-        DrtPenaltyConfig config = new DrtPenaltyConfig();
-        
-        // READ FROM COMMAND LINE (with fallback to defaults)
-        try {
-            if (commandLine != null && commandLine.hasOption("target-rejection-rate")) {
-                double targetRate = Double.parseDouble(
-                    commandLine.getOptionStrict("target-rejection-rate"));
-                config.setTargetRejectionRate(targetRate);
-            }
-            
-            if (commandLine != null && commandLine.hasOption("controller-gain")) {
-                double gain = Double.parseDouble(
-                    commandLine.getOptionStrict("controller-gain"));
-                config.setControllerGain(gain);
-            }
-        } catch (Exception e) {
-            // If parsing fails, just use defaults
-            System.err.println("Warning: Could not parse DRT penalty parameters, using defaults: " + e.getMessage());
-        }
-        
-        return config;
-    }
 }
