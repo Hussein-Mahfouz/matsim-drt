@@ -73,8 +73,12 @@ public class RejectionTracker implements PassengerRequestSubmittedEventHandler, 
             int rejections = rejectionsByMode.getOrDefault(mode, 0);
             double rate = requests > 0 ? (double) rejections / requests : 0.0;
             
-            log.info("Iteration {}: Mode {} - {} requests, {} rejections (rate: {:.1f}%)", 
-                    iteration, mode, requests, rejections, rate * 100);
+            log.info("Iteration {}: Mode {} - {} requests, {} rejections (rate: {}%)", 
+                iteration, 
+                mode, 
+                requests, 
+                rejections, 
+                String.format("%.1f", rate * 100));
         }
         
         // Reset
