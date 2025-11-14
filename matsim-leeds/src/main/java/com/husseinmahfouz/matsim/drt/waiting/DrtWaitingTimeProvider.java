@@ -95,7 +95,7 @@ public class DrtWaitingTimeProvider implements IterationEndsListener {
                         .getAsDouble();  // Use getAsDouble() since we know it's not empty
 
                 log.info(
-                        "✓ Loaded wait times for {} from iteration {} (avg: {:.1f} sec across {} time bins)",
+                        "✓ Loaded wait times for {} from iteration {} (avg: {} sec across {} time bins)",
                         mode, iteration, avgWaitTime, totalBins);
 
             } catch (Exception e) {

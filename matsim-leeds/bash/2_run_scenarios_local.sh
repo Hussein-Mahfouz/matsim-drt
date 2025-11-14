@@ -41,7 +41,7 @@ QSIM_THREADS=8
 # DRT parameters (to control rejection rate) See issue #55
 ENABLE_REJECTION_PENALTY="true"  # Set to "false" to disable
 TARGET_REJECTION_RATE="0.05"  # 5% target
-CONTROLLER_GAIN="3.0"         # Proportional gain
+CONTROLLER_GAIN="1.0"         # Proportional gain
 
 # Run the simulation directly
 java -Xmx48G -cp $JAR_FILE $MAIN_CLASS \
