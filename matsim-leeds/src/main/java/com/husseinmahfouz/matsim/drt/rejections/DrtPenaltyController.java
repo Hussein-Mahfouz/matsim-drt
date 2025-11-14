@@ -4,7 +4,9 @@ import org.matsim.contrib.drt.run.MultiModeDrtConfigGroup;
 import org.matsim.contrib.drt.run.DrtConfigGroup;
 import org.matsim.core.config.Config;
 import org.matsim.core.controler.events.IterationEndsEvent;
+import org.matsim.core.controler.events.StartupEvent;
 import org.matsim.core.controler.listener.IterationEndsListener;
+import org.matsim.core.controler.listener.StartupListener;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -16,7 +18,7 @@ import java.util.stream.Collectors;
 
 
 @Singleton
-public class DrtPenaltyController implements IterationEndsListener {
+public class DrtPenaltyController implements IterationEndsListener, StartupListener {
     
     private static final Logger log = LogManager.getLogger(DrtPenaltyController.class);
     
@@ -46,8 +48,15 @@ public class DrtPenaltyController implements IterationEndsListener {
             currentPenaltyByMode.put(mode, 0.0);
         }
         
+    }
+
+    // log when MATSim is ready
+    @Override
+    public void notifyStartup(StartupEvent event) {
         log.info("DrtPenaltyController initialized: target={}%, gain={}, modes={}", 
-                String.format("%.1f", targetRejectionRate * 100), controllerGain, drtModes);
+                String.format("%.1f", targetRejectionRate * 100), 
+                controllerGain, 
+                drtModes);
     }
 
     @Override
