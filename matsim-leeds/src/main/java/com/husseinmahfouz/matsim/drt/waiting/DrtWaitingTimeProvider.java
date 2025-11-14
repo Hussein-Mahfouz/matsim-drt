@@ -75,27 +75,32 @@ public class DrtWaitingTimeProvider implements IterationEndsListener {
 
             try {
                 Map<Integer, Double> timeBinnedWaits = parseWaitStats(statsFile);
+                
+                // Check if parsing returned any data
+                if (timeBinnedWaits.isEmpty()) {
+                    log.warn("⚠️ No valid wait time data found for {} in iteration {}. Using default maxWaitTime.",
+                            mode, iteration);
+                    continue;  // Skip to next mode
+                }
+                
+                // Update the main map
                 waitingTimesByModeAndTime.put(mode, timeBinnedWaits);
 
                 // Calculate statistics for logging
                 int totalBins = timeBinnedWaits.size();
-                int validBins = (int) timeBinnedWaits.values().stream().filter(v -> v > 0).count();
-                double avgWaitTime = timeBinnedWaits.values().stream().filter(v -> v > 0) // Only
-                                                                                          // include
-                                                                                          // non-zero
-                                                                                          // values
-                        .mapToDouble(Double::doubleValue).average()
-                        .orElse(defaultWaitTimesByMode.get(mode));
+
+                double avgWaitTime = timeBinnedWaits.values().stream()
+                        .mapToDouble(Double::doubleValue)
+                        .average()
+                        .getAsDouble();  // Use getAsDouble() since we know it's not empty
 
                 log.info(
-                        "✓ Loaded wait times for {} from iteration {} (avg: {} sec across {}/{} valid time bins)",
-                        mode, iteration, String.format("%.1f", avgWaitTime), validBins, totalBins);
-
+                        "✓ Loaded wait times for {} from iteration {} (avg: {:.1f} sec across {} time bins)",
+                        mode, iteration, avgWaitTime, totalBins);
 
             } catch (Exception e) {
                 log.warn("⚠️ Could not read wait stats for {}: {}. Using default maxWaitTime.",
                         mode, e.getMessage());
-
             }
         }
     }
@@ -105,25 +110,55 @@ public class DrtWaitingTimeProvider implements IterationEndsListener {
 
         try (BufferedReader reader = new BufferedReader(new FileReader(filepath))) {
             String header = reader.readLine(); // Skip header
+            log.info("CSV header: {}", header);  
+            
             String line;
+            int linesProcessed = 0;
+            int validLinesStored = 0;
 
             while ((line = reader.readLine()) != null) {
-                String[] parts = line.split("\t"); // Assuming tab-separated values
-                if (parts.length < 3)
-                    continue; // Skip malformed lines
-
-                String timebinStr = parts[0].trim(); // e.g., "08:00:00"
-                int legs = Integer.parseInt(parts[1].trim());
-                double avgWait = Double.parseDouble(parts[2].trim()); // "average_wait" column
-
-                int timebinSeconds = parseTimeToSeconds(timebinStr);
-
-                // ✅ Only store if there were actual requests (legs > 0 AND avgWait > 0)
-                if (legs > 0 && avgWait > 0) {
-                    timeBinnedWaits.put(timebinSeconds, avgWait);
+                linesProcessed++;
+                
+                // Log first few lines for debugging
+                if (linesProcessed <= 3) {
+                    log.info("Line {}: '{}'", linesProcessed, line);
                 }
-                // Otherwise, skip this bin (will use default when queried)
+                
+                String[] parts = line.split(";");
+                
+                if (parts.length < 3) {
+                    log.debug("Skipping malformed line {} (only {} parts): {}", 
+                            linesProcessed, parts.length, line);
+                    continue;
+                }
+
+                try {
+                    String timebinStr = parts[0].trim();
+                    String legsStr = parts[1].trim();
+                    String avgWaitStr = parts[2].trim();
+                    
+                    int legs = Integer.parseInt(legsStr);
+                    double avgWait = Double.parseDouble(avgWaitStr);
+                    int timebinSeconds = parseTimeToSeconds(timebinStr);
+
+                    // Only store if there were actual requests
+                    if (legs > 0 && avgWait > 0) {
+                        timeBinnedWaits.put(timebinSeconds, avgWait);
+                        validLinesStored++;
+                        if (linesProcessed <= 5) {
+                            log.info("✓ Stored timebin {} ({} sec): {} wait from {} legs", 
+                                    timebinStr, timebinSeconds, avgWait, legs);
+                        }
+                    }
+                    
+                } catch (NumberFormatException e) {
+                    log.warn("Could not parse numbers on line {}: '{}'. Error: {}", 
+                            linesProcessed, line, e.getMessage());
+                }
             }
+            
+            log.info("Parsed {} lines from {}, stored {} valid time bins", 
+                    linesProcessed, filepath, validLinesStored);
         }
 
         return timeBinnedWaits;
@@ -173,7 +208,9 @@ public class DrtWaitingTimeProvider implements IterationEndsListener {
 
         for (int bin : timeBinnedWaits.keySet()) {
             int diff = Math.abs(bin - time);
-            if (diff < minDiff) {
+            
+            // Update if: (1) closer, OR (2) same distance but earlier bin (e.g. for 08:00:00, prefer 07:30:00 over 08:30:00 if both are in timeBinnedWaits)
+            if (diff < minDiff || (diff == minDiff && bin < closestBin)) {
                 minDiff = diff;
                 closestBin = bin;
             }

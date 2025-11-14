@@ -54,7 +54,7 @@ public class LeedsDrtPredictor implements DrtPredictor {
         double actualWaitingTime_min = actualWaitingTime_sec / 60.0;
 
         callCount++;
-        if (callCount % 500 == 0) {
+        if (callCount % 250 == 0) {
             log.info(
                     "[LeedsDrtPredictor] Call #{}: abstractMode={}, actualMode={}, depTime={} ({} hrs), waitTime={} sec ({} min)",
                     callCount, trip.getInitialMode(), actualDrtMode, (int) departureTime,
