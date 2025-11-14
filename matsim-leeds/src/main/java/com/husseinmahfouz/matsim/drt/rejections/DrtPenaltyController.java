@@ -23,6 +23,7 @@ public class DrtPenaltyController implements IterationEndsListener, StartupListe
     private static final Logger log = LogManager.getLogger(DrtPenaltyController.class);
     
     private final RejectionTracker rejectionTracker;
+    private final boolean enabled; 
     private final double targetRejectionRate; // ρ*
     private final double controllerGain; // K (proportional gain)
     private final Set<String> drtModes; // Auto-detected from config
@@ -34,6 +35,7 @@ public class DrtPenaltyController implements IterationEndsListener, StartupListe
                                DrtPenaltyConfig config,
                                Config matsimConfig) {
         this.rejectionTracker = rejectionTracker;
+        this.enabled = config.isEnabled();
         this.targetRejectionRate = config.getTargetRejectionRate();
         this.controllerGain = config.getControllerGain();
         
@@ -53,14 +55,21 @@ public class DrtPenaltyController implements IterationEndsListener, StartupListe
     // log when MATSim is ready
     @Override
     public void notifyStartup(StartupEvent event) {
-        log.info("DrtPenaltyController initialized: target={}%, gain={}, modes={}", 
-                String.format("%.1f", targetRejectionRate * 100), 
-                controllerGain, 
-                drtModes);
+        if (enabled) {
+            log.info("✓ DrtPenaltyController ENABLED: target={}%, gain={}, modes={}", 
+                    String.format("%.1f", targetRejectionRate * 100), 
+                    controllerGain, 
+                    drtModes);
+        } else {
+            log.info("✗ DrtPenaltyController DISABLED - no rejection penalties will be applied");
+        }
     }
 
     @Override
     public void notifyIterationEnds(IterationEndsEvent event) {
+        if (!enabled) {
+            return; // Skip all penalty logic if disabled
+        }
         int iteration = event.getIteration();
         
         for (String mode : drtModes) {
@@ -96,6 +105,9 @@ public class DrtPenaltyController implements IterationEndsListener, StartupListe
      * Get current penalty value (called by utility estimator)
      */
     public double getCurrentPenalty(String mode) {
+         if (!enabled) {
+            return 0.0; // Always return 0 if disabled
+        }
         return currentPenaltyByMode.getOrDefault(mode, 0.0);
     }
 

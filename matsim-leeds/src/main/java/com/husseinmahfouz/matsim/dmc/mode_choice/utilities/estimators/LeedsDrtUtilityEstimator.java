@@ -75,7 +75,7 @@ public class LeedsDrtUtilityEstimator extends DrtUtilityEstimator {
 		}
 		return utility;
 	}
-
+    // This will return 0 if penalty method is not enabled (See DrtPenaltyConfig)
     protected double estimateRejectionPenalty(DiscreteModeChoiceTrip trip) {
         String mode = trip.getInitialMode(); // e.g., "drtNE" or "drtNW"
         double penalty = penaltyController.getCurrentPenalty(mode);

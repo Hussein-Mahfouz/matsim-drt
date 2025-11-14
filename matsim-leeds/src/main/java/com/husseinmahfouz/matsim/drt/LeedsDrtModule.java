@@ -97,15 +97,24 @@ public class LeedsDrtModule extends AbstractEqasimExtension {
         DrtPenaltyConfig config = new DrtPenaltyConfig();
         
         try {
-            if (commandLine != null && commandLine.hasOption("target-rejection-rate")) {
-                config.setTargetRejectionRate(
-                    Double.parseDouble(commandLine.getOptionStrict("target-rejection-rate")));
-            }
-            
-            if (commandLine != null && commandLine.hasOption("controller-gain")) {
-                config.setControllerGain(
-                    Double.parseDouble(commandLine.getOptionStrict("controller-gain")));
-            }
+			// Check if penalty controller should be enabled
+			if (commandLine != null && commandLine.hasOption("enable-rejection-penalty")) {
+				boolean enabled = Boolean.parseBoolean(
+					commandLine.getOptionStrict("enable-rejection-penalty"));
+				config.setEnabled(enabled);
+			}
+            // Only parse other parameters if enabled
+			if (config.isEnabled()) {
+				if (commandLine != null && commandLine.hasOption("target-rejection-rate")) {
+					config.setTargetRejectionRate(
+						Double.parseDouble(commandLine.getOptionStrict("target-rejection-rate")));
+				}
+				
+				if (commandLine != null && commandLine.hasOption("controller-gain")) {
+					config.setControllerGain(
+						Double.parseDouble(commandLine.getOptionStrict("controller-gain")));
+				}
+			}
         } catch (Exception e) {
             System.err.println("Warning: Could not parse DRT penalty parameters: " + e.getMessage());
         }

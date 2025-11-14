@@ -39,6 +39,7 @@ GLOBAL_THREADS=8
 QSIM_THREADS=8
 
 # DRT parameters (to control rejection rate) See issue #55
+ENABLE_REJECTION_PENALTY="true"  # Set to "false" to disable
 TARGET_REJECTION_RATE="0.05"  # 5% target
 CONTROLLER_GAIN="3.0"         # Proportional gain
 
@@ -56,5 +57,6 @@ java -Xmx48G -cp $JAR_FILE $MAIN_CLASS \
     --transit-schedule-file $TRANSIT_SCHEDULE_FILE \
     --network-input-file $NETWORK_INPUT_FILE \
     --output-directory $OUTPUT_DIRECTORY \
+    --enable-rejection-penalty $ENABLE_REJECTION_PENALTY \
     --target-rejection-rate $TARGET_REJECTION_RATE \
     --controller-gain $CONTROLLER_GAIN
