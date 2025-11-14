@@ -37,5 +37,18 @@ public class RejectionTracker implements PassengerRequestSubmittedEventHandler, 
 	@Override
 	public void reset(int iteration) {
 	}
+
+	public double getAverageRejectionRate() {
+		if (numberOfRequests.isEmpty()) {
+			return 0.0;
+		}
+		
+		int totalRequests = numberOfRequests.values().stream()
+			.mapToInt(Integer::intValue).sum();
+		int totalRejections = numberOfRejections.values().stream()
+			.mapToInt(Integer::intValue).sum();
+		
+		return totalRequests > 0 ? (double) totalRejections / totalRequests : 0.0;
+	}
 }
 

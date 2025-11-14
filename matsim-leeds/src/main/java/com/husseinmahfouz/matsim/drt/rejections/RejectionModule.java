@@ -19,6 +19,8 @@ public class RejectionModule extends AbstractDiscreteModeChoiceExtension {
 	protected void installExtension() {
 		addEventHandlerBinding().to(RejectionTracker.class);
 		bindTripConstraintFactory(RejectionConstraint.NAME).to(RejectionConstraint.Factory.class);
+
+    	addControlerListenerBinding().to(DrtPenaltyController.class);
 	}
 
 	@Provides
@@ -32,5 +34,21 @@ public class RejectionModule extends AbstractDiscreteModeChoiceExtension {
 	public RejectionConstraint.Factory provideRejectionConstraintFactory(RejectionTracker tracker) {
 		Random random = new Random();
 		return new RejectionConstraint.Factory(tracker, random, modes);
+	}
+
+	@Provides
+	@Singleton
+	public DrtPenaltyController providePenaltyController(
+			RejectionTracker tracker, DrtPenaltyConfig config) {
+		return new DrtPenaltyController(tracker, config);	
+	}
+
+	@Provides
+	@Singleton
+	public DrtPenaltyConfig providePenaltyConfig() {
+		DrtPenaltyConfig config = new DrtPenaltyConfig();
+		config.setTargetRejectionRate(0.05); // 5% target
+		config.setControllerGain(1.0); // Start with K=1.0, tune if needed
+		return config;
 	}
 }

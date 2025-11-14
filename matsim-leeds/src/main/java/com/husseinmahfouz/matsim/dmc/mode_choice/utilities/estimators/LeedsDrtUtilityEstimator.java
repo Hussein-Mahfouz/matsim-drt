@@ -11,6 +11,7 @@ import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsDrtPr
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsPersonPredictor;
 
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.LeedsPersonVariables;
+import com.husseinmahfouz.matsim.drt.rejections.DrtPenaltyController;
 
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.PlanElement;
@@ -22,11 +23,13 @@ public class LeedsDrtUtilityEstimator extends DrtUtilityEstimator {
     private final LeedsModeParameters parameters;
     private final LeedsPersonPredictor personPredictor;
     private final LeedsDrtPredictor drtPredictor;
+    private final DrtPenaltyController drtPenaltyController;
 
     @Inject
     public LeedsDrtUtilityEstimator(LeedsModeParameters parameters,
             // LeedsSpatialPredictor spatialPredictor,
-            LeedsPersonPredictor personPredictor, LeedsDrtPredictor drtPredictor) {
+            LeedsPersonPredictor personPredictor, LeedsDrtPredictor drtPredictor, 
+            DrtPenaltyController drtPenaltyController) {
         super(parameters, drtPredictor.delegate);
 
         this.parameters = parameters;
