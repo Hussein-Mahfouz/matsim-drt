@@ -175,7 +175,7 @@ public class RunDMCSimulationDRTCluster {
 
         { // Add overrides for Leeds + DRT
             controller.addOverridingModule(new LeedsDrtModule(cmd));
-            controller.addOverridingModule(new RejectionModule(Arrays.asList("drt")));
+            controller.addOverridingModule(new RejectionModule(Arrays.asList("drt"), cmd));
             controller.addOverridingModule(new DrtAnalysisModule());
         }
         controller.run();

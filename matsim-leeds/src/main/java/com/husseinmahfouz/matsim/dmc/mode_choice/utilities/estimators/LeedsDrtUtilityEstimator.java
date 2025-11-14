@@ -23,19 +23,20 @@ public class LeedsDrtUtilityEstimator extends DrtUtilityEstimator {
     private final LeedsModeParameters parameters;
     private final LeedsPersonPredictor personPredictor;
     private final LeedsDrtPredictor drtPredictor;
-    private final DrtPenaltyController drtPenaltyController;
+    private final DrtPenaltyController penaltyController;
 
     @Inject
     public LeedsDrtUtilityEstimator(LeedsModeParameters parameters,
             // LeedsSpatialPredictor spatialPredictor,
             LeedsPersonPredictor personPredictor, LeedsDrtPredictor drtPredictor, 
-            DrtPenaltyController drtPenaltyController) {
+            DrtPenaltyController penaltyController) {
         super(parameters, drtPredictor.delegate);
 
         this.parameters = parameters;
         // this.spatialPredictor = spatialPredictor;
         this.personPredictor = personPredictor;
         this.drtPredictor = drtPredictor;
+        this.penaltyController = penaltyController;
     }
 
     @Override
@@ -75,6 +76,12 @@ public class LeedsDrtUtilityEstimator extends DrtUtilityEstimator {
 		return utility;
 	}
 
+    protected double estimateRejectionPenalty(DiscreteModeChoiceTrip trip) {
+        String mode = trip.getInitialMode(); // e.g., "drtNE" or "drtNW"
+        double penalty = penaltyController.getCurrentPenalty(mode);
+        return parameters.leedsDrt.betaRejectionPenalty_u * penalty;
+    }
+
 
 
     @Override
@@ -94,6 +101,7 @@ public class LeedsDrtUtilityEstimator extends DrtUtilityEstimator {
         // utility += estimateAccessEgressTimeUtility(drtVariables);
         utility += estimateOutOfVehicleTimeUtility(drtVariables);
         utility += estimateMonetaryCostUtility(drtVariables);
+        utility += estimateRejectionPenalty();
 
         return utility;
     }

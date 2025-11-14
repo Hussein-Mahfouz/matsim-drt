@@ -4,15 +4,19 @@ import java.util.Collection;
 import java.util.Random;
 
 import org.matsim.contribs.discrete_mode_choice.modules.AbstractDiscreteModeChoiceExtension;
+import org.matsim.core.config.CommandLine;
+
 
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 
 public class RejectionModule extends AbstractDiscreteModeChoiceExtension {
 	private final Collection<String> modes;
+	private final CommandLine commandLine;
 
-	public RejectionModule(Collection<String> modes) {
+	public RejectionModule(Collection<String> modes, CommandLine commandLine) {
 		this.modes = modes;
+		this.commandLine = commandLine;
 	}
 
 	@Override
@@ -44,11 +48,28 @@ public class RejectionModule extends AbstractDiscreteModeChoiceExtension {
 	}
 
 	@Provides
-	@Singleton
-	public DrtPenaltyConfig providePenaltyConfig() {
-		DrtPenaltyConfig config = new DrtPenaltyConfig();
-		config.setTargetRejectionRate(0.05); // 5% target
-		config.setControllerGain(1.0); // Start with K=1.0, tune if needed
-		return config;
-	}
+    @Singleton
+    public DrtPenaltyConfig providePenaltyConfig() {
+        DrtPenaltyConfig config = new DrtPenaltyConfig();
+        
+        // READ FROM COMMAND LINE (with fallback to defaults)
+        try {
+            if (commandLine != null && commandLine.hasOption("target-rejection-rate")) {
+                double targetRate = Double.parseDouble(
+                    commandLine.getOptionStrict("target-rejection-rate"));
+                config.setTargetRejectionRate(targetRate);
+            }
+            
+            if (commandLine != null && commandLine.hasOption("controller-gain")) {
+                double gain = Double.parseDouble(
+                    commandLine.getOptionStrict("controller-gain"));
+                config.setControllerGain(gain);
+            }
+        } catch (Exception e) {
+            // If parsing fails, just use defaults
+            System.err.println("Warning: Could not parse DRT penalty parameters, using defaults: " + e.getMessage());
+        }
+        
+        return config;
+    }
 }

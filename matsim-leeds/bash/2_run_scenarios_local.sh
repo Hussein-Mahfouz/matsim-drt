@@ -38,6 +38,10 @@ ITERATIONS=5
 GLOBAL_THREADS=8
 QSIM_THREADS=8
 
+# DRT parameters (to control rejection rate) See issue #55
+TARGET_REJECTION_RATE="0.05"  # 5% target
+CONTROLLER_GAIN="1.0"         # Proportional gain
+
 # Run the simulation directly
 java -Xmx48G -cp $JAR_FILE $MAIN_CLASS \
     --config-path $CONFIG_FILE \
@@ -51,4 +55,6 @@ java -Xmx48G -cp $JAR_FILE $MAIN_CLASS \
     --transit-vehicles-file $TRANSIT_VEHICLES_FILE \
     --transit-schedule-file $TRANSIT_SCHEDULE_FILE \
     --network-input-file $NETWORK_INPUT_FILE \
-    --output-directory $OUTPUT_DIRECTORY
+    --output-directory $OUTPUT_DIRECTORY \
+    --target-rejection-rate $TARGET_REJECTION_RATE \
+    --controller-gain $CONTROLLER_GAIN
