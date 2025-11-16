@@ -26,17 +26,45 @@ public class RejectionModule extends AbstractDiscreteModeChoiceExtension {
 
 	}
 
+	// Provide config from command line
+    @Provides
+    @Singleton
+    public RejectionConstraintConfig provideRejectionConstraintConfig() {
+        RejectionConstraintConfig config = new RejectionConstraintConfig();
+        
+        try {
+            if (commandLine != null && commandLine.hasOption("prior-requests")) {
+                config.setPriorRequests(
+                    Integer.parseInt(commandLine.getOptionStrict("prior-requests")));
+            }
+            
+            if (commandLine != null && commandLine.hasOption("prior-rejections")) {
+                config.setPriorRejections(
+                    Integer.parseInt(commandLine.getOptionStrict("prior-rejections")));
+            }
+            
+            if (commandLine != null && commandLine.hasOption("min-attempts")) {
+                config.setMinAttempts(
+                    Integer.parseInt(commandLine.getOptionStrict("min-attempts")));
+            }
+        } catch (Exception e) {
+            System.err.println("Warning: Could not parse rejection constraint parameters: " + e.getMessage());
+        }
+        
+        return config;
+    }
+
 	@Provides
 	@Singleton
-	public RejectionTracker provideRejectionTracker() {
-		return new RejectionTracker();
+	public RejectionTracker provideRejectionTracker(RejectionConstraintConfig config) {
+		return new RejectionTracker(config);
 	}
 
 	@Provides
 	@Singleton
-	public RejectionConstraint.Factory provideRejectionConstraintFactory(RejectionTracker tracker) {
+	public RejectionConstraint.Factory provideRejectionConstraintFactory(RejectionTracker tracker, RejectionConstraintConfig config) {
 		Random random = new Random();
-		return new RejectionConstraint.Factory(tracker, random, modes);
+		return new RejectionConstraint.Factory(tracker, random, modes, config);
 	}
 
 }

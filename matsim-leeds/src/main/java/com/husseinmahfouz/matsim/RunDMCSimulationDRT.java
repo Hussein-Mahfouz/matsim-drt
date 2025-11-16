@@ -65,6 +65,7 @@ public class RunDMCSimulationDRT {
                         "global-threads", "qsim-threads", "output-directory", "input-plans-file",
                         "vehicles-file", "transit-vehicles-file", "transit-schedule-file",
                         "network-input-file",
+                        "use-rejection-constraint","prior-requests", "prior-rejections", "min-attempts",
                         "enable-rejection-penalty", "target-rejection-rate", "controller-gain") //
                 .allowPrefixes("mode-choice-parameter", "cost-parameter") //
                 .build();

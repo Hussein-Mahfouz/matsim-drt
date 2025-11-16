@@ -81,16 +81,16 @@ public class DrtPenaltyController implements IterationEndsListener, StartupListe
             // π_{i+1} = π_i - K * max(0, error)
             // (only increase penalty if actual > target)
             if (error > 0) {
-            double newPenalty = previousPenalty - controllerGain * error;
-            currentPenaltyByMode.put(mode, newPenalty);
-            
-            log.info("Iteration {}: Mode {} - actualRate={}%, error={}, penalty: {} → {}",
-                    iteration, 
-                    mode, 
-                    String.format("%.1f", actualRate * 100),
-                    String.format("%.3f", error),
-                    String.format("%.3f", previousPenalty),
-                    String.format("%.3f", newPenalty));
+                double newPenalty = previousPenalty - controllerGain * error;
+                currentPenaltyByMode.put(mode, newPenalty);
+                
+                log.info("Iteration {}: Mode {} - actualRate={}%, error={}, penalty: {} → {}",
+                        iteration, 
+                        mode, 
+                        String.format("%.1f", actualRate * 100),
+                        String.format("%.3f", error),
+                        String.format("%.3f", previousPenalty),
+                        String.format("%.3f", newPenalty));
             } else {
                 log.info("Iteration {}: Mode {} - actualRate={}%, penalty unchanged: {}",
                         iteration, 

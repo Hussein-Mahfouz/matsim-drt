@@ -46,8 +46,26 @@ ITERATIONS=55
 
 # Define the population sample size being used (plans and vehicles files need to exist for this sample size)
 SAMPLE_SIZE="1.00" # 0.50, 0.20, 0.10, 0.05, 0.01
-# Define whether to use the rejection constraint
-USE_REJECTION_CONSTRAINT="true"
+
+########################
+# Parameters related to DRT rejections
+########################
+
+# 1. INDIVIDUAL LEVEL: Rejection Constraint parameters (Bayesian smoothing)
+# If applied, it checks how many times a person has been rejected in previous iterations, 
+# and probabilistically determines whether to make DRT mode available to person depending on rejection rate
+USE_REJECTION_CONSTRAINT="false"
+PRIOR_REQUESTS="10"        # Virtual prior attempts (default: 10)
+PRIOR_REJECTIONS="1"       # Virtual prior rejections (default: 1, gives 10% base rate)
+MIN_ATTEMPTS="3"           # Grace period attempts (default: 3)
+
+# 2. GLOBAL LEVEL: DRT parameters (to control rejection rate) See issue #55
+# Tries to match global DRT rejection rate with the rate specified below. Done by 
+# adding a penalty to the DRT mode utility
+ENABLE_REJECTION_PENALTY="true"  # Set to "false" to disable
+TARGET_REJECTION_RATE="0.05"  # 5% target
+CONTROLLER_GAIN="1.0"         # Proportional gain
+
 
 # Define the list of configuration files relative to MATSIM_DIR
 config_files=(
@@ -107,10 +125,16 @@ for CONFIG_FILE in "${config_files[@]}"; do
             --qsim-threads $QSIM_THREADS \
             --iterations $ITERATIONS \
             --sample-size $SAMPLE_SIZE \
-            --use-rejection-constraint $USE_REJECTION_CONSTRAINT \
             --output-directory $OUTPUT_DIRECTORY \
             --input-plans-file $INPUT_PLANS_FILE \
-            --vehicles-file $VEHICLES_FILE" | awk '{print $4}')
+            --vehicles-file $VEHICLES_FILE
+            --use-rejection-constraint $USE_REJECTION_CONSTRAINT \
+            --prior-requests $PRIOR_REQUESTS \
+            --prior-rejections $PRIOR_REJECTIONS \
+            --min-attempts $MIN_ATTEMPTS \
+            --enable-rejection-penalty $ENABLE_REJECTION_PENALTY \
+            --target-rejection-rate $TARGET_REJECTION_RATE \
+            --controller-gain $CONTROLLER_GAIN" | awk '{print $4}')
     echo "Submitted job $JOB_ID for config file $CONFIG_FILE"
 
     # --- OLD attampt to use --output and --error flags
