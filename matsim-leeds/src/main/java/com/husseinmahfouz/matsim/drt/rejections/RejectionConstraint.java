@@ -66,7 +66,7 @@ public class RejectionConstraint extends AbstractTripConstraint {
             
             // Log occasionally for debugging (first few times constraint applies)
             if (attempts >= minAttempts && attempts <= minAttempts + 2) {
-                log.debug("Person {} has {} cumulative attempts, rejection prob={}%, rejected={}", 
+                log.info("Person {} has {} cumulative attempts, rejection prob={}%, rejected={}", 
                          person.getId(), attempts, 
                          String.format("%.1f", rejectionProb * 100), rejected);
             }
