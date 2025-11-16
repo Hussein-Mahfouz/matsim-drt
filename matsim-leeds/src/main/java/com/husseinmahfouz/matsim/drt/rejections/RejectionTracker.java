@@ -14,7 +14,6 @@ import org.apache.logging.log4j.Logger;
 import java.util.HashMap;
 import java.util.Map;
 import com.google.inject.Inject;
-import com.google.inject.Singleton;
 
 public class RejectionTracker implements PassengerRequestSubmittedEventHandler, PassengerRequestRejectedEventHandler {
     private static final Logger log = LogManager.getLogger(RejectionTracker.class);
@@ -30,6 +29,7 @@ public class RejectionTracker implements PassengerRequestSubmittedEventHandler, 
     private final int priorRequests;      // Virtual prior experience
     private final int priorRejections;     // Represents 10% base rejection rate
 
+	// constructor that takes config
 	@Inject
     public RejectionTracker(RejectionConstraintConfig config) {
         this.priorRequests = config.getPriorRequests();

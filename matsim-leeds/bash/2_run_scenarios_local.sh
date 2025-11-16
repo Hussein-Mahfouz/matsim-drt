@@ -44,7 +44,7 @@ QSIM_THREADS=8
 # 1. INDIVIDUAL LEVEL: Rejection Constraint parameters (Bayesian smoothing)
 # If applied, it checks how many times a person has been rejected in previous iterations, 
 # and probabilistically determines whether to make DRT mode available to person depending on rejection rate
-USE_REJECTION_CONSTRAINT="false"
+USE_REJECTION_CONSTRAINT="true"
 PRIOR_REQUESTS="10"        # Virtual prior attempts (default: 10)
 PRIOR_REJECTIONS="1"       # Virtual prior rejections (default: 1, gives 10% base rate)
 MIN_ATTEMPTS="3"           # Grace period attempts (default: 3)
