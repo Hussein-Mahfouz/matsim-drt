@@ -127,7 +127,7 @@ for CONFIG_FILE in "${config_files[@]}"; do
             --sample-size $SAMPLE_SIZE \
             --output-directory $OUTPUT_DIRECTORY \
             --input-plans-file $INPUT_PLANS_FILE \
-            --vehicles-file $VEHICLES_FILE
+            --vehicles-file $VEHICLES_FILE \
             --use-rejection-constraint $USE_REJECTION_CONSTRAINT \
             --prior-requests $PRIOR_REQUESTS \
             --prior-rejections $PRIOR_REJECTIONS \
