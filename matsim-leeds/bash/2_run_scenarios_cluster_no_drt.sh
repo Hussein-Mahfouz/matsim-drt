@@ -24,7 +24,7 @@ MAIN_CLASS="com.husseinmahfouz.matsim.dmc.RunDMCSimulation"
 # Define the compute-related parameters
 CPUS_PER_TASK=12
 MEM_PER_CPU=8192
-MAX_RUNTIME="6:00:00"
+MAX_RUNTIME="10:00:00"
 # Should not be higher than CPUS_PER_TASK
 GLOBAL_THREADS=12
 # Should not be higher than CPUS_PER_TASK
@@ -44,7 +44,7 @@ VEHICLES_FILE="../../../data/supply/network_vehicles_${SAMPLE_SIZE}.xml"
 
 # Run the first simulation using sbatch
 JOB_ID_1=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-per-cpu=$MEM_PER_CPU --wrap="\
-    java -Xmx48G -cp $JAR_FILE $MAIN_CLASS \
+    java -Xmx72G -cp $JAR_FILE $MAIN_CLASS \
     --config-path $CONFIG_FILE \
     --global-threads $GLOBAL_THREADS \
     --qsim-threads $QSIM_THREADS \
@@ -55,22 +55,22 @@ JOB_ID_1=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-
     --vehicles-file $VEHICLES_FILE" | awk '{print $4}')
 echo "Submitted job $JOB_ID_1 for sample size $SAMPLE_SIZE"
 
-# Define parameters for the second run
-SAMPLE_SIZE_2="0.50"
-OUTPUT_DIRECTORY_2="scenarios/basic/sample_${SAMPLE_SIZE_2}"
-INPUT_PLANS_FILE_2="../../../data/demand/plans_sample_eqasim_${SAMPLE_SIZE_2}.xml"
-VEHICLES_FILE_2="../../../data/supply/network_vehicles_${SAMPLE_SIZE_2}.xml"
+# # Define parameters for the second run
+# SAMPLE_SIZE_2="0.50"
+# OUTPUT_DIRECTORY_2="scenarios/basic/sample_${SAMPLE_SIZE_2}"
+# INPUT_PLANS_FILE_2="../../../data/demand/plans_sample_eqasim_${SAMPLE_SIZE_2}.xml"
+# VEHICLES_FILE_2="../../../data/supply/network_vehicles_${SAMPLE_SIZE_2}.xml"
 
-# Run the second simulation using sbatch
-JOB_ID_2=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-per-cpu=$MEM_PER_CPU --wrap="\
-    java -Xmx48G -cp $JAR_FILE $MAIN_CLASS \
-    --config-path $CONFIG_FILE \
-    --global-threads $GLOBAL_THREADS \
-    --qsim-threads $QSIM_THREADS \
-    --sample-size $SAMPLE_SIZE_2 \
-    --iterations $ITERATIONS \
-    --output-directory $OUTPUT_DIRECTORY_2 \
-    --input-plans-file $INPUT_PLANS_FILE_2 \
-    --vehicles-file $VEHICLES_FILE_2" | awk '{print $4}')
-echo "Submitted job $JOB_ID_2 for sample size $SAMPLE_SIZE_2"
+# # Run the second simulation using sbatch
+# JOB_ID_2=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-per-cpu=$MEM_PER_CPU --wrap="\
+#     java -Xmx72G -cp $JAR_FILE $MAIN_CLASS \
+#     --config-path $CONFIG_FILE \
+#     --global-threads $GLOBAL_THREADS \
+#     --qsim-threads $QSIM_THREADS \
+#     --sample-size $SAMPLE_SIZE_2 \
+#     --iterations $ITERATIONS \
+#     --output-directory $OUTPUT_DIRECTORY_2 \
+#     --input-plans-file $INPUT_PLANS_FILE_2 \
+#     --vehicles-file $VEHICLES_FILE_2" | awk '{print $4}')
+# echo "Submitted job $JOB_ID_2 for sample size $SAMPLE_SIZE_2"
 

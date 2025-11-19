@@ -36,13 +36,13 @@ MAIN_CLASS="com.husseinmahfouz.matsim.RunDMCSimulationDRTCluster"
 # Define the compute-related parameters
 CPUS_PER_TASK=12
 MEM_PER_CPU=8192
-MAX_RUNTIME="16:00:00"
+MAX_RUNTIME="20:00:00"
 # Should not be higher than CPUS_PER_TASK
 GLOBAL_THREADS=12
 # Should not be higher than CPUS_PER_TASK
 QSIM_THREADS=12
 # Number of iterations
-ITERATIONS=55
+ITERATIONS=75
 
 # Define the population sample size being used (plans and vehicles files need to exist for this sample size)
 SAMPLE_SIZE="1.00" # 0.50, 0.20, 0.10, 0.05, 0.01
@@ -54,7 +54,7 @@ SAMPLE_SIZE="1.00" # 0.50, 0.20, 0.10, 0.05, 0.01
 # 1. INDIVIDUAL LEVEL: Rejection Constraint parameters (Bayesian smoothing)
 # If applied, it checks how many times a person has been rejected in previous iterations, 
 # and probabilistically determines whether to make DRT mode available to person depending on rejection rate
-USE_REJECTION_CONSTRAINT="false"
+USE_REJECTION_CONSTRAINT="true"
 PRIOR_REQUESTS="10"        # Virtual prior attempts (default: 10)
 PRIOR_REJECTIONS="1"       # Virtual prior rejections (default: 1, gives 10% base rate)
 MIN_ATTEMPTS="3"           # Grace period attempts (default: 3)
@@ -63,31 +63,31 @@ MIN_ATTEMPTS="3"           # Grace period attempts (default: 3)
 # Tries to match global DRT rejection rate with the rate specified below. Done by 
 # adding a penalty to the DRT mode utility
 ENABLE_REJECTION_PENALTY="true"  # Set to "false" to disable
-TARGET_REJECTION_RATE="0.05"  # 5% target
+TARGET_REJECTION_RATE="0.03"  # 3% target
 CONTROLLER_GAIN="1.0"         # Proportional gain
 
 
 # Define the list of configuration files relative to MATSIM_DIR
 config_files=(
-    # "config_simulation_dmc_drt_50_feeder.xml"
-    # "config_simulation_dmc_drt_all_50_feeder.xml"
-    # "config_simulation_dmc_drt_inner_50_feeder.xml"
-    # "config_simulation_dmc_drt_innerBUA_50_feeder.xml"
-    # "config_simulation_dmc_drt_100_feeder.xml"
-    # "config_simulation_dmc_drt_all_100_feeder.xml"
-    # "config_simulation_dmc_drt_inner_100_feeder.xml"
+    "config_simulation_dmc_drt_50_feeder.xml"
+    "config_simulation_dmc_drt_all_50_feeder.xml"
+    "config_simulation_dmc_drt_inner_50_feeder.xml"
+    "config_simulation_dmc_drt_innerBUA_50_feeder.xml"
+    "config_simulation_dmc_drt_100_feeder.xml"
+    "config_simulation_dmc_drt_all_100_feeder.xml"
+    "config_simulation_dmc_drt_inner_100_feeder.xml"
     "config_simulation_dmc_drt_innerBUA_100_feeder.xml"
-    # "config_simulation_dmc_drt_200_feeder.xml"
-    # "config_simulation_dmc_drt_all_200_feeder.xml"
-    # "config_simulation_dmc_drt_inner_200_feeder.xml"
+    "config_simulation_dmc_drt_200_feeder.xml"
+    "config_simulation_dmc_drt_all_200_feeder.xml"
+    "config_simulation_dmc_drt_inner_200_feeder.xml"
     "config_simulation_dmc_drt_innerBUA_200_feeder.xml"
-    # "config_simulation_dmc_drt_500_feeder.xml"
-    # "config_simulation_dmc_drt_all_500_feeder.xml"
-    # "config_simulation_dmc_drt_inner_500_feeder.xml"
+    "config_simulation_dmc_drt_500_feeder.xml"
+    "config_simulation_dmc_drt_all_500_feeder.xml"
+    "config_simulation_dmc_drt_inner_500_feeder.xml"
     "config_simulation_dmc_drt_innerBUA_500_feeder.xml"
-    # "config_simulation_dmc_drt_1000_feeder.xml"
-    # "config_simulation_dmc_drt_all_1000_feeder.xml"
-    # "config_simulation_dmc_drt_inner_1000_feeder.xml"
+    "config_simulation_dmc_drt_1000_feeder.xml"
+    "config_simulation_dmc_drt_all_1000_feeder.xml"
+    "config_simulation_dmc_drt_inner_1000_feeder.xml"
     "config_simulation_dmc_drt_innerBUA_1000_feeder.xml"
 )
 
@@ -109,7 +109,7 @@ for CONFIG_FILE in "${config_files[@]}"; do
     FLEET_SIZE=$(echo $CONFIG_FILE | grep -oP '\d+')
 
     # Define the output directory based on the configuration file name
-    OUTPUT_DIRECTORY="scenarios/fleet_sizing_minCostFlow/${CONFIG_TYPE}/${FLEET_SIZE}/sample_${SAMPLE_SIZE}"
+    OUTPUT_DIRECTORY="scenarios/fleet_sizing_rejection/${CONFIG_TYPE}/${FLEET_SIZE}/sample_${SAMPLE_SIZE}"
     # Define the input plans file
     INPUT_PLANS_FILE="../../../../data/demand/plans_sample_eqasim_${SAMPLE_SIZE}.xml"
     # Define the vehicles file (it differs based on the population sample - see NetworkVehicleInserter.java)
@@ -117,9 +117,9 @@ for CONFIG_FILE in "${config_files[@]}"; do
 
     # Submit the job using sbatch
     JOB_ID=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-per-cpu=$MEM_PER_CPU \
-        --job-name="FleetSizing_${CONFIG_TYPE}_${FLEET_SIZE}" \
+        --job-name="FS_${CONFIG_TYPE}_${FLEET_SIZE}" \
         --wrap="\
-            java -Xmx48G -cp $JAR_FILE $MAIN_CLASS \
+            java -Xmx80G -cp $JAR_FILE $MAIN_CLASS \
             --config-path $FULL_CONFIG_PATH \
             --global-threads $GLOBAL_THREADS \
             --qsim-threads $QSIM_THREADS \
