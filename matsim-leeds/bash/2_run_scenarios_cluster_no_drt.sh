@@ -35,11 +35,11 @@ ITERATIONS=75
 # Define the population sample size being used
 SAMPLE_SIZE="1.00" 
 # Define the output directory
-OUTPUT_DIRECTORY="scenarios/basic/sample_${SAMPLE_SIZE}"
+OUTPUT_DIRECTORY="$MATSIM_DIR/scenarios/basic/sample_${SAMPLE_SIZE}"
 # Define the input plans file
-INPUT_PLANS_FILE="../../../data/demand/plans_sample_eqasim_${SAMPLE_SIZE}.xml"
+INPUT_PLANS_FILE="$MATSIM_DIR/data/demand/plans_sample_eqasim_${SAMPLE_SIZE}.xml"
 # Define the vehicles file (it differs based on the population sample - see NetworkVehicleInserter.java)
-VEHICLES_FILE="../../../data/supply/network_vehicles_${SAMPLE_SIZE}.xml"
+VEHICLES_FILE="$MATSIM_DIR/data/supply/network_vehicles_${SAMPLE_SIZE}.xml"
 
 
 # Run the first simulation using sbatch

@@ -29,6 +29,9 @@ public class DrtWaitingTimeProvider implements IterationEndsListener {
 
     @Inject
     public DrtWaitingTimeProvider(Config config) {
+        log.info("✓ DrtWaitingTimeProvider CREATED with output directory: {}", 
+             config.controller().getOutputDirectory());
+
         this.outputDirectory = config.controller().getOutputDirectory();
 
         // Auto-detect DRT modes from config
@@ -68,10 +71,17 @@ public class DrtWaitingTimeProvider implements IterationEndsListener {
     public void notifyIterationEnds(IterationEndsEvent event) {
         int iteration = event.getIteration();
 
+        log.info("DrtWaitingTimeProvider: Processing iteration {} with output directory: {}", 
+             iteration, outputDirectory);
+
         // Read wait stats for each DRT mode
         for (String mode : drtModes) {
             String statsFile = outputDirectory + "/ITERS/it." + iteration + "/" + iteration
                     + ".waitStats_" + mode + ".csv";
+
+            // Log the file path being read
+            log.info("Attempting to read wait stats from: {}", statsFile);
+
 
             try {
                 Map<Integer, Double> timeBinnedWaits = parseWaitStats(statsFile);

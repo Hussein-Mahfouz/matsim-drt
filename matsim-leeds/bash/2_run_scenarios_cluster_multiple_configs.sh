@@ -109,11 +109,11 @@ for CONFIG_FILE in "${config_files[@]}"; do
     FLEET_SIZE=$(echo $CONFIG_FILE | grep -oP '\d+')
 
     # Define the output directory based on the configuration file name
-    OUTPUT_DIRECTORY="scenarios/fleet_sizing_rejection/${CONFIG_TYPE}/${FLEET_SIZE}/sample_${SAMPLE_SIZE}"
+    OUTPUT_DIRECTORY="${MATSIM_DIR}/scenarios/fleet_sizing_rejection/${CONFIG_TYPE}/${FLEET_SIZE}/sample_${SAMPLE_SIZE}"
     # Define the input plans file
-    INPUT_PLANS_FILE="../../../../data/demand/plans_sample_eqasim_${SAMPLE_SIZE}.xml"
+    INPUT_PLANS_FILE="${MATSIM_DIR}/data/demand/plans_sample_eqasim_${SAMPLE_SIZE}.xml"
     # Define the vehicles file (it differs based on the population sample - see NetworkVehicleInserter.java)
-    VEHICLES_FILE="../../../../data/supply/network_vehicles_${SAMPLE_SIZE}.xml"
+    VEHICLES_FILE="${MATSIM_DIR}/data/supply/network_vehicles_${SAMPLE_SIZE}.xml"
 
     # Submit the job using sbatch
     JOB_ID=$(sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK --time=$MAX_RUNTIME --mem-per-cpu=$MEM_PER_CPU \
