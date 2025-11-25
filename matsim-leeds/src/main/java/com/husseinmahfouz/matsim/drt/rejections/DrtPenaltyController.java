@@ -74,6 +74,8 @@ public class DrtPenaltyController implements IterationEndsListener, StartupListe
         
         for (String mode : drtModes) {
             double actualRate = rejectionTracker.getRejectionRateForMode(mode);         // Calculate actual rejection rate for this iteration
+            log.info("DEBUG: Iteration {}: Mode {} - actualRate={} (this will be used to set π_{})",
+                iteration, mode, actualRate, iteration + 1);
             double error = actualRate - targetRejectionRate;         // Calculate error: ε_i = ρ_i - ρ*
             double previousPenalty = currentPenaltyByMode.get(mode);
             
