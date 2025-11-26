@@ -30,13 +30,6 @@ TRANSIT_SCHEDULE_FILE="$MATSIM_DIR/data/supply/schedule_mapped.xml.gz"
 NETWORK_INPUT_FILE="$MATSIM_DIR/data/supply/network_mapped.xml.gz"
 OUTPUT_DIRECTORY="$MATSIM_DIR/scenarios/test/results_dmc_waiting"
 
-# Define the population sample size being used
-SAMPLE_SIZE="0.03" 
-USE_REJECTION_CONSTRAINT="false"
-ITERATIONS=15
-GLOBAL_THREADS=8
-QSIM_THREADS=8
-
 ########################
 # Parameters related to DRT rejections
 ########################

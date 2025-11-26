@@ -148,7 +148,7 @@ public class LeedsModeParameters extends ModeParameters {
 		parameters.drt.betaAccessEgressTime_u_min = -1.1484;
 		// parameters.drt.betaOutofVehicleTime_u_min = -1.1484;
 
-		parameters.leedsDrt.betaRejectionPenalty_u = 1.0;  // Needs to be positive!
+		parameters.leedsDrt.betaRejectionPenalty_u = 1.0;  // Needs to be positive! This value is multiplied by the penalty (which is always negative) and added to utility
 
 		return parameters;
 	}

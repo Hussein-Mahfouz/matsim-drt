@@ -219,7 +219,7 @@ public class DrtWaitingTimeProvider implements IterationEndsListener {
         for (int bin : timeBinnedWaits.keySet()) {
             int diff = Math.abs(bin - time);
             
-            // Update if: (1) closer, OR (2) same distance but earlier bin (e.g. for 08:00:00, prefer 07:30:00 over 08:30:00 if both are in timeBinnedWaits)
+            // Update if: (1) closer, OR (2) same distance but prefer earlier bin (e.g. for 08:00:00, prefer 07:30:00 over 08:30:00 if both are in timeBinnedWaits)
             if (diff < minDiff || (diff == minDiff && bin < closestBin)) {
                 minDiff = diff;
                 closestBin = bin;

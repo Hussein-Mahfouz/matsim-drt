@@ -27,7 +27,7 @@ public class RejectionTracker implements PassengerRequestSubmittedEventHandler, 
 
     // Bayesian prior parameters (injected via constructor)
     private final int priorRequests;      // Virtual prior experience
-    private final int priorRejections;     // Represents 10% base rejection rate
+    private final int priorRejections;     // Virtual prior rejections (default: 1, which gives 10% base rate when priorRequests=10)
 
 	// constructor that takes config
 	@Inject

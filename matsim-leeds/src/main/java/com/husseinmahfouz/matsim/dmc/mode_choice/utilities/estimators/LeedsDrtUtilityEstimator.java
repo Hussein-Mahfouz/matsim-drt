@@ -75,6 +75,8 @@ public class LeedsDrtUtilityEstimator extends DrtUtilityEstimator {
 		}
 		return utility;
 	}
+    // Adds a penalty based on the current rejection rate. Logic from paper:
+    // "Control-based integration of rejection rates into endogenous demand ride-pooling simulations"
     // This will return 0 if penalty method is not enabled (See DrtPenaltyConfig)
     protected double estimateRejectionPenalty(DiscreteModeChoiceTrip trip) {
         String mode = trip.getInitialMode(); // e.g., "drtNE" or "drtNW"

@@ -61,7 +61,7 @@ public class RunDMCSimulationDRT {
     static public void main(String[] args) throws ConfigurationException {
         CommandLine cmd = new CommandLine.Builder(args) //
                 .requireOptions("config-path") //
-                .allowOptions("use-rejection-constraint", "sample-size", "iterations",
+                .allowOptions("sample-size", "iterations",
                         "global-threads", "qsim-threads", "output-directory", "input-plans-file",
                         "vehicles-file", "transit-vehicles-file", "transit-schedule-file",
                         "network-input-file",
