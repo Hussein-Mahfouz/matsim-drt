@@ -9,7 +9,6 @@ library(tidyverse)
 library(arrow)
 
 
-
 # --- Configuration ---
 # Define the objective function folders to be analyzed. Each string must match
 # a folder name inside `../data/external/gtfs_optimisation/`.
@@ -25,7 +24,10 @@ objectives <- c("min_variance_stops") # Add other objectives here, e.g., c("min_
 # Read the final mode share statistics from the baseline scenario file.
 # We then replicate this single baseline row for each objective function defined above.
 # This allows us to use the baseline as a common starting point (Solution ID 0) for each trendline on the plot.
-mode_share_original <- read_delim("../scenarios/basic/sample_1.00/modestats.csv", delim = ";") %>%
+mode_share_original <- read_delim(
+  "../scenarios/basic/sample_1.00/modestats.csv",
+  delim = ";"
+) %>%
   slice_tail(n = 1) %>%
   crossing(objective = objectives) %>%
   mutate(solution_id = 0)
@@ -35,9 +37,11 @@ mode_share_original <- read_delim("../scenarios/basic/sample_1.00/modestats.csv"
 # Iterate over each objective to find its subfolders and read the corresponding data.
 # `purrr::map_dfr` loops through the `objectives` vector and row-binds the results.
 mode_share_scenarios <- purrr::map_dfr(objectives, function(current_objective) {
-
   # Define the path to the current objective's results folder.
-  results_folder <- file.path("../data/external/gtfs_optimisation", current_objective)
+  results_folder <- file.path(
+    "../data/external/gtfs_optimisation",
+    current_objective
+  )
 
   # Proceed only if the directory actually exists.
   if (!dir.exists(results_folder)) {
@@ -47,12 +51,24 @@ mode_share_scenarios <- purrr::map_dfr(objectives, function(current_objective) {
 
   # Find all subfolders that match the "solution_[number]_gtfs" pattern.
   # The regex `^solution_\\d+_gtfs$` ensures we only match the correct folders.
-  solution_folders <- list.dirs(results_folder, full.names = FALSE, recursive = FALSE)
-  solution_folders <- solution_folders[grepl("^solution_\\d+_gtfs$", solution_folders)]
+  solution_folders <- list.dirs(
+    results_folder,
+    full.names = FALSE,
+    recursive = FALSE
+  )
+  solution_folders <- solution_folders[grepl(
+    "^solution_\\d+_gtfs$",
+    solution_folders
+  )]
 
   # For the current objective, read the data from each of its solution folders.
   solutions_data <- purrr::map_dfr(solution_folders, function(folder_name) {
-    file_path <- file.path(results_folder, folder_name, "output", "modestats.csv")
+    file_path <- file.path(
+      results_folder,
+      folder_name,
+      "output",
+      "modestats.csv"
+    )
 
     if (!file.exists(file_path)) {
       warning(paste("File not found, skipping:", file_path))
@@ -83,19 +99,35 @@ mode_share_scenarios <- purrr::map_dfr(objectives, function(current_objective) {
 # Bind the replicated baseline data with all the scenario data into one data frame.
 mode_share_combined <- bind_rows(mode_share_original, mode_share_scenarios)
 
+# --- Calculate DRT Totals ---
+mode_share_combined <- mode_share_combined %>%
+  # Create drtTotal as row sum of all columns containing "drt", replacing NA with 0
+  rowwise() %>%
+  mutate(
+    drtTotal = sum(c_across(contains("drt")), na.rm = TRUE), # Total DRT mode shore
+    drtPT = pt + drtTotal # Combined PT + DRT mode share
+  ) %>%
+  ungroup()
+
 # --- Convert to Percentages ---
 # Transform mode share columns from fractions (e.g., 0.25) to percentages (e.g., 25).
 # `across()` applies the same function to multiple columns efficiently.
 mode_share_percent <- mode_share_combined %>%
-  mutate(across(c(bike, car, car_passenger, pt, taxi, walk), ~ .x * 100))
+  mutate(across(
+    c(bike, car, car_passenger, pt, taxi, walk, drtTotal, drtPT),
+    ~ .x * 100
+  ))
 
 
 # =============================================================================
 ## SECTION 4: VISUALIZATION
-# Create a plot to compare the Public Transport (PT) mode share across solutions.
+# Create a plot to compare the Public Transport (PT / DRT) mode share across solutions.
 # =============================================================================
 
-ggplot(mode_share_percent, aes(x = solution_id, y = pt, color = objective, group = objective)) +
+ggplot(
+  mode_share_percent,
+  aes(x = solution_id, y = pt, color = objective, group = objective)
+) +
   # Add a line to connect the points for each objective, showing the trend.
   geom_line(alpha = 0.6) +
   # Add points to mark the specific value for each solution.
@@ -113,4 +145,33 @@ ggplot(mode_share_percent, aes(x = solution_id, y = pt, color = objective, group
   scale_y_continuous(labels = function(x) paste0(round(x, 1), "%")) +
   theme_bw() +
   # Adjust legend position for better readability.
+  theme(legend.position = "bottom")
+
+########### PT + DRT mode share
+
+# Convert to long format
+mode_share_long <- mode_share_percent %>%
+  select(solution_id, objective, pt, drtTotal, drtPT) %>%
+  pivot_longer(
+    cols = c(pt, drtTotal, drtPT),
+    names_to = "mode",
+    values_to = "value"
+  )
+
+# Plot
+ggplot(
+  mode_share_long,
+  aes(x = solution_id, y = value, color = mode, group = mode)
+) +
+  geom_line(alpha = 0.6) +
+  geom_point(size = 3) +
+  labs(
+    title = "Public Transport Mode Share by Solution",
+    subtitle = "Comparing PT, drtTotal, and drtPT across solutions",
+    x = "Solution ID",
+    y = "Mode Share (%)",
+    color = "Mode"
+  ) +
+  scale_y_continuous(labels = function(x) paste0(round(x, 1), "%")) +
+  theme_bw() +
   theme(legend.position = "bottom")
