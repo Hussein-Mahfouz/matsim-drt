@@ -17,6 +17,8 @@ import com.husseinmahfouz.matsim.dmc.mode_choice.parameters.LeedsCostParameters;
 // import org.eqasim.core.simulation.modes.drt.mode_choice.utilities.estimators.DrtUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsDrtPredictor;
 import com.husseinmahfouz.matsim.drt.waiting.DrtWaitingTimeProvider;
+import com.husseinmahfouz.matsim.drt.rejections.DrtPenaltyController;
+import com.husseinmahfouz.matsim.drt.rejections.DrtPenaltyConfig;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsDrtUtilityEstimator;
 import org.matsim.contrib.drt.estimator.DrtEstimator;
 import org.matsim.contrib.drt.optimizer.DrtOptimizer;
@@ -48,6 +50,10 @@ public class LeedsDrtModule extends AbstractEqasimExtension {
 
 		bind(DrtWaitingTimeProvider.class).asEagerSingleton();
 		addControlerListenerBinding().to(DrtWaitingTimeProvider.class);
+        
+		bind(DrtPenaltyController.class).asEagerSingleton();
+        addControlerListenerBinding().to(DrtPenaltyController.class);
+
 
 		bindUtilityEstimator("feederDrt").to(DefaultFeederDrtUtilityEstimator.class);
 
@@ -84,5 +90,36 @@ public class LeedsDrtModule extends AbstractEqasimExtension {
 			EqasimConfigGroup config) {
 		return getCostModel(factory, config, "drt");
 	}
+
+	@Provides
+    @Singleton
+    public DrtPenaltyConfig provideDrtPenaltyConfig() {
+        DrtPenaltyConfig config = new DrtPenaltyConfig();
+        
+        try {
+			// Check if penalty controller should be enabled
+			if (commandLine != null && commandLine.hasOption("enable-rejection-penalty")) {
+				boolean enabled = Boolean.parseBoolean(
+					commandLine.getOptionStrict("enable-rejection-penalty"));
+				config.setEnabled(enabled);
+			}
+            // Only parse other parameters if enabled
+			if (config.isEnabled()) {
+				if (commandLine != null && commandLine.hasOption("target-rejection-rate")) {
+					config.setTargetRejectionRate(
+						Double.parseDouble(commandLine.getOptionStrict("target-rejection-rate")));
+				}
+				
+				if (commandLine != null && commandLine.hasOption("controller-gain")) {
+					config.setControllerGain(
+						Double.parseDouble(commandLine.getOptionStrict("controller-gain")));
+				}
+			}
+        } catch (Exception e) {
+            System.err.println("Warning: Could not parse DRT penalty parameters: " + e.getMessage());
+        }
+        
+        return config;
+    }
 
 }

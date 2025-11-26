@@ -59,8 +59,10 @@ public class RunDMCSimulationDRTCluster {
     static public void main(String[] args) throws ConfigurationException {
         CommandLine cmd = new CommandLine.Builder(args) //
                 .requireOptions("config-path") //
-                .allowOptions("use-rejection-constraint", "sample-size", "output-directory",
-                        "input-plans-file", "vehicles-file", "global-threads", "qsim-threads", "iterations") //
+                .allowOptions("sample-size", "output-directory",
+                        "input-plans-file", "vehicles-file", "global-threads", "qsim-threads", "iterations",
+                        "use-rejection-constraint", "prior-requests", "prior-rejections", "min-attempts",
+                        "enable-rejection-penalty", "target-rejection-rate", "controller-gain") //
                 .allowPrefixes("mode-choice-parameter", "cost-parameter") //
                 .build();
 
@@ -175,7 +177,7 @@ public class RunDMCSimulationDRTCluster {
 
         { // Add overrides for Leeds + DRT
             controller.addOverridingModule(new LeedsDrtModule(cmd));
-            controller.addOverridingModule(new RejectionModule(Arrays.asList("drt")));
+            controller.addOverridingModule(new RejectionModule(Arrays.asList("drt"), cmd));
             controller.addOverridingModule(new DrtAnalysisModule());
         }
         controller.run();

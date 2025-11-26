@@ -18,6 +18,7 @@ import com.husseinmahfouz.matsim.drt.rejections.RejectionModule;
 import com.husseinmahfouz.matsim.dmc.LeedsConfigurator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.LeedsModeChoiceModule;
 import com.husseinmahfouz.matsim.drt.LeedsDrtModule;
+import com.husseinmahfouz.matsim.drt.rejections.RejectionModule;
 import org.matsim.api.core.v01.Scenario;
 // import org.matsim.contrib.drt.optimizer.constraints.DefaultDrtOptimizationConstraintsSet;
 // import org.matsim.contrib.drt.optimizer.insertion.DrtInsertionSearchParams;
@@ -63,7 +64,9 @@ public class RunDMCSimulationDRT {
                 .allowOptions("use-rejection-constraint", "sample-size", "iterations",
                         "global-threads", "qsim-threads", "output-directory", "input-plans-file",
                         "vehicles-file", "transit-vehicles-file", "transit-schedule-file",
-                        "network-input-file") //
+                        "network-input-file",
+                        "use-rejection-constraint", "prior-requests", "prior-rejections", "min-attempts",
+                        "enable-rejection-penalty", "target-rejection-rate", "controller-gain") //
                 .allowPrefixes("mode-choice-parameter", "cost-parameter") //
                 .build();
 
@@ -224,7 +227,7 @@ public class RunDMCSimulationDRT {
 
         { // Add overrides for Leeds + DRT
             controller.addOverridingModule(new LeedsDrtModule(cmd));
-            controller.addOverridingModule(new RejectionModule(Arrays.asList("drt")));
+            controller.addOverridingModule(new RejectionModule(Arrays.asList("drt"), cmd));
             controller.addOverridingModule(new DrtAnalysisModule());
         }
         controller.run();

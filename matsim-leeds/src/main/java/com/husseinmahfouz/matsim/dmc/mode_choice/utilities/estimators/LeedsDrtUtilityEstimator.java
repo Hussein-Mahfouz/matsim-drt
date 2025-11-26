@@ -11,6 +11,7 @@ import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsDrtPr
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsPersonPredictor;
 
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.LeedsPersonVariables;
+import com.husseinmahfouz.matsim.drt.rejections.DrtPenaltyController;
 
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.PlanElement;
@@ -22,17 +23,20 @@ public class LeedsDrtUtilityEstimator extends DrtUtilityEstimator {
     private final LeedsModeParameters parameters;
     private final LeedsPersonPredictor personPredictor;
     private final LeedsDrtPredictor drtPredictor;
+    private final DrtPenaltyController penaltyController;
 
     @Inject
     public LeedsDrtUtilityEstimator(LeedsModeParameters parameters,
             // LeedsSpatialPredictor spatialPredictor,
-            LeedsPersonPredictor personPredictor, LeedsDrtPredictor drtPredictor) {
+            LeedsPersonPredictor personPredictor, LeedsDrtPredictor drtPredictor, 
+            DrtPenaltyController penaltyController) {
         super(parameters, drtPredictor.delegate);
 
         this.parameters = parameters;
         // this.spatialPredictor = spatialPredictor;
         this.personPredictor = personPredictor;
         this.drtPredictor = drtPredictor;
+        this.penaltyController = penaltyController;
     }
 
     @Override
@@ -71,6 +75,12 @@ public class LeedsDrtUtilityEstimator extends DrtUtilityEstimator {
 		}
 		return utility;
 	}
+    // This will return 0 if penalty method is not enabled (See DrtPenaltyConfig)
+    protected double estimateRejectionPenalty(DiscreteModeChoiceTrip trip) {
+        String mode = trip.getInitialMode(); // e.g., "drtNE" or "drtNW"
+        double penalty = penaltyController.getCurrentPenalty(mode);
+        return parameters.leedsDrt.betaRejectionPenalty_u * penalty;
+    }
 
 
 
@@ -91,6 +101,7 @@ public class LeedsDrtUtilityEstimator extends DrtUtilityEstimator {
         // utility += estimateAccessEgressTimeUtility(drtVariables);
         utility += estimateOutOfVehicleTimeUtility(drtVariables);
         utility += estimateMonetaryCostUtility(drtVariables);
+        utility += estimateRejectionPenalty(trip);
 
         return utility;
     }

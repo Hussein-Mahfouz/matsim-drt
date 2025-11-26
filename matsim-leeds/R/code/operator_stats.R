@@ -106,7 +106,7 @@ ggplot(drt_occupancy_time_l #%>%
   facet_grid(vars(fleet_size), vars(operator_id)) +
 theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-ggsave(paste0(plots_dir, "vehicle_occupancy_line_facet_scenario_and_fleet_size.png"), bg = "white", width = 10)
+ggsave(paste0(plots_dir, "vehicle_occupancy_line_facet_scenario_and_fleet_size.png"), bg = "white", width = 7)
 
 # --- Area plot
 ggplot(drt_occupancy_time_l # %>%
@@ -126,7 +126,7 @@ ggplot(drt_occupancy_time_l # %>%
   facet_grid(vars(fleet_size), vars(operator_id)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-ggsave(paste0(plots_dir, "vehicle_occupancy_area_facet_scenario_and_fleet_size.png"), bg = "white", width = 10)
+ggsave(paste0(plots_dir, "vehicle_occupancy_area_facet_scenario_and_fleet_size.png"), bg = "white", width = 7)
 
 # ----------- DRT VKM travelled vs Passenger KM ---------- #
 
@@ -258,7 +258,7 @@ ggplot(drt_km_time, aes(x = arrival_time_h, y = distance_km, fill = metric)) +
   scale_y_continuous(#trans = "log10",
                      labels = scales::comma)
 
-ggsave(paste0(plots_dir, "vkm_pkm_bar_facet_scenario_and_fleet_size.png"), bg = "white", width = 10)
+ggsave(paste0(plots_dir, "vkm_pkm_bar_facet_scenario_and_fleet_size.png"), bg = "white", width = 7)
 
 
 # --- Plot CUMULATIVE pkm and vkm every hour
@@ -281,7 +281,7 @@ ggplot(drt_km_time,
   scale_y_continuous(#trans = "log10",
                      labels = scales::comma)
 
-ggsave(paste0(plots_dir, "vkm_pkm_cumulative_line_facet_scenario_and_fleet_size.png"), bg = "white", width = 10)
+ggsave(paste0(plots_dir, "vkm_pkm_cumulative_line_facet_scenario_and_fleet_size.png"), bg = "white", width = 7)
 
 
 # ------ Load factor
@@ -315,7 +315,7 @@ ggplot(drt_km_time_load_factor %>%
     labels = scales::comma) +
   scale_fill_distiller(palette = "RdYlGn", direction = 1)
 
-ggsave(paste0(plots_dir, "load_factor_bar_facet_scenario_and_fleet_size.png"), bg = "white", width = 10)
+ggsave(paste0(plots_dir, "load_factor_bar_facet_scenario_and_fleet_size.png"), bg = "white", width = 7)
 
 # plot (cumulative) - i.e. how load factor is changing
 
@@ -342,7 +342,7 @@ ggplot(drt_km_time_load_factor %>%
     labels = scales::comma) +
   scale_color_distiller(palette = "RdYlGn", direction = 1)
 
-ggsave(paste0(plots_dir, "load_factor_cumulative_line_facet_scenario_and_fleet_size.png"), bg = "white", width = 10)
+ggsave(paste0(plots_dir, "load_factor_cumulative_line_facet_scenario_and_fleet_size.png"), bg = "white", width = 7)
 
 
 # ----- Person and vehicle distance travelled per passenger trip
@@ -415,7 +415,7 @@ ggplot(drt_pkm_passengers %>%
     #trans = "log10",
     labels = scales::comma)
 
-ggsave(paste0(plots_dir, "distance_per_passenger_trip_line_facet_scenario_and_fleet_size.png"), bg = "white", width = 10)
+ggsave(paste0(plots_dir, "distance_per_passenger_trip_line_facet_scenario_and_fleet_size.png"), bg = "white", width = 7)
 
 
 # Bar plot throughout day (not cumulative)
@@ -443,7 +443,7 @@ ggplot(drt_pkm_passengers %>%
     #trans = "log10",
     labels = scales::comma)
 
-ggsave(paste0(plots_dir, "distance_per_passenger_trip_bar_facet_scenario_and_fleet_size.png"), bg = "white", width = 10)
+ggsave(paste0(plots_dir, "distance_per_passenger_trip_bar_facet_scenario_and_fleet_size.png"), bg = "white", width = 7)
 
 
 
@@ -470,7 +470,7 @@ ggplot(drt_vkm_occupancy, aes(x = factor(number_of_passengers), y = distance_km,
     labels = scales::comma) +
   scale_fill_brewer(palette = "RdYlGn", direction = 1)
 
-ggsave(paste0(plots_dir, "distance_by_passenger_count_bar_facet_scenario_and_fleet_size.png"), bg = "white", width = 10)
+ggsave(paste0(plots_dir, "distance_by_passenger_count_bar_facet_scenario_and_fleet_size.png"), bg = "white", width = 7)
 
 
 
