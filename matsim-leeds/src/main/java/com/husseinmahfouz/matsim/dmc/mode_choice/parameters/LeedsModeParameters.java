@@ -54,12 +54,17 @@ public class LeedsModeParameters extends ModeParameters {
 
 	}
 
+	public class LeedsDrtParameters {
+		public double betaRejectionPenalty_u; // Default penalty weight (see drt.rejections.DrtPenaltyController)
+	}
+
 
 	public final LeedsCarParameters leedsCar = new LeedsCarParameters();
 	public final LeedsBikeParameters leedsBike = new LeedsBikeParameters();
 	public final LeedsPTParameters leedsPT = new LeedsPTParameters();
 	public final LeedsWalkParameters leedsWalk = new LeedsWalkParameters();
 	public final LeedsTaxiParameters leedsTaxi = new LeedsTaxiParameters();
+	public final LeedsDrtParameters leedsDrt = new LeedsDrtParameters();
 
 	public static LeedsModeParameters buildDefault() {
 		LeedsModeParameters parameters = new LeedsModeParameters();
@@ -142,6 +147,8 @@ public class LeedsModeParameters extends ModeParameters {
 		parameters.drt.betaWaitingTime_u_min = -1.1484;
 		parameters.drt.betaAccessEgressTime_u_min = -1.1484;
 		// parameters.drt.betaOutofVehicleTime_u_min = -1.1484;
+
+		parameters.leedsDrt.betaRejectionPenalty_u = 1.0;  // Needs to be positive! This value is multiplied by the penalty (which is always negative) and added to utility
 
 		return parameters;
 	}

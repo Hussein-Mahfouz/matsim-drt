@@ -302,21 +302,19 @@ scenario_extents <- scenario_extents %>%
 # Add geometry to feeder stats df
 drt_trips_feeder_lines_sf = drt_trips_feeder_lines %>%
   left_join(gtfs_routes, by = c("transit_line_id" = "route_id")) %>%
-  st_as_sf()
-
+  st_as_sf() %>%
+  filter(!st_is_empty(.) & !is.na(trips))
 
 # --- Spatial plots
 
 tm_shape(study_area) +
-  tm_borders(lwd = 3) +
-tm_shape(study_area) +
-  tm_fill(col = "grey70") +
+  tm_borders(lwd = 1.5, fill = "grey60") +
 tm_shape(scenario_extents) +
   tm_borders(col = "darkgreen",
-             lwd = 3.5,
+             lwd = 4,
              lty = "dashed") +
-  tm_facets(by = c("fleet_size", "scenario"),
-            free.coords = FALSE) +
+  tm_facets_grid(rows = "fleet_size", columns = "scenario",
+                 free.coords = FALSE) +
   # tm_shape(gtfs_sf$shapes) +
   #   tm_lines(col = "grey75",
   #            alpha = 0.2) +
@@ -326,17 +324,19 @@ tm_shape(scenario_extents) +
            title.col = "Number of \nfeeder DRT \ntrips",
            lwd = "trips",
            palette = "Reds",
+           style = "pretty",
            scale = 10,
+           legend.format=list(fun=function(x) formatC(x, format = "f", digits = 0)),  # no decimals
            legend.lwd.show = FALSE) +
   # tm_facets(by = c("operator_id", "fleet_size"),
-  tm_facets(by = c("fleet_size_label", "operator_id"),
-            free.coords = FALSE) +
+  tm_facets_grid(rows = "fleet_size_label", columns = "operator_id",
+                 free.coords = FALSE) +
   tm_layout(fontfamily = 'Georgia',
             main.title = "Number of Feeder DRT trips connecting to each bus route",
             main.title.size = 1.1,
             main.title.color = "azure4",
-            main.title.position = "left",
-            bg.color = "#FAF9F6",
+            #main.title.position = "left",
+            #bg.color = "#FAF9F6",
             # legend.outside = TRUE,
             # legend.outside.position = "bottom",
             # legend.stack = "horizontal",
@@ -344,7 +344,7 @@ tm_shape(scenario_extents) +
             # panel.label.bg.color = "grey",
             #panel.labels = 1:length(unique(clusters_vis_mode_poly_filt_max$cluster)),
             frame = FALSE)  +
-  tm_add_legend(type = "line", labels = 'Service area', col = 'darkgreen', lwd = 2, lty = "dashed") -> drt_feeder_bus_count
+  tm_add_legend(type = "line", labels = 'Service area', col = 'darkgreen', lwd = 1.5, lty = "dashed") -> drt_feeder_bus_count
 
 drt_feeder_bus_count
 
@@ -370,15 +370,13 @@ drt_trips_feeder_lines_sf_overline = drt_trips_feeder_lines_sf %>%
 # --- Plot
 
 tm_shape(study_area) +
-  tm_borders(lwd = 3) +
-  tm_shape(study_area) +
-  tm_fill(col = "grey70") +
+  tm_borders(lwd = 1.5, fill = "grey60") +
   tm_shape(scenario_extents) +
   tm_borders(col = "darkgreen",
-             lwd = 2.5,
+             lwd = 4,
              lty = "dashed") +
-  tm_facets(by = c("fleet_size", "scenario"),
-            free.coords = FALSE) +
+  tm_facets_grid(rows = "fleet_size", columns = "scenario",
+                 free.coords = FALSE) +
   # tm_shape(gtfs_sf$shapes) +
   #   tm_lines(col = "grey75",
   #            alpha = 0.2) +
@@ -389,15 +387,16 @@ tm_shape(study_area) +
            lwd = "trips",
            palette = "Reds",
            scale = 10,
+           legend.format=list(fun=function(x) formatC(x, format = "f", digits = 0)),  # no decimals
            legend.lwd.show = FALSE) +
   # tm_facets(by = c("operator_id", "fleet_size"),
-  tm_facets(by = c("fleet_size", "operator_id"),
-            free.coords = FALSE) +
+  tm_facets_grid(rows = "fleet_size", columns = "operator_id",
+                 free.coords = FALSE) +
   tm_layout(fontfamily = 'Georgia',
             main.title = "Spatial concentration of bus routes used by feeder DRT trips",
             main.title.size = 1.1,
             main.title.color = "azure4",
-            main.title.position = "left",
+            # main.title.position = "left",
             bg.color = "#FAF9F6",
             # legend.outside = TRUE,
             # legend.outside.position = "bottom",
@@ -406,7 +405,7 @@ tm_shape(study_area) +
             # panel.label.bg.color = "grey",
             #panel.labels = 1:length(unique(clusters_vis_mode_poly_filt_max$cluster)),
             frame = FALSE)  +
-  tm_add_legend(type = "line", labels = 'Service area', col = 'darkgreen', lwd = 2, lty = "dashed") -> drt_feeder_bus_count_overline
+  tm_add_legend(type = "line", labels = 'Service area', col = 'darkgreen', lwd = 1.5, lty = "dashed") -> drt_feeder_bus_count_overline
 
 drt_feeder_bus_count_overline
 
@@ -460,9 +459,7 @@ gtfs_headway = gtfs_headway %>%
   mutate(buses_per_hr = round(3600/headway_secs))
 
 tm_shape(study_area) +
-  tm_borders(lwd = 3) +
-  tm_shape(study_area) +
-  tm_fill(col = "grey70") +
+  tm_borders(lwd = 1.5, fill = "grey70") +
 tm_shape(gtfs_headway %>%
              filter(buses_per_hr > 1)) +
   tm_lines(title.col = "Buses/hr",
@@ -475,23 +472,23 @@ tm_shape(gtfs_headway %>%
 tm_shape(scenario_extents) +
   tm_borders(col = "darkgreen",
              #lty = "dashed",
-             lwd = 2.5) +
+             lwd = 1.5) +
   tm_facets(by = "scenario",
-            free.coords = FALSE) +
+            free.coords = FALSE, nrow = 2) +
   tm_layout(fontfamily = 'Georgia',
             main.title = "DRT operating zones for different scenarios",
             main.title.size = 1.1,
             main.title.color = "azure4",
-            main.title.position = "left",
+           # main.title.position = "left",
             bg.color = "#FAF9F6",
             legend.outside = TRUE,
             legend.outside.position = "bottom",
-            legend.stack = "horizontal",
+            legend.stack = "vertical",
             # panel.label.size = 1,
             # panel.label.bg.color = "grey",
             #panel.labels = 1:length(unique(clusters_vis_mode_poly_filt_max$cluster)),
             frame = FALSE)  +
-  tm_add_legend(type = "line", labels = 'DRT service area', col = 'darkgreen', lwd = 2, lty = "dashed") -> drt_service_areas
+  tm_add_legend(type = "line", labels = 'DRT service area', col = 'darkgreen', lwd = 1.5, lty = "dashed") -> drt_service_areas
 
 drt_service_areas
 
