@@ -40,8 +40,7 @@ MAIN_CLASS="com.husseinmahfouz.matsim.RunDMCSimulationDRTMultipleGTFS"
 
 # Simulation parameters
 SAMPLE_SIZE="1.00" # 0.50, 0.20, 0.10, 0.05, 0.01
-ITERATIONS=55
-USE_REJECTION_CONSTRAINT="true"
+ITERATIONS=65
 GLOBAL_THREADS=12
 QSIM_THREADS=12
 CLEAN_ITERS_AT_END="delete"  # Delete the ITERS/ directory? Options (keep, delete)
@@ -50,7 +49,26 @@ CLEAN_ITERS_AT_END="delete"  # Delete the ITERS/ directory? Options (keep, delet
 # Cluster resource parameters (TODO: learn if MATSim is memory-bound or cpu-bound)
 CPUS_PER_TASK=12
 MEM_PER_CPU=8192  # MB per CPU (8GB)
-MAX_RUNTIME="18:00:00"  # 16:00:00 = 16 hours
+MAX_RUNTIME="36:00:00"  # 16:00:00 = 16 hours
+
+########################
+# Parameters related to DRT rejections
+########################
+
+# 1. INDIVIDUAL LEVEL: Rejection Constraint parameters (Bayesian smoothing)
+# If applied, it checks how many times a person has been rejected in previous iterations, 
+# and probabilistically determines whether to make DRT mode available to person depending on rejection rate
+USE_REJECTION_CONSTRAINT="true"
+PRIOR_REQUESTS="10"        # Virtual prior attempts (default: 10)
+PRIOR_REJECTIONS="1"       # Virtual prior rejections (default: 1, gives 10% base rate)
+MIN_ATTEMPTS="3"           # Grace period attempts (default: 3)
+
+# 2. GLOBAL LEVEL: DRT parameters (to control rejection rate) See issue #55
+# Tries to match global DRT rejection rate with the rate specified below. Done by 
+# adding a penalty to the DRT mode utility
+ENABLE_REJECTION_PENALTY="true"  # Set to "false" to disable
+TARGET_REJECTION_RATE="0.03"  # 3% target
+CONTROLLER_GAIN="1.0"         # Proportional gain
 
 # Shared input files (based on sample size)
 INPUT_PLANS_FILE="$MATSIM_DIR/data/demand/plans_sample_eqasim_${SAMPLE_SIZE}.xml"

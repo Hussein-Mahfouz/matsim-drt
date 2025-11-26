@@ -31,7 +31,7 @@ public class RunDMCSimulationDRTMultipleGTFS {
 
     static public void main(String[] args) throws ConfigurationException {
         CommandLine cmd = new CommandLine.Builder(args).requireOptions("config-path")
-                .allowOptions("use-rejection-constraint", "sample-size", "iterations",
+                .allowOptions( "sample-size", "iterations",
                         // input files that change based on sample size
                         "input-plans-file", "vehicles-file",
                         // where to save run data
@@ -45,7 +45,11 @@ public class RunDMCSimulationDRTMultipleGTFS {
                         // transit data
                         "transit-vehicles-file", "transit-schedule-file",
                         // network data
-                        "network-input-file")
+                        "network-input-file",
+                        // Individual rejection handling
+                        "use-rejection-constraint", "prior-requests", "prior-rejections", "min-attempts",
+                        // global rejection handling
+                        "enable-rejection-penalty", "target-rejection-rate", "controller-gain")
                 .allowPrefixes("mode-choice-parameter", "cost-parameter").build();
 
         LeedsConfigurator configurator = new LeedsConfigurator();
@@ -165,7 +169,7 @@ public class RunDMCSimulationDRTMultipleGTFS {
 
         { // Add overrides for Leeds + DRT
             controller.addOverridingModule(new LeedsDrtModule(cmd));
-            controller.addOverridingModule(new RejectionModule(Arrays.asList("drt")));
+            controller.addOverridingModule(new RejectionModule(Arrays.asList("drt"), cmd));
             controller.addOverridingModule(new DrtAnalysisModule());
         }
         controller.run();
