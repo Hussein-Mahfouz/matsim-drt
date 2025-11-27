@@ -1,24 +1,3 @@
-library(tidyverse)
-library(sf)
-
-# ============================================================================
-# Data Setup
-# ============================================================================
-
-stops <- read_csv(unz(
-  "../data/external/study_area_gtfs_bus.zip",
-  "stops.txt"
-)) |>
-  st_as_sf(coords = c("stop_lon", "stop_lat"), crs = 4326) |>
-  st_transform(3857)
-
-boundary_sf <- st_read("../data/external/study_area_boundary.geojson") |>
-  st_transform(3857) |>
-  st_union()
-
-stops <- stops |>
-  st_filter(boundary_sf, .predicate = st_within)
-
 # ============================================================================
 # Functions
 # ============================================================================
@@ -30,6 +9,8 @@ stops <- stops |>
 #' @param catchment_radius Distance in meters to buffer stops
 #' @param level "trip", "person", or "all" (all trips, no filtering)
 #' @param access "origin", "origin+destination", or "all"
+#' @param zones "pt", "pt+drt" whether to filter by pt stops only or pt stops and drt zones
+#' @param drt_zones the sf polygon layyer of the drt service area
 #'
 #' @return Tibble with mode, n, and share columns
 #'
@@ -38,16 +19,19 @@ mode_share_catchment <- function(
   stops,
   catchment_radius = 500,
   level = c("trip", "person", "all"),
-  access = c("origin", "origin+destination", "all")
+  access = c("origin", "origin+destination", "all"),
+  zones = c("pt", "pt+drt"),
+  drt_zones = NULL
 ) {
   level <- match.arg(level)
   access <- match.arg(access)
+  zones <- match.arg(zones)
 
   message("Creating unique trip id...")
   trips <- trips |>
     mutate(unique_trip_id = paste0(person_id, "_", person_trip_id))
 
-  # If level = "all" and access = "all", skip filtering
+  # If level = "all" and access = "all", skip filtering entirely
   if (level == "all" && access == "all") {
     message("Using all trips (no filtering)...")
     trips_access <- trips
@@ -55,25 +39,37 @@ mode_share_catchment <- function(
     message("Buffering stops...")
     buffer <- stops |> st_buffer(catchment_radius)
 
-    message("Checking origin within buffer...")
+    if (zones == "pt+drt") {
+      if (is.null(drt_zones)) {
+        stop("zones = 'pt+drt' requires drt_zones (sf) to be provided.")
+      }
+      message("Combining PT stop buffers and DRT zones...")
+      drt_zones <- st_transform(drt_zones, st_crs(stops))
+      # bind_rows keeps geometries separate so st_filter checks against all polygons/points
+      catchment <- bind_rows(buffer, drt_zones)
+    } else {
+      catchment <- buffer
+    }
+
+    message("Checking origin within catchment...")
     origin_sf <- st_as_sf(
       trips,
       coords = c("origin_x", "origin_y"),
       crs = st_crs(stops),
       remove = FALSE
     )
-    origin_in <- st_filter(origin_sf, buffer, .predicate = st_intersects) |>
+    origin_in <- st_filter(origin_sf, catchment, .predicate = st_intersects) |>
       pull(unique_trip_id)
 
     if (access == "origin+destination") {
-      message("Checking destination within buffer...")
+      message("Checking destination within catchment...")
       dest_sf <- st_as_sf(
         trips,
         coords = c("destination_x", "destination_y"),
         crs = st_crs(stops),
         remove = FALSE
       )
-      dest_in <- st_filter(dest_sf, buffer, .predicate = st_intersects) |>
+      dest_in <- st_filter(dest_sf, catchment, .predicate = st_intersects) |>
         pull(unique_trip_id)
       both_ids <- intersect(origin_in, dest_in)
       trips_access <- trips |> filter(unique_trip_id %in% both_ids)
@@ -82,9 +78,8 @@ mode_share_catchment <- function(
     }
 
     if (level == "person") {
-      message("Filtering by person...")
-      total_trips_per_person <- trips |>
-        count(person_id, name = "total_trips")
+      message("Filtering by person (all trips inside)...")
+      total_trips_per_person <- trips |> count(person_id, name = "total_trips")
       filtered_trips_per_person <- trips_access |>
         count(person_id, name = "filtered_trips")
       persons_all_in <- filtered_trips_per_person |>
@@ -109,6 +104,8 @@ mode_share_catchment <- function(
 #' @param levels Vector of level values ("trip", "person", or both)
 #' @param accesses Vector of access values ("origin", "origin+destination", or both)
 #' @param include_all Whether to include "all" scenario with no filtering
+#' @param zones  Whether to filter by pt stops only, or by pt and drt zones
+#' @param drt_zones the drt zone sf polygon
 #'
 #' @return Tibble with results for all combinations
 #'
@@ -118,39 +115,58 @@ mode_share_all_combinations <- function(
   catchment_radius = 500,
   levels = c("trip", "person"),
   accesses = c("origin", "origin+destination"),
-  include_all = TRUE
+  include_all = TRUE,
+  zones = c("pt"),
+  drt_zones = NULL
 ) {
   trips <- read_delim(trips_file, delim = ";", show_col_types = FALSE)
 
-  results <- expand_grid(level = levels, access = accesses) |>
-    pmap_df(function(level, access) {
-      message(glue::glue("Computing level={level}, access={access}"))
+  results <- expand_grid(level = levels, access = accesses, zone = zones) |>
+    pmap_df(function(level, access, zone) {
+      message(glue::glue(
+        "Computing level={level}, access={access}, zones={zone}"
+      ))
       mode_share_catchment(
         trips = trips,
         stops = stops,
         catchment_radius = catchment_radius,
         level = level,
-        access = access
+        access = access,
+        zones = zone,
+        drt_zones = drt_zones
       ) |>
-        mutate(level = level, access = access, .before = everything())
+        mutate(
+          level = level,
+          access = access,
+          zones = zone,
+          .before = everything()
+        )
     })
 
   if (include_all) {
-    message(glue::glue("Computing level=all, access=all"))
+    message(glue::glue("Computing level=all, access=all, zones=all"))
     all_result <- mode_share_catchment(
       trips = trips,
       stops = stops,
       catchment_radius = catchment_radius,
       level = "all",
-      access = "all"
+      access = "all",
+      zones = "pt", # zones irrelevant for "all", keep default
+      drt_zones = drt_zones
     ) |>
-      mutate(level = "all", access = "all", .before = everything())
+      mutate(
+        level = "all",
+        access = "all",
+        zones = "all",
+        .before = everything()
+      )
 
     results <- bind_rows(results, all_result)
   }
 
   results
 }
+
 
 #' Calculate mode share for all solutions in a directory
 #'
@@ -169,7 +185,9 @@ mode_share_by_solution <- function(
   catchment_radius = 500,
   levels = c("trip", "person"),
   accesses = c("origin", "origin+destination"),
-  include_all = TRUE
+  include_all = TRUE,
+  zones = c("pt"),
+  drt_zones = NULL
 ) {
   solution_dirs <- list.dirs(
     solutions_dir,
@@ -184,12 +202,10 @@ mode_share_by_solution <- function(
       full.names = TRUE,
       recursive = TRUE
     )[1]
-
     if (is.na(trips_file)) {
       message(glue::glue("No eqasim_trips.csv found in {sol_dir}"))
       return(NULL)
     }
-
     message(glue::glue("Processing {basename(sol_dir)}..."))
 
     mode_share_all_combinations(
@@ -198,86 +214,10 @@ mode_share_by_solution <- function(
       catchment_radius = catchment_radius,
       levels = levels,
       accesses = accesses,
-      include_all = include_all
+      include_all = include_all,
+      zones = zones,
+      drt_zones = drt_zones
     ) |>
       mutate(solution = basename(sol_dir), .before = everything())
   })
 }
-
-# ============================================================================
-# Analysis
-# ============================================================================
-
-# Define parameter combinations to analyze
-PARAMS <- list(
-  levels = c("trip", "person"),
-  accesses = c("origin", "origin+destination")
-)
-
-CATCHMENT_RADIUS <- 100
-
-# Analyze solutions
-all_solutions <- mode_share_by_solution(
-  solutions_dir = "../data/external/gtfs_optimisation/min_variance_stops",
-  stops = stops,
-  catchment_radius = CATCHMENT_RADIUS,
-  levels = PARAMS$levels,
-  accesses = PARAMS$accesses,
-  include_all = TRUE
-)
-
-# Analyze base scenario
-base_trips_file <- "../scenarios/basic/sample_1.00/eqasim_trips.csv"
-base_results <- mode_share_all_combinations(
-  trips_file = base_trips_file,
-  stops = stops,
-  catchment_radius = CATCHMENT_RADIUS,
-  levels = PARAMS$levels,
-  accesses = PARAMS$accesses,
-  include_all = TRUE
-) |>
-  mutate(solution = "base", .before = everything())
-
-# Combine and calculate percent change
-all_results <- bind_rows(base_results, all_solutions)
-
-results_with_change <- all_results |>
-  left_join(
-    base_results |> select(level, access, mode, n, share),
-    by = c("level", "access", "mode"),
-    suffix = c("_solution", "_base")
-  ) |>
-  replace_na(list(n_base = 0, share_base = 0)) |>
-  mutate(
-    n_pct_change = (n_solution - n_base) / n_base * 100,
-    share_pct_change = (share_solution - share_base) / share_base * 100,
-    .after = share_base
-  ) |>
-  filter(solution != "base") |>
-  # Add PT+DRT as a new row
-  bind_rows(
-    all_results |>
-      left_join(
-        base_results |> select(level, access, mode, n, share),
-        by = c("level", "access", "mode"),
-        suffix = c("_solution", "_base")
-      ) |>
-      replace_na(list(n_base = 0, share_base = 0)) |>
-      filter(solution != "base") |>
-      group_by(solution, level, access) |>
-      summarize(
-        n_solution = sum(n_solution[mode == "pt" | str_detect(mode, "drt")]),
-        share_solution = sum(share_solution[
-          mode == "pt" | str_detect(mode, "drt")
-        ]),
-        n_base = sum(n_base[mode == "pt" | str_detect(mode, "drt")]),
-        share_base = sum(share_base[mode == "pt" | str_detect(mode, "drt")]),
-        .groups = "drop"
-      ) |>
-      mutate(
-        mode = "pt+drt",
-        n_pct_change = (n_solution - n_base) / n_base * 100,
-        share_pct_change = (share_solution - share_base) / share_base * 100
-      )
-  ) |>
-  arrange(solution, level, access)

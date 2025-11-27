@@ -1,24 +1,3 @@
-library(tidyverse)
-library(sf)
-
-# ============================================================================
-# Data Setup
-# ============================================================================
-
-stops <- read_csv(unz(
-  "../data/external/study_area_gtfs_bus.zip",
-  "stops.txt"
-)) |>
-  st_as_sf(coords = c("stop_lon", "stop_lat"), crs = 4326) |>
-  st_transform(3857)
-
-boundary_sf <- st_read("../data/external/study_area_boundary.geojson") |>
-  st_transform(3857) |>
-  st_union()
-
-stops <- stops |>
-  st_filter(boundary_sf, .predicate = st_within)
-
 # ============================================================================
 # Functions
 # ============================================================================
@@ -40,16 +19,18 @@ vkm_catchment <- function(
   catchment_radius = 500,
   level = c("trip", "person", "all"),
   access = c("origin", "origin+destination", "all"),
+  zones = c("pt", "pt+drt"),
+  drt_zones = NULL,
   modes = NULL
 ) {
   level <- match.arg(level)
   access <- match.arg(access)
+  zones <- match.arg(zones)
 
   message("Creating unique trip id...")
   trips <- trips |>
     mutate(unique_trip_id = paste0(person_id, "_", person_trip_id))
 
-  # If level = "all" and access = "all", skip filtering
   if (level == "all" && access == "all") {
     message("Using all trips (no filtering)...")
     trips_access <- trips |> filter(mode != "car_passenger")
@@ -57,25 +38,35 @@ vkm_catchment <- function(
     message("Buffering stops...")
     buffer <- stops |> st_buffer(catchment_radius)
 
-    message("Checking origin within buffer...")
+    if (zones == "pt+drt") {
+      if (is.null(drt_zones)) {
+        stop("zones = 'pt+drt' requires drt_zones (sf).")
+      }
+      drt_zones <- st_transform(drt_zones, st_crs(stops))
+      catchment <- bind_rows(buffer, drt_zones)
+    } else {
+      catchment <- buffer
+    }
+
+    message("Checking origin within catchment...")
     origin_sf <- st_as_sf(
       trips,
       coords = c("origin_x", "origin_y"),
       crs = st_crs(stops),
       remove = FALSE
     )
-    origin_in <- st_filter(origin_sf, buffer, .predicate = st_intersects) |>
+    origin_in <- st_filter(origin_sf, catchment, .predicate = st_intersects) |>
       pull(unique_trip_id)
 
     if (access == "origin+destination") {
-      message("Checking destination within buffer...")
+      message("Checking destination within catchment...")
       dest_sf <- st_as_sf(
         trips,
         coords = c("destination_x", "destination_y"),
         crs = st_crs(stops),
         remove = FALSE
       )
-      dest_in <- st_filter(dest_sf, buffer, .predicate = st_intersects) |>
+      dest_in <- st_filter(dest_sf, catchment, .predicate = st_intersects) |>
         pull(unique_trip_id)
       both_ids <- intersect(origin_in, dest_in)
       trips_access <- trips |> filter(unique_trip_id %in% both_ids)
@@ -85,8 +76,7 @@ vkm_catchment <- function(
 
     if (level == "person") {
       message("Filtering by person...")
-      total_trips_per_person <- trips |>
-        count(person_id, name = "total_trips")
+      total_trips_per_person <- trips |> count(person_id, name = "total_trips")
       filtered_trips_per_person <- trips_access |>
         count(person_id, name = "filtered_trips")
       persons_all_in <- filtered_trips_per_person |>
@@ -99,15 +89,13 @@ vkm_catchment <- function(
     trips_access <- trips_access |> filter(mode != "car_passenger")
   }
 
-  message("Calculating VKM by mode...")
-  result <- trips_access
-
   # Filter by modes if specified
   if (!is.null(modes)) {
-    result <- result |> filter(mode %in% modes)
+    trips_access <- trips_access |> filter(mode %in% modes)
   }
 
-  result |>
+  message("Calculating VKM by mode...")
+  trips_access |>
     group_by(mode) |>
     summarize(
       total_distance_km = sum(routed_distance, na.rm = TRUE) / 1000,
@@ -193,33 +181,48 @@ vkm_all_combinations <- function(
   levels = c("trip", "person"),
   accesses = c("origin", "origin+destination"),
   modes = NULL,
-  include_all = TRUE
+  include_all = TRUE,
+  zones = c("pt"),
+  drt_zones = NULL
 ) {
   trips <- read_delim(trips_file, delim = ";", show_col_types = FALSE)
 
-  # Car/taxi VKM from eqasim_trips
-  car_taxi_results <- expand_grid(level = levels, access = accesses) |>
-    pmap_df(function(level, access) {
-      message(glue::glue("Computing level={level}, access={access}"))
+  # Car/taxi VKM from eqasim_trips for each (level, access, zone)
+  car_taxi_results <- expand_grid(
+    level = levels,
+    access = accesses,
+    zones = zones
+  ) |>
+    pmap_df(function(level, access, zones) {
+      message(glue::glue(
+        "Computing level={level}, access={access}, zones={zones}"
+      ))
       vkm_catchment(
         trips = trips,
         stops = stops,
         catchment_radius = catchment_radius,
         level = level,
         access = access,
+        zones = zones,
+        drt_zones = drt_zones,
         modes = if (is.null(modes)) NULL else setdiff(modes, "pt")
       ) |>
-        mutate(level = level, access = access, .before = everything())
+        mutate(
+          level = level,
+          access = access,
+          zones = zones,
+          .before = everything()
+        )
     })
 
-  # PT VKM from GTFS (same for all level/access combinations)
+  # PT VKM from GTFS (same for all level/access/zone combinations)
   pt_result <- pt_vkm_from_gtfs(solution_dir, boundary_sf) |>
-    expand_grid(level = levels, access = accesses) |>
-    relocate(level, access, .before = mode)
+    expand_grid(level = levels, access = accesses, zones = zones) |>
+    relocate(level, access, zones, .before = mode)
 
-  # Combine and recalculate shares based on total VKM
+  # Combine and recalc shares grouped by level/access/zone
   all_vkm <- bind_rows(car_taxi_results, pt_result) |>
-    group_by(level, access) |>
+    group_by(level, access, zones) |>
     mutate(
       total_vkm = sum(total_distance_km),
       share = (total_distance_km / total_vkm) * 100
@@ -227,7 +230,7 @@ vkm_all_combinations <- function(
     ungroup() |>
     select(-total_vkm)
 
-  # Add "all" scenario if requested
+  # Add "all" (no filtering) scenario if requested — zone marked "all"
   if (include_all) {
     all_scenario <- vkm_catchment(
       trips = trips,
@@ -235,19 +238,28 @@ vkm_all_combinations <- function(
       catchment_radius = catchment_radius,
       level = "all",
       access = "all",
+      zones = "pt", # zones irrelevant for global; place-holder
+      drt_zones = drt_zones,
       modes = if (is.null(modes)) NULL else setdiff(modes, "pt")
     ) |>
-      mutate(level = "all", access = "all", .before = everything())
+      mutate(
+        level = "all",
+        access = "all",
+        zones = "all",
+        .before = everything()
+      )
 
     pt_all <- pt_vkm_from_gtfs(solution_dir, boundary_sf) |>
-      mutate(level = "all", access = "all") |>
-      relocate(level, access, .before = mode)
+      mutate(level = "all", access = "all", zones = "all") |>
+      relocate(level, access, zones, .before = mode)
 
     all_scenario_combined <- bind_rows(all_scenario, pt_all) |>
+      group_by(level, access, zones) |>
       mutate(
         total_vkm = sum(total_distance_km),
         share = (total_distance_km / total_vkm) * 100
       ) |>
+      ungroup() |>
       select(-total_vkm)
 
     all_vkm <- bind_rows(all_vkm, all_scenario_combined)
@@ -276,7 +288,9 @@ vkm_by_solution <- function(
   levels = c("trip", "person"),
   accesses = c("origin", "origin+destination"),
   modes = NULL,
-  include_all = TRUE
+  include_all = TRUE,
+  zones = c("pt"),
+  drt_zones = NULL
 ) {
   solution_dirs <- list.dirs(
     solutions_dir,
@@ -291,12 +305,10 @@ vkm_by_solution <- function(
       full.names = TRUE,
       recursive = TRUE
     )[1]
-
     if (is.na(trips_file)) {
       message(glue::glue("No eqasim_trips.csv found in {sol_dir}"))
       return(NULL)
     }
-
     message(glue::glue("Processing {basename(sol_dir)}..."))
 
     vkm_all_combinations(
@@ -308,75 +320,10 @@ vkm_by_solution <- function(
       levels = levels,
       accesses = accesses,
       modes = modes,
-      include_all = include_all
+      include_all = include_all,
+      zones = zones,
+      drt_zones = drt_zones
     ) |>
       mutate(solution = basename(sol_dir), .before = everything())
   })
 }
-
-# ============================================================================
-# Analysis
-# ============================================================================
-
-# Define parameter combinations to analyze
-PARAMS <- list(
-  levels = c("trip", "person"),
-  accesses = c("origin", "origin+destination")
-)
-
-CATCHMENT_RADIUS <- 100
-MODES <- c("car", "taxi", "pt")
-
-# Analyze solutions
-all_solutions <- vkm_by_solution(
-  solutions_dir = "../data/external/gtfs_optimisation/min_variance_stops",
-  stops = stops,
-  boundary_sf = boundary_sf,
-  catchment_radius = CATCHMENT_RADIUS,
-  levels = PARAMS$levels,
-  accesses = PARAMS$accesses,
-  modes = MODES,
-  include_all = TRUE
-)
-
-# Analyze base scenario
-base_trips_file <- "../scenarios/basic/sample_1.00/eqasim_trips.csv"
-base_solution_dir <- "../data/external/gtfs_optimisation/max_min_theoretical/worst_service_gtfs"
-
-base_results <- vkm_all_combinations(
-  trips_file = base_trips_file,
-  solution_dir = base_solution_dir,
-  stops = stops,
-  boundary_sf = boundary_sf,
-  catchment_radius = CATCHMENT_RADIUS,
-  levels = PARAMS$levels,
-  accesses = PARAMS$accesses,
-  modes = MODES,
-  include_all = TRUE
-) |>
-  mutate(solution = "base", .before = everything())
-
-# Combine and calculate percent change
-all_results <- bind_rows(base_results, all_solutions)
-
-results_with_change <- all_results |>
-  left_join(
-    base_results |> select(level, access, mode, total_distance_km, share),
-    by = c("level", "access", "mode"),
-    suffix = c("_solution", "_base")
-  ) |>
-  replace_na(list(total_distance_km_base = 0, share_base = 0)) |>
-  mutate(
-    delta_km = total_distance_km_solution - total_distance_km_base,
-    delta_km_pct = if_else(
-      total_distance_km_base == 0,
-      NA_real_,
-      (delta_km / total_distance_km_base) * 100
-    ),
-    share_pct_change = share_solution - share_base,
-    .after = share_base
-  ) |>
-  filter(solution != "base") |>
-  arrange(solution, level, access, mode)
-
-results_with_change

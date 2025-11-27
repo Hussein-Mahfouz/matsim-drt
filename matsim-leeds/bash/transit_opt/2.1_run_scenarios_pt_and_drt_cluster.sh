@@ -49,7 +49,7 @@ CLEAN_ITERS_AT_END="delete"  # Delete the ITERS/ directory? Options (keep, delet
 # Cluster resource parameters (TODO: learn if MATSim is memory-bound or cpu-bound)
 CPUS_PER_TASK=12
 MEM_PER_CPU=8192  # MB per CPU (8GB)
-MAX_RUNTIME="36:00:00"  # 16:00:00 = 16 hours
+MAX_RUNTIME="36:00:00"  # 36:00:00 = 36 hours
 
 ########################
 # Parameters related to DRT rejections
