@@ -1,0 +1,308 @@
+library(tidyverse)
+library(sf)
+library(glue)
+
+# Source function-only modules (they must contain only function definitions)
+source("code/transit_opt/mode_share_catchment.R")
+source("code/transit_opt/vkm_catchment.R")
+
+# -------------------------
+# Parameters (edit here)
+# -------------------------
+# Path to eqasim trips CSV for the baseline scenario (required)
+# - type: string (file path)
+# - expected: eqasim_trips.csv produced by your scenario pipeline
+base_trips_file <- "../scenarios/basic/sample_1.00/eqasim_trips.csv"
+
+# Directory containing GTFS files for the baseline PT network (required)
+# - type: string (directory path)
+# - expected: contains stops.txt, stop_times.txt, etc.
+base_solution_dir <- "../data/external/gtfs_optimisation/max_min_theoretical/worst_service_gtfs"
+
+# Distance (meters) used to buffer PT stops when computing catchments
+# - type: numeric (meters)
+catchment_radius <- 100
+
+# Analysis levels:
+# - "trip": evaluate individual trips
+# - "person": include person only if all their trips meet the access criterion
+# - Note: "all" is handled separately by include_all
+levels_vec <- c("trip", "person")
+
+# Access definitions:
+# - "origin": origin must be inside catchment
+# - "origin+destination": both origin and destination must be inside catchment
+accesses_vec <- c("origin", "origin+destination")
+
+# Zone options for filtering:
+# - "pt": only PT stop buffers used
+# - "pt+drt": PT stop buffers PLUS DRT operating polygons included
+zones_vec <- c("pt", "pt+drt")
+
+# If TRUE, add an additional single "all" scenario (no spatial filtering) to outputs
+include_all <- TRUE
+
+# Output file paths
+mode_share_out <- "output/mode_share_by_solution.csv"
+vkm_out <- "output/vkm_by_solution.csv"
+dir.create("output", showWarnings = FALSE, recursive = TRUE)
+
+
+# -------------------------
+# Spatial data (single source)
+# -------------------------
+
+# PT stops
+stops <- read_csv(
+  unz("../data/external/study_area_gtfs_bus.zip", "stops.txt"),
+  show_col_types = FALSE
+) |>
+  st_as_sf(coords = c("stop_lon", "stop_lat"), crs = 4326) |>
+  st_transform(3857)
+
+# study area boundary (to filter out stray pt stops from GTFS)
+boundary_sf <- st_read("../data/external/study_area_boundary.geojson") |>
+  st_transform(3857) |>
+  st_union()
+
+stops <- stops |> st_filter(boundary_sf, .predicate = st_within)
+
+# DRT zone boundaries
+drt_zone_ne <- st_read(
+  "../data/supply/drt/ne_cluster_08_00_11_00.shp",
+  quiet = TRUE
+) |>
+  st_transform(3857)
+drt_zone_nw <- st_read(
+  "../data/supply/drt/nw_cluster_08_00_11_00.shp",
+  quiet = TRUE
+) |>
+  st_transform(3857)
+
+drt_zones = bind_rows(drt_zone_ne, drt_zone_nw)
+
+# -------------------------
+# Mode-share analysis
+# -------------------------
+
+# prepare base results once
+base_modes <- mode_share_all_combinations(
+  trips_file = base_trips_file,
+  stops = stops,
+  catchment_radius = catchment_radius,
+  levels = levels_vec,
+  accesses = accesses_vec,
+  include_all = include_all,
+  zones = zones_vec,
+  drt_zones = drt_zones
+) |>
+  mutate(solution = "base", .before = everything())
+
+# iterate objectives and collect results
+all_mode_list <- map(objective_dirs, function(obj_dir) {
+  objective_name <- basename(obj_dir)
+  message("Processing objective: ", objective_name)
+
+  # read all solutions under this objective folder
+  # mode_share_by_solution expects the folder that directly contains solution_* folders
+  obj_modes <- mode_share_by_solution(
+    solutions_dir = obj_dir,
+    stops = stops,
+    catchment_radius = catchment_radius,
+    levels = levels_vec,
+    accesses = accesses_vec,
+    include_all = include_all,
+    zones = zones_vec,
+    drt_zones = drt_zones
+  ) |>
+    mutate(objective = objective_name, .before = everything())
+
+  # attach base (replicated with same objective id)
+  base_modes_obj <- base_modes |>
+    mutate(objective = objective_name, .before = everything())
+
+  bind_rows(base_modes_obj, obj_modes)
+})
+
+all_mode_results <- bind_rows(all_mode_list)
+
+# add numeric solution id (solution_01_gtfs -> 1, solution_10_gtfs -> 10, base -> 0)
+all_mode_results <- all_mode_results %>%
+  mutate(
+    solution_id = as.integer(str_extract(solution, "\\d+")),
+    solution_id = if_else(solution == "base", 0L, solution_id)
+  )
+
+# now compute pct changes using base grouped by objective/level/access/zones/mode
+base_ref <- all_mode_results |>
+  filter(solution == "base") |>
+  select(objective, level, access, zones, mode, n_base = n, share_base = share)
+
+mode_results <- all_mode_results |>
+  filter(solution != "base") |>
+  left_join(
+    base_ref,
+    by = c("objective", "level", "access", "zones", "mode")
+  ) |>
+  replace_na(list(n_base = 0, share_base = 0)) |>
+  mutate(
+    n_solution = n,
+    share_solution = share,
+    n_pct_change = if_else(
+      n_base == 0,
+      NA_real_,
+      (n_solution - n_base) / n_base * 100
+    ),
+    share_pct_change = if_else(
+      share_base == 0,
+      NA_real_,
+      (share_solution - share_base) / share_base * 100
+    )
+  ) |>
+  select(
+    objective,
+    solution,
+    solution_id,
+    level,
+    access,
+    zones,
+    mode,
+    n_solution,
+    share_solution,
+    n_base,
+    share_base,
+    n_pct_change,
+    share_pct_change
+  )
+
+# optional: write combined csv
+write_csv(mode_results, file.path("output", "mode_share_by_objective.csv"))
+
+
+# -------------------------
+# VKM analysis
+# -------------------------
+
+# prepare base results once
+base_vkm <- vkm_all_combinations(
+  trips_file = base_trips_file,
+  solution_dir = base_solution_dir,
+  stops = stops,
+  boundary_sf = boundary_sf,
+  catchment_radius = catchment_radius,
+  levels = levels_vec,
+  accesses = accesses_vec,
+  modes = c("car", "taxi", "pt"),
+  include_all = include_all,
+  zones = zones_vec,
+  drt_zones = drt_zones
+) |>
+  mutate(solution = "base", .before = everything())
+
+
+all_vkm_list <- map(objective_dirs, function(obj_dir) {
+  objective_name <- basename(obj_dir)
+  message("Processing objective (VKM): ", objective_name)
+
+  obj_vkm <- vkm_by_solution(
+    solutions_dir = obj_dir,
+    stops = stops,
+    boundary_sf = boundary_sf,
+    catchment_radius = catchment_radius,
+    levels = levels_vec,
+    accesses = accesses_vec,
+    modes = c("car", "taxi", "pt"),
+    include_all = include_all,
+    zones = zones_vec,
+    drt_zones = drt_zones
+  ) |>
+    mutate(objective = objective_name, .before = everything())
+
+  base_vkm_obj <- base_vkm |> mutate(objective = objective_name)
+
+  bind_rows(base_vkm_obj, obj_vkm)
+})
+
+all_vkm_results <- bind_rows(all_vkm_list)
+
+# Add solution id from name
+all_vkm_results <- all_vkm_results %>%
+  mutate(
+    solution_id = as.integer(str_extract(solution, "\\d+")),
+    solution_id = if_else(solution == "base", 0L, solution_id)
+  )
+
+base_vkm_ref <- all_vkm_results |>
+  filter(solution == "base") |>
+  select(
+    objective,
+    level,
+    access,
+    zones,
+    mode,
+    total_distance_km_base = total_distance_km,
+    share_base = share
+  )
+
+vkm_results <- all_vkm_results |>
+  filter(solution != "base") |>
+  left_join(
+    base_vkm_ref,
+    by = c("objective", "level", "access", "zones", "mode")
+  ) |>
+  replace_na(list(total_distance_km_base = 0, share_base = 0)) |>
+  mutate(
+    total_distance_km_solution = total_distance_km,
+    delta_km = total_distance_km_solution - total_distance_km_base,
+    delta_km_pct = if_else(
+      total_distance_km_base == 0,
+      NA_real_,
+      delta_km / total_distance_km_base * 100
+    ),
+    share_solution = share,
+    share_pct_change = share_solution - share_base
+  ) |>
+  select(
+    objective,
+    solution,
+    solution_id,
+    level,
+    access,
+    zones,
+    mode,
+    total_distance_km_solution,
+    share_solution,
+    total_distance_km_base,
+    share_base,
+    delta_km,
+    delta_km_pct,
+    share_pct_change
+  )
+
+write_csv(vkm_results, file.path("output", "vkm_by_objective.csv"))
+
+
+# prepare & plot pt percent-change by solution, faceted by objective
+pt_plot_data <- mode_results %>%
+  filter(mode == "pt", !is.na(n_pct_change)) %>%
+  mutate(combo = paste(level, access, zones, sep = "_"))
+
+ggplot(
+  pt_plot_data,
+  aes(x = solution_id, y = n_pct_change, color = combo, shape = combo)
+) +
+  geom_line(alpha = 0.9) +
+  facet_wrap(~objective, scales = "free_x", nrow = 1) +
+  labs(
+    title = "PT % change in trip counts by solution",
+    x = "Solution ID",
+    y = "Percent change vs base (n_pct_change)",
+    color = "level_access_zones",
+    shape = "level_access_zones"
+  ) +
+  scale_x_continuous(breaks = scales::pretty_breaks()) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
