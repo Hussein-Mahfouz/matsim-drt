@@ -24,7 +24,7 @@ SCENARIO_NAME=$1
 TRANSIT_OPT_REPO="../../transit_opt"
 
 # Input directory (DRT JSON files in transit_opt repo)
-JSON_INPUT_DIR="$TRANSIT_OPT_REPO/output/$SCENARIO_NAME"
+JSON_INPUT_DIR="$TRANSIT_OPT_REPO/output/$SCENARIO_NAME/iteration_01/pso_results"
 
 # Base output directory
 BASE_OUTPUT_DIR="data/supply/transit_opt_paper/$SCENARIO_NAME"

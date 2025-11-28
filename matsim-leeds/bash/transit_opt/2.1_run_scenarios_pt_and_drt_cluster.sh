@@ -43,7 +43,7 @@ SAMPLE_SIZE="1.00" # 0.50, 0.20, 0.10, 0.05, 0.01
 ITERATIONS=65
 GLOBAL_THREADS=12
 QSIM_THREADS=12
-CLEAN_ITERS_AT_END="delete"  # Delete the ITERS/ directory? Options (keep, delete)
+CLEAN_ITERS_AT_END="keep"  # Delete the ITERS/ directory? Options (keep, delete). If I delete, eqasim does not write its csv files
 
 
 # Cluster resource parameters (TODO: learn if MATSim is memory-bound or cpu-bound)
@@ -103,7 +103,7 @@ for SOLUTION_DIR in "$SCENARIO_DIR"/combined_solution_*/; do
     # Separate directory for SLURM logs (persistent across runs) - OUTPUT_DIR is deleted by 
     # MATSim deleteDirectoryifExists
 
-    SLURM_LOG_DIR="${SOLUTION_DIR}slurm_logs"
+    SLURM_LOG_DIR="${SOLUTION_DIR}logs"
     mkdir -p "$SLURM_LOG_DIR"
 
     # Submit job to cluster
