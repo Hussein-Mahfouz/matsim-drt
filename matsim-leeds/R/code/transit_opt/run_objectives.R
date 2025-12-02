@@ -12,7 +12,7 @@ source("R/code/transit_opt/vkm_catchment.R")
 # Path to eqasim trips CSV for the baseline scenario (required)
 # - type: string (file path)
 # - expected: eqasim_trips.csv produced by your scenario pipeline
-base_trips_file <- "data/supply/transit_opt/basic/combined_solution_00/output/eqasim_trips.csv"
+base_trips_file <- "data/supply/transit_opt_paper/basic/combined_solution_00/output/eqasim_trips.csv"
 
 # Directory containing GTFS files for the baseline PT network (required)
 # - type: string (directory path)
@@ -22,7 +22,7 @@ base_solution_dir <- "data/external/study_area_gtfs_bus"
 # Parent directory containing multiple objective subfolders
 # - type: string (directory path)
 # - expected: contains subfolders like min_total_stops/, min_variance_stops/, etc.
-parent_dir <- "data/supply/transit_opt"
+parent_dir <- "data/supply/transit_opt_paper"
 
 # List objective folders (immediate children only - but not all of them)
 objective_dirs <- list.dirs(parent_dir, full.names = TRUE, recursive = FALSE)
