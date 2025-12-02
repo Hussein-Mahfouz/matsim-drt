@@ -1,0 +1,7 @@
+name: r-transit-opt
+
+dependencies:
+  - r-base=4.2
+  - r-tidyverse
+  - r-sf
+  - r-glue
