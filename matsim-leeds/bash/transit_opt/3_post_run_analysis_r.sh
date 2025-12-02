@@ -59,7 +59,7 @@ if [ "$RUN_ON_CLUSTER" = true ]; then
         --mem-per-cpu=$MEM_PER_CPU \
         --job-name="transit_opt_analysis" \
         --output="${LOG_DIR}/slurm-%j.out" \
-        --wrap="module load anaconda/2024.02 && \
+        --wrap="module load miniforge/24.7.1 && \
                 source activate $CONDA_ENV_NAME && \
                 cd $MATSIM_DIR && \
                 Rscript $R_SCRIPT"
