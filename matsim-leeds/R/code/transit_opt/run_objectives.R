@@ -3,8 +3,8 @@ library(sf)
 library(glue)
 
 # Source function-only modules (they must contain only function definitions)
-source("code/transit_opt/mode_share_catchment.R")
-source("code/transit_opt/vkm_catchment.R")
+source("R/code/transit_opt/mode_share_catchment.R")
+source("R/code/transit_opt/vkm_catchment.R")
 
 # -------------------------
 # Parameters (edit here)
@@ -12,12 +12,26 @@ source("code/transit_opt/vkm_catchment.R")
 # Path to eqasim trips CSV for the baseline scenario (required)
 # - type: string (file path)
 # - expected: eqasim_trips.csv produced by your scenario pipeline
-base_trips_file <- "../scenarios/basic/sample_1.00/eqasim_trips.csv"
+base_trips_file <- "data/supply/transit_opt/basic/combined_solution_00/output/eqasim_trips.csv"
 
 # Directory containing GTFS files for the baseline PT network (required)
 # - type: string (directory path)
 # - expected: contains stops.txt, stop_times.txt, etc.
-base_solution_dir <- "../data/external/gtfs_optimisation/max_min_theoretical/worst_service_gtfs"
+base_solution_dir <- "data/external/study_area_gtfs_bus"
+
+# Parent directory containing multiple objective subfolders
+# - type: string (directory path)
+# - expected: contains subfolders like min_total_stops/, min_variance_stops/, etc.
+parent_dir <- "data/supply/transit_opt"
+
+# List objective folders (immediate children only - but not all of them)
+objective_dirs <- list.dirs(parent_dir, full.names = TRUE, recursive = FALSE)
+# Filter to only directories matching specific patterns
+objective_dirs <- objective_dirs[grepl(
+  "sc_avg_var|wt_avg_var",
+  basename(objective_dirs)
+)]
+
 
 # Distance (meters) used to buffer PT stops when computing catchments
 # - type: numeric (meters)
@@ -54,14 +68,14 @@ dir.create("output", showWarnings = FALSE, recursive = TRUE)
 
 # PT stops
 stops <- read_csv(
-  unz("../data/external/study_area_gtfs_bus.zip", "stops.txt"),
+  unz("data/external/study_area_gtfs_bus.zip", "stops.txt"),
   show_col_types = FALSE
 ) |>
   st_as_sf(coords = c("stop_lon", "stop_lat"), crs = 4326) |>
   st_transform(3857)
 
 # study area boundary (to filter out stray pt stops from GTFS)
-boundary_sf <- st_read("../data/external/study_area_boundary.geojson") |>
+boundary_sf <- st_read("data/external/study_area_boundary.geojson") |>
   st_transform(3857) |>
   st_union()
 
@@ -69,12 +83,12 @@ stops <- stops |> st_filter(boundary_sf, .predicate = st_within)
 
 # DRT zone boundaries
 drt_zone_ne <- st_read(
-  "../data/supply/drt/ne_cluster_08_00_11_00.shp",
+  "data/supply/drt/ne_cluster_08_00_11_00.shp",
   quiet = TRUE
 ) |>
   st_transform(3857)
 drt_zone_nw <- st_read(
-  "../data/supply/drt/nw_cluster_08_00_11_00.shp",
+  "data/supply/drt/nw_cluster_08_00_11_00.shp",
   quiet = TRUE
 ) |>
   st_transform(3857)
@@ -85,7 +99,14 @@ drt_zones = bind_rows(drt_zone_ne, drt_zone_nw)
 # Mode-share analysis
 # -------------------------
 
+message("\n")
+message("##########################################")
+message("## MODE-SHARE ANALYSIS")
+message("##########################################")
+message("\n")
+
 # prepare base results once
+message("Processing BASELINE for mode-share analysis...")
 base_modes <- mode_share_all_combinations(
   trips_file = base_trips_file,
   stops = stops,
@@ -98,10 +119,17 @@ base_modes <- mode_share_all_combinations(
 ) |>
   mutate(solution = "base", .before = everything())
 
+message("✓ Baseline mode-share complete\n")
+
+
 # iterate objectives and collect results
 all_mode_list <- map(objective_dirs, function(obj_dir) {
   objective_name <- basename(obj_dir)
-  message("Processing objective: ", objective_name)
+  message("\n")
+  message("##########################################")
+  message("## OBJECTIVE: ", objective_name)
+  message("##########################################")
+  message("\n")
 
   # read all solutions under this objective folder
   # mode_share_by_solution expects the folder that directly contains solution_* folders
@@ -123,6 +151,7 @@ all_mode_list <- map(objective_dirs, function(obj_dir) {
 
   bind_rows(base_modes_obj, obj_modes)
 })
+message("\n✓ All objectives completed for mode-share\n")
 
 all_mode_results <- bind_rows(all_mode_list)
 
@@ -183,7 +212,14 @@ write_csv(mode_results, file.path("output", "mode_share_by_objective.csv"))
 # VKM analysis
 # -------------------------
 
+message("\n")
+message("##########################################")
+message("## VKM ANALYSIS")
+message("##########################################")
+message("\n")
+
 # prepare base results once
+message("Processing BASELINE for VKM analysis...")
 base_vkm <- vkm_all_combinations(
   trips_file = base_trips_file,
   solution_dir = base_solution_dir,
@@ -199,10 +235,16 @@ base_vkm <- vkm_all_combinations(
 ) |>
   mutate(solution = "base", .before = everything())
 
+message("✓ Baseline VKM complete\n")
+
 
 all_vkm_list <- map(objective_dirs, function(obj_dir) {
   objective_name <- basename(obj_dir)
-  message("Processing objective (VKM): ", objective_name)
+  message("\n")
+  message("##########################################")
+  message("## OBJECTIVE (VKM): ", objective_name)
+  message("##########################################")
+  message("\n")
 
   obj_vkm <- vkm_by_solution(
     solutions_dir = obj_dir,
@@ -222,6 +264,7 @@ all_vkm_list <- map(objective_dirs, function(obj_dir) {
 
   bind_rows(base_vkm_obj, obj_vkm)
 })
+message("\n✓ All objectives completed for VKM\n")
 
 all_vkm_results <- bind_rows(all_vkm_list)
 

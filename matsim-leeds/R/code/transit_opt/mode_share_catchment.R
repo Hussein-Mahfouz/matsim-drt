@@ -123,9 +123,14 @@ mode_share_all_combinations <- function(
 
   results <- expand_grid(level = levels, access = accesses, zone = zones) |>
     pmap_df(function(level, access, zone) {
+      message("\n")
+      message("#####")
       message(glue::glue(
         "Computing level={level}, access={access}, zones={zone}"
       ))
+      message("#####")
+      message("\n")
+
       mode_share_catchment(
         trips = trips,
         stops = stops,
@@ -144,7 +149,11 @@ mode_share_all_combinations <- function(
     })
 
   if (include_all) {
+    message("\n")
+    message("#####")
     message(glue::glue("Computing level=all, access=all, zones=all"))
+    message("#####")
+    message("\n")
     all_result <- mode_share_catchment(
       trips = trips,
       stops = stops,
@@ -206,7 +215,11 @@ mode_share_by_solution <- function(
       message(glue::glue("No eqasim_trips.csv found in {sol_dir}"))
       return(NULL)
     }
+    message("\n")
+    message("###############")
     message(glue::glue("Processing {basename(sol_dir)}..."))
+    message("###############")
+    message("\n")
 
     mode_share_all_combinations(
       trips_file = trips_file,

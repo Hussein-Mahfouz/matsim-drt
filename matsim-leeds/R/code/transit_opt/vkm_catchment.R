@@ -194,9 +194,14 @@ vkm_all_combinations <- function(
     zones = zones
   ) |>
     pmap_df(function(level, access, zones) {
+      message("\n")
+      message("#####")
       message(glue::glue(
         "Computing level={level}, access={access}, zones={zones}"
       ))
+      message("#####")
+      message("\n")
+
       vkm_catchment(
         trips = trips,
         stops = stops,
@@ -309,7 +314,11 @@ vkm_by_solution <- function(
       message(glue::glue("No eqasim_trips.csv found in {sol_dir}"))
       return(NULL)
     }
+    message("\n")
+    message("###############")
     message(glue::glue("Processing {basename(sol_dir)}..."))
+    message("###############")
+    message("\n")
 
     vkm_all_combinations(
       trips_file = trips_file,
