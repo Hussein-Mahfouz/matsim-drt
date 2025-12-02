@@ -36,7 +36,7 @@ if [ "$RUN_ON_CLUSTER" = true ]; then
     fi
     
     # Load Anaconda module
-    module load anaconda/2024.02
+    module load miniforge/24.7.1
     
     # Check if environment exists, create if not
     if ! conda env list | grep -q "^${CONDA_ENV_NAME} "; then
