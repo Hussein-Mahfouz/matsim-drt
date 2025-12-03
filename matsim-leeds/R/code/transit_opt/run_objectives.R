@@ -13,29 +13,34 @@ source("R/code/transit_opt/vkm_catchment.R")
 # - type: string (file path)
 # - expected: eqasim_trips.csv produced by your scenario pipeline
 base_trips_file <- "data/supply/transit_opt_paper/basic/combined_solution_00/output/eqasim_trips.csv"
+# base_trips_file <- "scenarios/basic/sample_1.00/eqasim_trips.csv"
 
-# Directory containing GTFS files for the baseline PT network (required)
+# Directory containing GTFS zip files for the baseline PT network (required)
 # - type: string (directory path)
-# - expected: contains stops.txt, stop_times.txt, etc.
-base_solution_dir <- "data/external/study_area_gtfs_bus"
+# - expected: contains zip file with stops.txt, stop_times.txt, etc.
+base_solution_dir <- "data/supply/transit_opt_paper/basic/combined_solution_00"
 
 # Parent directory containing multiple objective subfolders
 # - type: string (directory path)
 # - expected: contains subfolders like min_total_stops/, min_variance_stops/, etc.
 parent_dir <- "data/supply/transit_opt_paper"
+# parent_dir <- "data/external/gtfs_optimisation"
 
 # List objective folders (immediate children only - but not all of them)
 objective_dirs <- list.dirs(parent_dir, full.names = TRUE, recursive = FALSE)
 # Filter to only directories matching specific patterns
 objective_dirs <- objective_dirs[grepl(
-  "sc_avg_var|wt_avg_var",
+  "sc_avg_var|sc_int_var|sc_peak_var|sc_sum_var|wt_avg_tot|wt_avg_var|wt_int_tot|wt_int_var|wt_sum_tot|wt_sum_var",
   basename(objective_dirs)
 )]
-
+# objective_dirs <- objective_dirs[grepl(
+#   "sc_avg_var|sc_int_var|sc_peak_var|sc_sum_var|wt_avg_tot|wt_avg_var|wt_int_tot|wt_int_var|wt_peak_tot|wt_peak_var|wt_sum_tot|wt_sum_var",
+#   basename(objective_dirs)
+# )]
 
 # Distance (meters) used to buffer PT stops when computing catchments
 # - type: numeric (meters)
-catchment_radius <- 100
+catchment_radius <- 400
 
 # Analysis levels:
 # - "trip": evaluate individual trips
@@ -99,114 +104,112 @@ drt_zones = bind_rows(drt_zone_ne, drt_zone_nw)
 # Mode-share analysis
 # -------------------------
 
-message("\n")
-message("##########################################")
-message("## MODE-SHARE ANALYSIS")
-message("##########################################")
-message("\n")
+# message("\n")
+# message("##########################################")
+# message("## MODE-SHARE ANALYSIS")
+# message("##########################################")
+# message("\n")
 
-# prepare base results once
-message("Processing BASELINE for mode-share analysis...")
-base_modes <- mode_share_all_combinations(
-  trips_file = base_trips_file,
-  stops = stops,
-  catchment_radius = catchment_radius,
-  levels = levels_vec,
-  accesses = accesses_vec,
-  include_all = include_all,
-  zones = zones_vec,
-  drt_zones = drt_zones
-) |>
-  mutate(solution = "base", .before = everything())
+# # prepare base results once
+# message("Processing BASELINE for mode-share analysis...")
+# base_modes <- mode_share_all_combinations(
+#   trips_file = base_trips_file,
+#   stops = stops,
+#   catchment_radius = catchment_radius,
+#   levels = levels_vec,
+#   accesses = accesses_vec,
+#   include_all = include_all,
+#   zones = zones_vec,
+#   drt_zones = drt_zones
+# ) |>
+#   mutate(solution = "base", .before = everything())
 
-message("✓ Baseline mode-share complete\n")
+# message("✓ Baseline mode-share complete\n")
 
+# # iterate objectives and collect results
+# all_mode_list <- map(objective_dirs, function(obj_dir) {
+#   objective_name <- basename(obj_dir)
+#   message("\n")
+#   message("##########################################")
+#   message("## OBJECTIVE: ", objective_name)
+#   message("##########################################")
+#   message("\n")
 
-# iterate objectives and collect results
-all_mode_list <- map(objective_dirs, function(obj_dir) {
-  objective_name <- basename(obj_dir)
-  message("\n")
-  message("##########################################")
-  message("## OBJECTIVE: ", objective_name)
-  message("##########################################")
-  message("\n")
+#   # read all solutions under this objective folder
+#   # mode_share_by_solution expects the folder that directly contains solution_* folders
+#   obj_modes <- mode_share_by_solution(
+#     solutions_dir = obj_dir,
+#     stops = stops,
+#     catchment_radius = catchment_radius,
+#     levels = levels_vec,
+#     accesses = accesses_vec,
+#     include_all = include_all,
+#     zones = zones_vec,
+#     drt_zones = drt_zones
+#   ) |>
+#     mutate(objective = objective_name, .before = everything())
 
-  # read all solutions under this objective folder
-  # mode_share_by_solution expects the folder that directly contains solution_* folders
-  obj_modes <- mode_share_by_solution(
-    solutions_dir = obj_dir,
-    stops = stops,
-    catchment_radius = catchment_radius,
-    levels = levels_vec,
-    accesses = accesses_vec,
-    include_all = include_all,
-    zones = zones_vec,
-    drt_zones = drt_zones
-  ) |>
-    mutate(objective = objective_name, .before = everything())
+#   # attach base (replicated with same objective id)
+#   base_modes_obj <- base_modes |>
+#     mutate(objective = objective_name, .before = everything())
 
-  # attach base (replicated with same objective id)
-  base_modes_obj <- base_modes |>
-    mutate(objective = objective_name, .before = everything())
+#   bind_rows(base_modes_obj, obj_modes)
+# })
+# message("\n✓ All objectives completed for mode-share\n")
 
-  bind_rows(base_modes_obj, obj_modes)
-})
-message("\n✓ All objectives completed for mode-share\n")
+# all_mode_results <- bind_rows(all_mode_list)
 
-all_mode_results <- bind_rows(all_mode_list)
+# # add numeric solution id (solution_01_gtfs -> 1, solution_10_gtfs -> 10, base -> 0)
+# all_mode_results <- all_mode_results %>%
+#   mutate(
+#     solution_id = as.integer(str_extract(solution, "\\d+")),
+#     solution_id = if_else(solution == "base", 0L, solution_id)
+#   )
 
-# add numeric solution id (solution_01_gtfs -> 1, solution_10_gtfs -> 10, base -> 0)
-all_mode_results <- all_mode_results %>%
-  mutate(
-    solution_id = as.integer(str_extract(solution, "\\d+")),
-    solution_id = if_else(solution == "base", 0L, solution_id)
-  )
+# # now compute pct changes using base grouped by objective/level/access/zones/mode
+# base_ref <- all_mode_results |>
+#   filter(solution == "base") |>
+#   select(objective, level, access, zones, mode, n_base = n, share_base = share)
 
-# now compute pct changes using base grouped by objective/level/access/zones/mode
-base_ref <- all_mode_results |>
-  filter(solution == "base") |>
-  select(objective, level, access, zones, mode, n_base = n, share_base = share)
+# mode_results <- all_mode_results |>
+#   filter(solution != "base") |>
+#   left_join(
+#     base_ref,
+#     by = c("objective", "level", "access", "zones", "mode")
+#   ) |>
+#   replace_na(list(n_base = 0, share_base = 0)) |>
+#   mutate(
+#     n_solution = n,
+#     share_solution = share,
+#     n_pct_change = if_else(
+#       n_base == 0,
+#       NA_real_,
+#       (n_solution - n_base) / n_base * 100
+#     ),
+#     share_pct_change = if_else(
+#       share_base == 0,
+#       NA_real_,
+#       (share_solution - share_base) / share_base * 100
+#     )
+#   ) |>
+#   select(
+#     objective,
+#     solution,
+#     solution_id,
+#     level,
+#     access,
+#     zones,
+#     mode,
+#     n_solution,
+#     share_solution,
+#     n_base,
+#     share_base,
+#     n_pct_change,
+#     share_pct_change
+#   )
 
-mode_results <- all_mode_results |>
-  filter(solution != "base") |>
-  left_join(
-    base_ref,
-    by = c("objective", "level", "access", "zones", "mode")
-  ) |>
-  replace_na(list(n_base = 0, share_base = 0)) |>
-  mutate(
-    n_solution = n,
-    share_solution = share,
-    n_pct_change = if_else(
-      n_base == 0,
-      NA_real_,
-      (n_solution - n_base) / n_base * 100
-    ),
-    share_pct_change = if_else(
-      share_base == 0,
-      NA_real_,
-      (share_solution - share_base) / share_base * 100
-    )
-  ) |>
-  select(
-    objective,
-    solution,
-    solution_id,
-    level,
-    access,
-    zones,
-    mode,
-    n_solution,
-    share_solution,
-    n_base,
-    share_base,
-    n_pct_change,
-    share_pct_change
-  )
-
-# optional: write combined csv
-write_csv(mode_results, file.path("output", "mode_share_by_objective.csv"))
-
+# # optional: write combined csv
+# write_csv(mode_results, file.path("output", "mode_share_by_objective.csv"))
 
 # -------------------------
 # VKM analysis
@@ -324,28 +327,27 @@ vkm_results <- all_vkm_results |>
 
 write_csv(vkm_results, file.path("output", "vkm_by_objective.csv"))
 
+# # prepare & plot pt percent-change by solution, faceted by objective
+# pt_plot_data <- mode_results %>%
+#   filter(mode == "pt", !is.na(n_pct_change)) %>%
+#   mutate(combo = paste(level, access, zones, sep = "_"))
 
-# prepare & plot pt percent-change by solution, faceted by objective
-pt_plot_data <- mode_results %>%
-  filter(mode == "pt", !is.na(n_pct_change)) %>%
-  mutate(combo = paste(level, access, zones, sep = "_"))
-
-ggplot(
-  pt_plot_data,
-  aes(x = solution_id, y = n_pct_change, color = combo, shape = combo)
-) +
-  geom_line(alpha = 0.9) +
-  facet_wrap(~objective, scales = "free_x", nrow = 1) +
-  labs(
-    title = "PT % change in trip counts by solution",
-    x = "Solution ID",
-    y = "Percent change vs base (n_pct_change)",
-    color = "level_access_zones",
-    shape = "level_access_zones"
-  ) +
-  scale_x_continuous(breaks = scales::pretty_breaks()) +
-  theme_minimal() +
-  theme(
-    legend.position = "bottom",
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )
+# ggplot(
+#   pt_plot_data,
+#   aes(x = solution_id, y = n_pct_change, color = combo, shape = combo)
+# ) +
+#   geom_line(alpha = 0.9) +
+#   facet_wrap(~objective, scales = "free_x", nrow = 1) +
+#   labs(
+#     title = "PT % change in trip counts by solution",
+#     x = "Solution ID",
+#     y = "Percent change vs base (n_pct_change)",
+#     color = "level_access_zones",
+#     shape = "level_access_zones"
+#   ) +
+#   scale_x_continuous(breaks = scales::pretty_breaks()) +
+#   theme_minimal() +
+#   theme(
+#     legend.position = "bottom",
+#     axis.text.x = element_text(angle = 45, hjust = 1)
+#   )

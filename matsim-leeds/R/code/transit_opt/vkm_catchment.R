@@ -104,29 +104,39 @@ vkm_catchment <- function(
     mutate(share = total_distance_km / sum(total_distance_km) * 100)
 }
 
-#' Calculate PT VKM from GTFS stop_times
+#' Calculate PT VKM from GTFS stop_times (zip file only)
 #'
-#' @param solution_dir Path to solution directory containing GTFS files
+#' @param solution_dir Path to solution directory containing gtfs_feed.zip
 #' @param boundary_sf sf object for filtering stops within boundary
 #'
 #' @return Tibble with mode="pt", total_distance_km, share=100
 #'
 pt_vkm_from_gtfs <- function(solution_dir, boundary_sf) {
-  message("Reading GTFS files...")
+  message("Reading GTFS from zip file...")
+
+  gtfs_zip <- file.path(solution_dir, "gtfs_feed.zip")
+
+  if (!file.exists(gtfs_zip)) {
+    stop("gtfs_feed.zip not found in ", solution_dir)
+  }
+
+  message("Unzipping GTFS feed to temporary directory...")
+  temp_gtfs_dir <- tempdir()
+  unzip(gtfs_zip, exdir = temp_gtfs_dir, overwrite = TRUE)
+
   stop_times <- read_csv(
-    file.path(solution_dir, "stop_times.txt"),
+    file.path(temp_gtfs_dir, "stop_times.txt"),
     show_col_types = FALSE
   )
 
   gtfs_stops <- read_csv(
-    file.path(solution_dir, "stops.txt"),
+    file.path(temp_gtfs_dir, "stops.txt"),
     show_col_types = FALSE
   ) |>
     st_as_sf(coords = c("stop_lon", "stop_lat"), crs = 4326) |>
     st_transform(3857) |>
     st_filter(boundary_sf, .predicate = st_within)
 
-  # Extract coordinates as numeric columns
   coords <- st_coordinates(gtfs_stops)
   gtfs_stops_coords <- gtfs_stops |>
     st_drop_geometry() |>
