@@ -1,3 +1,10 @@
+library(sf)
+library(dplyr)
+library(purrr)
+library(readr)
+library(glue)
+library(arrow)
+
 # ============================================================================
 # Functions
 # ============================================================================
@@ -10,6 +17,7 @@
 #' @param level "trip" or "person" (persons with all trips in buffer)
 #' @param access "origin" or "origin+destination"
 #' @param modes Vector of modes to include. If NULL, includes all modes
+#' @param pre_enriched Logical - if TRUE, assumes trips already has spatial flags
 #'
 #' @return Tibble with mode, total_distance_km, and share columns
 #'
@@ -21,27 +29,31 @@ vkm_catchment <- function(
   access = c("origin", "origin+destination", "all"),
   zones = c("pt", "pt+drt"),
   drt_zones = NULL,
-  modes = NULL
+  modes = NULL,
+  pre_enriched = FALSE
 ) {
   level <- match.arg(level)
   access <- match.arg(access)
   zones <- match.arg(zones)
 
-  message("Creating unique trip id...")
-  trips <- trips |>
-    mutate(unique_trip_id = paste0(person_id, "_", person_trip_id))
-
+  # Early exit for "all" scenario
   if (level == "all" && access == "all") {
     message("Using all trips (no filtering)...")
     trips_access <- trips |> filter(mode != "car_passenger")
-  } else {
+  } else if (!pre_enriched) {
+    # Original logic for non-enriched trips
+    message("Creating unique trip id...")
+    trips <- trips |>
+      mutate(unique_trip_id = paste0(person_id, "_", person_trip_id))
+
     message("Buffering stops...")
-    buffer <- stops |> st_buffer(catchment_radius)
+    buffer <- stops |> st_buffer(catchment_radius, nQuadSegs = 3)
 
     if (zones == "pt+drt") {
       if (is.null(drt_zones)) {
         stop("zones = 'pt+drt' requires drt_zones (sf).")
       }
+      message("Combining PT stop buffers and DRT zones...")
       drt_zones <- st_transform(drt_zones, st_crs(stops))
       catchment <- bind_rows(buffer, drt_zones)
     } else {
@@ -72,6 +84,37 @@ vkm_catchment <- function(
       trips_access <- trips |> filter(unique_trip_id %in% both_ids)
     } else {
       trips_access <- trips |> filter(unique_trip_id %in% origin_in)
+    }
+
+    if (level == "person") {
+      message("Filtering by person...")
+      total_trips_per_person <- trips |> count(person_id, name = "total_trips")
+      filtered_trips_per_person <- trips_access |>
+        count(person_id, name = "filtered_trips")
+      persons_all_in <- filtered_trips_per_person |>
+        inner_join(total_trips_per_person, by = "person_id") |>
+        filter(filtered_trips == total_trips) |>
+        pull(person_id)
+      trips_access <- trips_access |> filter(person_id %in% persons_all_in)
+    }
+
+    trips_access <- trips_access |> filter(mode != "car_passenger")
+  } else {
+    # Use pre-enriched spatial flags
+    if (zones == "pt") {
+      o_flag <- trips$pt_origin_ok
+      d_flag <- trips$pt_dest_ok
+    } else {
+      # pt+drt
+      o_flag <- trips$pt_origin_ok | trips$drt_origin_ok
+      d_flag <- trips$pt_dest_ok | trips$drt_dest_ok
+    }
+
+    if (access == "origin") {
+      trips_access <- trips |> filter(o_flag)
+    } else {
+      # origin+destination
+      trips_access <- trips |> filter(o_flag & d_flag)
     }
 
     if (level == "person") {
@@ -168,6 +211,7 @@ pt_vkm_from_gtfs <- function(solution_dir, boundary_sf) {
       .before = everything()
     )
 }
+
 #' Calculate VKM for multiple parameter combinations
 #'
 #' @param trips_file Path to trips CSV file
@@ -195,7 +239,17 @@ vkm_all_combinations <- function(
   zones = c("pt"),
   drt_zones = NULL
 ) {
-  trips <- read_delim(trips_file, delim = ";", show_col_types = FALSE)
+  message("Reading trips file with arrow...")
+  trips <- arrow::read_delim_arrow(trips_file, delim = ";")
+
+  # Pre-compute spatial flags ONCE
+  message("Pre-computing spatial flags...")
+  trips_enriched <- enrich_trips_spatially(
+    trips,
+    stops,
+    drt_zones,
+    catchment_radius
+  )
 
   # Car/taxi VKM from eqasim_trips for each (level, access, zone)
   car_taxi_results <- expand_grid(
@@ -213,14 +267,15 @@ vkm_all_combinations <- function(
       message("\n")
 
       vkm_catchment(
-        trips = trips,
+        trips = trips_enriched,
         stops = stops,
         catchment_radius = catchment_radius,
         level = level,
         access = access,
         zones = zones,
         drt_zones = drt_zones,
-        modes = if (is.null(modes)) NULL else setdiff(modes, "pt")
+        modes = if (is.null(modes)) NULL else setdiff(modes, "pt"),
+        pre_enriched = TRUE
       ) |>
         mutate(
           level = level,
@@ -245,17 +300,24 @@ vkm_all_combinations <- function(
     ungroup() |>
     select(-total_vkm)
 
-  # Add "all" (no filtering) scenario if requested — zone marked "all"
+  # Add "all" (no filtering) scenario if requested
   if (include_all) {
+    message("\n")
+    message("#####")
+    message(glue::glue("Computing level=all, access=all, zones=all"))
+    message("#####")
+    message("\n")
+
     all_scenario <- vkm_catchment(
-      trips = trips,
+      trips = trips, # Use original, not enriched
       stops = stops,
       catchment_radius = catchment_radius,
       level = "all",
       access = "all",
-      zones = "pt", # zones irrelevant for global; place-holder
+      zones = "pt",
       drt_zones = drt_zones,
-      modes = if (is.null(modes)) NULL else setdiff(modes, "pt")
+      modes = if (is.null(modes)) NULL else setdiff(modes, "pt"),
+      pre_enriched = FALSE
     ) |>
       mutate(
         level = "all",
@@ -345,4 +407,86 @@ vkm_by_solution <- function(
     ) |>
       mutate(solution = basename(sol_dir), .before = everything())
   })
+}
+
+#' Pre-calculate spatial flags for a trips dataframe (reused from mode_share_catchment.R)
+#'
+#' @param trips Dataframe with origin/destination coordinates
+#' @param stops sf object with transit stop locations
+#' @param drt_zones sf object with DRT zone polygons (optional)
+#' @param catchment_radius Distance in meters
+#'
+#' @return trips dataframe with added boolean columns for spatial checks
+#'
+enrich_trips_spatially <- function(trips, stops, drt_zones, catchment_radius) {
+  trips <- trips |>
+    mutate(unique_trip_id = paste0(person_id, "_", person_trip_id))
+
+  # Create buffer ONCE
+  message("  Buffering PT stops...")
+  pt_buffer <- stops |> st_buffer(catchment_radius, nQuadSegs = 3)
+
+  # Prepare catchments
+  if (!is.null(drt_zones)) {
+    drt_zones <- st_transform(drt_zones, st_crs(stops))
+    catchment_pt_drt <- bind_rows(pt_buffer, drt_zones)
+  } else {
+    catchment_pt_drt <- NULL
+  }
+
+  # Origins - PT
+  message("  Checking PT accessibility (Origin)...")
+  origins_sf <- st_as_sf(
+    trips,
+    coords = c("origin_x", "origin_y"),
+    crs = st_crs(stops),
+    remove = FALSE
+  )
+
+  origin_in_pt <- st_filter(
+    origins_sf,
+    pt_buffer,
+    .predicate = st_intersects
+  ) |>
+    pull(unique_trip_id)
+  trips$pt_origin_ok <- trips$unique_trip_id %in% origin_in_pt
+
+  # Origins - DRT
+  if (!is.null(drt_zones)) {
+    message("  Checking DRT accessibility (Origin)...")
+    origin_in_drt <- st_filter(
+      origins_sf,
+      drt_zones,
+      .predicate = st_intersects
+    ) |>
+      pull(unique_trip_id)
+    trips$drt_origin_ok <- trips$unique_trip_id %in% origin_in_drt
+  } else {
+    trips$drt_origin_ok <- FALSE
+  }
+
+  # Destinations - PT
+  message("  Checking PT accessibility (Destination)...")
+  dests_sf <- st_as_sf(
+    trips,
+    coords = c("destination_x", "destination_y"),
+    crs = st_crs(stops),
+    remove = FALSE
+  )
+
+  dest_in_pt <- st_filter(dests_sf, pt_buffer, .predicate = st_intersects) |>
+    pull(unique_trip_id)
+  trips$pt_dest_ok <- trips$unique_trip_id %in% dest_in_pt
+
+  # Destinations - DRT
+  if (!is.null(drt_zones)) {
+    message("  Checking DRT accessibility (Destination)...")
+    dest_in_drt <- st_filter(dests_sf, drt_zones, .predicate = st_intersects) |>
+      pull(unique_trip_id)
+    trips$drt_dest_ok <- trips$unique_trip_id %in% dest_in_drt
+  } else {
+    trips$drt_dest_ok <- FALSE
+  }
+
+  return(trips)
 }

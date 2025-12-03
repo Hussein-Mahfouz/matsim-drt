@@ -6,3 +6,4 @@ dependencies:
   - r-tidyverse
   - r-sf
   - r-glue
+  - r-arrow
