@@ -30,7 +30,7 @@ parent_dir <- "data/supply/transit_opt_paper"
 objective_dirs <- list.dirs(parent_dir, full.names = TRUE, recursive = FALSE)
 # Filter to only directories matching specific patterns
 objective_dirs <- objective_dirs[grepl(
-  "sc_avg_var|sc_int_var|sc_peak_var|sc_sum_var|wt_avg_tot|wt_avg_var|wt_int_tot|wt_int_var|wt_sum_tot|wt_sum_var",
+  "sc_avg_var|sc_int_var|sc_peak_var|sc_sum_var|wt_avg_tot|wt_avg_var|wt_int_tot|wt_int_var|wt_sum_var",
   basename(objective_dirs)
 )]
 # objective_dirs <- objective_dirs[grepl(
