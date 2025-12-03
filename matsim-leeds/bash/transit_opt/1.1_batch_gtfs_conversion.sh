@@ -53,6 +53,27 @@ java -cp $CLASSPATH com.husseinmahfouz.matsim.pt2matsim.RunBatchGTFSConverter \
     "$OUTPUT_DIR" \
     "$PT2MATSIM_CONFIG"
 
+# Copy GTFS zip files to output directories (useful for post run analysis)
+echo ""
+echo "Copying GTFS feeds to output directories..."
+
+for GTFS_ZIP in "$GTFS_INPUT_DIR"/combined_solution_*_gtfs.zip; do
+    [ -f "$GTFS_ZIP" ] || continue
+    
+    # Extract solution number (e.g., "01" from "combined_solution_01_gtfs.zip")
+    SOLUTION_NUM=$(basename "$GTFS_ZIP" | sed -n 's/combined_solution_\([0-9]*\)_gtfs\.zip/\1/p')
+    
+    # Target directory (should already exist from Java conversion)
+    TARGET_DIR="$OUTPUT_DIR/combined_solution_$SOLUTION_NUM"
+    
+    if [ -d "$TARGET_DIR" ]; then
+        cp "$GTFS_ZIP" "$TARGET_DIR/gtfs_feed.zip"
+        echo "✓ Copied GTFS to $TARGET_DIR"
+    else
+        echo "⚠️  Warning: Target directory not found for solution $SOLUTION_NUM"
+    fi
+done
+
 # Clean up extracted GTFS folders from transit_opt repo (the zip files are extracted in place)
 # This command should only delete directories (not .zip or .json files)
 echo ""
