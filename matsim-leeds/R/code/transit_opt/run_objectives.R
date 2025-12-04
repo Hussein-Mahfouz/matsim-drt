@@ -29,14 +29,14 @@ parent_dir <- "data/supply/transit_opt_paper"
 # List objective folders (immediate children only - but not all of them)
 objective_dirs <- list.dirs(parent_dir, full.names = TRUE, recursive = FALSE)
 # Filter to only directories matching specific patterns
-objective_dirs <- objective_dirs[grepl(
-  "sc_avg_var|sc_int_var|sc_peak_var|sc_sum_var|wt_avg_tot|wt_avg_var|wt_int_tot|wt_int_var|wt_sum_var",
-  basename(objective_dirs)
-)]
 # objective_dirs <- objective_dirs[grepl(
-#   "sc_avg_var|sc_int_var|sc_peak_var|sc_sum_var|wt_avg_tot|wt_avg_var|wt_int_tot|wt_int_var|wt_peak_tot|wt_peak_var|wt_sum_tot|wt_sum_var",
+#   "sc_avg_var|sc_int_var|sc_peak_var|sc_sum_var|wt_avg_tot|wt_avg_var|wt_int_tot|wt_int_var|wt_sum_var",
 #   basename(objective_dirs)
 # )]
+objective_dirs <- objective_dirs[grepl(
+  "sc_avg_var|sc_int_var|sc_peak_var|sc_sum_var|wt_avg_tot|wt_avg_var|wt_int_tot|wt_int_var|wt_peak_tot|wt_peak_var|wt_sum_tot|wt_sum_var",
+  basename(objective_dirs)
+)]
 
 # Distance (meters) used to buffer PT stops when computing catchments
 # - type: numeric (meters)
@@ -73,7 +73,10 @@ dir.create("output", showWarnings = FALSE, recursive = TRUE)
 
 # PT stops
 stops <- read_csv(
-  unz("data/external/study_area_gtfs_bus.zip", "stops.txt"),
+  unz(
+    "data/supply/transit_opt_paper/basic/combined_solution_00/gtfs_feed.zip",
+    "stops.txt"
+  ),
   show_col_types = FALSE
 ) |>
   st_as_sf(coords = c("stop_lon", "stop_lat"), crs = 4326) |>
@@ -326,28 +329,3 @@ vkm_results <- all_vkm_results |>
   )
 
 write_csv(vkm_results, file.path("output", "vkm_by_objective.csv"))
-
-# # prepare & plot pt percent-change by solution, faceted by objective
-# pt_plot_data <- mode_results %>%
-#   filter(mode == "pt", !is.na(n_pct_change)) %>%
-#   mutate(combo = paste(level, access, zones, sep = "_"))
-
-# ggplot(
-#   pt_plot_data,
-#   aes(x = solution_id, y = n_pct_change, color = combo, shape = combo)
-# ) +
-#   geom_line(alpha = 0.9) +
-#   facet_wrap(~objective, scales = "free_x", nrow = 1) +
-#   labs(
-#     title = "PT % change in trip counts by solution",
-#     x = "Solution ID",
-#     y = "Percent change vs base (n_pct_change)",
-#     color = "level_access_zones",
-#     shape = "level_access_zones"
-#   ) +
-#   scale_x_continuous(breaks = scales::pretty_breaks()) +
-#   theme_minimal() +
-#   theme(
-#     legend.position = "bottom",
-#     axis.text.x = element_text(angle = 45, hjust = 1)
-#   )
