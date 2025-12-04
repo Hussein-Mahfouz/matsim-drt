@@ -14,6 +14,9 @@ TRANSIT_OPT_REPO="../../transit_opt"
 
 # Input directory (GTFS feeds in transit_opt repo)
 GTFS_INPUT_DIR="$TRANSIT_OPT_REPO/output/$SCENARIO_NAME/iteration_01/pso_results"
+# If converting the basic feed
+# GTFS_INPUT_DIR="$TRANSIT_OPT_REPO/output/$SCENARIO_NAME"
+
 
 # Output directory in matsim-leeds
 OUTPUT_DIR="data/supply/transit_opt_paper/$SCENARIO_NAME"
