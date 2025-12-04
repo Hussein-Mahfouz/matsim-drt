@@ -40,7 +40,7 @@ objective_dirs <- objective_dirs[grepl(
 
 # Distance (meters) used to buffer PT stops when computing catchments
 # - type: numeric (meters)
-catchment_radius <- 400
+catchment_radius <- 300
 
 # Analysis levels:
 # - "trip": evaluate individual trips
@@ -234,7 +234,7 @@ base_vkm <- vkm_all_combinations(
   catchment_radius = catchment_radius,
   levels = levels_vec,
   accesses = accesses_vec,
-  modes = c("car", "taxi", "pt"),
+  modes = c("^car$", "taxi", "pt", "drt"), # Regex for car to avoid car_passenger)
   include_all = include_all,
   zones = zones_vec,
   drt_zones = drt_zones
@@ -259,7 +259,7 @@ all_vkm_list <- map(objective_dirs, function(obj_dir) {
     catchment_radius = catchment_radius,
     levels = levels_vec,
     accesses = accesses_vec,
-    modes = c("car", "taxi", "pt"),
+    modes = c("^car$", "taxi", "pt", "drt"), # Regex for car to avoid car_passenger
     include_all = include_all,
     zones = zones_vec,
     drt_zones = drt_zones

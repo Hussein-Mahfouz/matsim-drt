@@ -134,7 +134,8 @@ vkm_catchment <- function(
 
   # Filter by modes if specified
   if (!is.null(modes)) {
-    trips_access <- trips_access |> filter(mode %in% modes)
+    mode_pattern <- paste(modes, collapse = "|")
+    trips_access <- trips_access |> filter(grepl(mode_pattern, mode))
   }
 
   message("Calculating VKM by mode...")
