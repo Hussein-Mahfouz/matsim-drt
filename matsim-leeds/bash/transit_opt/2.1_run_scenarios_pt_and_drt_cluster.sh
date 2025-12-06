@@ -65,7 +65,7 @@ MAX_RUNTIME="36:00:00"  # 36:00:00 = 36 hours
 USE_REJECTION_CONSTRAINT="true"
 PRIOR_REQUESTS="10"        # Virtual prior attempts (default: 10)
 PRIOR_REJECTIONS="1"       # Virtual prior rejections (default: 1, gives 10% base rate)
-MIN_ATTEMPTS="3"           # Grace period attempts (default: 3)
+MIN_ATTEMPTS="2"           # Grace period attempts (default: 2)
 
 # 2. GLOBAL LEVEL: DRT parameters (to control rejection rate) See issue #55
 # Tries to match global DRT rejection rate with the rate specified below. Done by 
