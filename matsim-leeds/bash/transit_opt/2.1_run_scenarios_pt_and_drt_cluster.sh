@@ -10,19 +10,20 @@
 #   - drt_fleet_nw_merged.xml
 
 # Run from matsim-leeds root: 
-#   All solutions: bash bash/transit_opt/2.1_run_scenarios_pt_and_drt_cluster.sh <scenario_name>
-#   One solution:  bash bash/transit_opt/2.1_run_scenarios_pt_and_drt_cluster.sh <scenario_name> <solution_name>
+#   All solutions: bash bash/transit_opt/2.1_run_scenarios_pt_and_drt_cluster.sh <scenario_name> <iteration_number>
+#   One solution:  bash bash/transit_opt/2.1_run_scenarios_pt_and_drt_cluster.sh <scenario_name> <iteration_number> <solution_name>
 
-if [ $# -lt 1 ] || [ $# -gt 2 ]; then
-    echo "Usage: $0 <scenario_name> [solution_name]"
+if [ $# -lt 2 ] || [ $# -gt 3 ]; then
+    echo "Usage: $0 <scenario_name> <iteration_number> [solution_name]"
     echo "Examples:"
-    echo "  All solutions: $0 sc_avg_var"
-    echo "  One solution:  $0 sc_avg_var combined_solution_40"
+    echo "  All solutions: $0 sc_avg_var 01"
+    echo "  One solution:  $0 sc_avg_var 01 combined_solution_40"
     exit 1
 fi
 
 SCENARIO_NAME=$1
-SPECIFIC_SOLUTION="${2:-}"  # Optional: if provided, only run this solution
+ITERATION_NUMBER=$2
+SPECIFIC_SOLUTION="${3:-}"  # Optional: if provided, only run this solution
 
 # --- Leeds HPC modules 
 module load gcc/14.2.0
@@ -35,7 +36,7 @@ export PATH="$MAVEN_HOME/bin:$PATH"
 MATSIM_DIR="$(pwd)"
 
 # Base directory for this scenario
-SCENARIO_DIR="$MATSIM_DIR/data/supply/transit_opt_paper/$SCENARIO_NAME"
+SCENARIO_DIR="$MATSIM_DIR/data/supply/transit_opt_paper/iteration_${ITERATION_NUMBER}/$SCENARIO_NAME"
 
 # Path to your MATSim jar
 JAR_FILE="$MATSIM_DIR/target/matsim-leeds-1.0.jar"
@@ -80,9 +81,9 @@ VEHICLES_FILE="$MATSIM_DIR/data/supply/network_vehicles_${SAMPLE_SIZE}.xml"
 
 echo "========================================="
 if [ -n "$SPECIFIC_SOLUTION" ]; then
-    echo "Submitting job for: $SCENARIO_NAME / $SPECIFIC_SOLUTION"
+    echo "Submitting job for: $SCENARIO_NAME (iteration $ITERATION_NUMBER) / $SPECIFIC_SOLUTION"
 else
-    echo "Submitting jobs for all solutions in: $SCENARIO_NAME"
+    echo "Submitting jobs for: $SCENARIO_NAME (iteration $ITERATION_NUMBER) - all solutions"
 fi
 echo "========================================="
 
@@ -132,7 +133,7 @@ for SOLUTION_DIR in "${SOLUTION_DIRS[@]}"; do
     sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK \
         --time=$MAX_RUNTIME \
         --mem-per-cpu=$MEM_PER_CPU \
-        --job-name="${SCENARIO_NAME}_${SOLUTION_NAME}" \
+        --job-name="${SCENARIO_NAME}_i${ITERATION_NUMBER}_${SOLUTION_NAME}" \
         --output="${SLURM_LOG_DIR}/slurm-%j.out" \
         --wrap="java -Xmx80G -cp $JAR_FILE $MAIN_CLASS \
             --config-path $TEMPLATE_CONFIG \
@@ -163,6 +164,6 @@ echo "========================================="
 if [ -n "$SPECIFIC_SOLUTION" ]; then
     echo "Job submitted for: $SPECIFIC_SOLUTION"
 else
-    echo "All jobs submitted for: $SCENARIO_NAME"
+    echo "All jobs submitted for: $SCENARIO_NAME (iteration $ITERATION_NUMBER)"
 fi
 echo "========================================="
