@@ -129,9 +129,9 @@ for json_file in "$JSON_INPUT_DIR"/combined_solution_*_drt.json; do
     nw_16_20=$(jq -r '.drt_solutions.drt_nw.fleet_deployment."16-20h".fleet_size' "$json_file")
     nw_20_24=$(jq -r '.drt_solutions.drt_nw.fleet_deployment."20-24h".fleet_size' "$json_file")
     
-    # Replace 0 with 10 (comment out to disable)
+    # Replace 0 with 25 (comment out to disable)
     for var in ne_00_04 ne_04_08 ne_08_12 ne_12_16 ne_16_20 ne_20_24 nw_00_04 nw_04_08 nw_08_12 nw_12_16 nw_16_20 nw_20_24; do
-        [ "${!var}" -eq 0 ] && eval "$var=10"
+        [ "${!var}" -eq 0 ] && eval "$var=25"
     done
     
     echo "NE fleet sizes: $ne_00_04, $ne_04_08, $ne_08_12, $ne_12_16, $ne_16_20, $ne_20_24"
