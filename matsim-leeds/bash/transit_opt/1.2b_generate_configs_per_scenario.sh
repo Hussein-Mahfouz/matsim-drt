@@ -285,8 +285,8 @@ for json_file in "${JSON_FILES[@]}"; do
         --cost-models "LeedsDrtCostModel,LeedsDrtCostModel" \
         --estimators "LeedsDrtUtilityEstimator,LeedsDrtUtilityEstimator" \
         --mode-availability "LeedsDrtModeAvailability" \
-        --config:multiModeDrt.drt[mode=drtNW].drtServiceAreaShapeFile=../../../drt/nw_cluster_08_00_11_00.shp \
-        --config:multiModeDrt.drt[mode=drtNE].drtServiceAreaShapeFile=../../../drt/ne_cluster_08_00_11_00.shp; then
+        --config:multiModeDrt.drt[mode=drtNW].drtServiceAreaShapeFile=../../../../drt/nw_cluster_08_00_11_00.shp \
+        --config:multiModeDrt.drt[mode=drtNE].drtServiceAreaShapeFile=../../../../drt/ne_cluster_08_00_11_00.shp; then
         
         # Step 1 Succeeded. Attempt Step 2: Feeder Config
         if java -cp "$CLASSPATH" com.husseinmahfouz.matsim.drt.RunAdaptConfigForFeederDrt \
