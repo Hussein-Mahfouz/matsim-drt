@@ -273,9 +273,8 @@ for json_file in "${JSON_FILES[@]}"; do
     feeder_cfg_abs=$(cd "$(dirname "$feeder_cfg")" && pwd)/$(basename "$feeder_cfg")
 
     # Get absolute path to DRT shapefiles from matsim-leeds root
-    DRT_SHAPEFILES_DIR="$(pwd)/data/supply/drt"
-    NW_SHAPEFILE="$DRT_SHAPEFILES_DIR/nw_cluster_08_00_11_00.shp"
-    NE_SHAPEFILE="$DRT_SHAPEFILES_DIR/ne_cluster_08_00_11_00.shp"
+    NW_SHAPEFILE=$(readlink -f "data/supply/drt/nw_cluster_08_00_11_00.shp")
+    NE_SHAPEFILE=$(readlink -f "data/supply/drt/ne_cluster_08_00_11_00.shp")
 
     echo "  Generating configs..."
     
