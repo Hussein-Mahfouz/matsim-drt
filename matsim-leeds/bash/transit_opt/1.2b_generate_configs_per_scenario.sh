@@ -73,7 +73,7 @@ if [ "$MODE" == "cluster" ]; then
     LOG_DIR="bash/transit_opt/logs"
     mkdir -p "$LOG_DIR"
     CPUS=2
-    MEM_PER_CPU=4096  # 4GB per CPU = 8GB total
+    MEM_PER_CPU=16384  # 16GB per CPU = 32GB total
     TIME="01:00:00"
 
     echo "Submitting job for: $SCENARIO_NAME (iteration $ITERATION_NUMBER)"
