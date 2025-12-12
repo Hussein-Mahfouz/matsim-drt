@@ -195,6 +195,7 @@ echo ""
 # Count JSON files to process
 shopt -s nullglob  # Make glob return empty array if no matches
 JSON_FILES=("$JSON_INPUT_DIR"/combined_solution_*_drt.json)
+shopt -u nullglob # Disable nullglob
 JSON_COUNT=${#JSON_FILES[@]}
 echo "Found $JSON_COUNT solution JSON files to process"
 echo ""
@@ -272,10 +273,26 @@ for json_file in "${JSON_FILES[@]}"; do
     drt_cfg_abs=$(cd "$(dirname "$drt_cfg")" && pwd)/$(basename "$drt_cfg")
     feeder_cfg_abs=$(cd "$(dirname "$feeder_cfg")" && pwd)/$(basename "$feeder_cfg")
 
-    # Get absolute path to DRT shapefiles from matsim-leeds root
-    NW_SHAPEFILE=$(readlink -f "data/supply/drt/nw_cluster_08_00_11_00.shp")
-    NE_SHAPEFILE=$(readlink -f "data/supply/drt/ne_cluster_08_00_11_00.shp")
+    # Get absolute paths from current working directory (matsim-leeds root)
+    CURRENT_DIR=$(pwd)
+    NW_SHAPEFILE="$CURRENT_DIR/data/supply/drt/nw_cluster_08_00_11_00.shp"
+    NE_SHAPEFILE="$CURRENT_DIR/data/supply/drt/ne_cluster_08_00_11_00.shp"
 
+    # Verify they exist
+    if [ ! -f "$NW_SHAPEFILE" ] || [ ! -f "$NE_SHAPEFILE" ]; then
+        echo "  ❌ Error: DRT shapefiles not found!"
+        echo "     NW: $NW_SHAPEFILE"
+        echo "     NE: $NE_SHAPEFILE"
+        echo "     Available shapefiles in $CURRENT_DIR/data/supply/drt/:"
+        ls -1 "$CURRENT_DIR/data/supply/drt/"*.shp 2>/dev/null || echo "     (none found)"
+        rm -f "$temp_cfg"
+        ((++FAILED_COUNT))
+        continue
+    fi
+
+    echo "  Using shapefiles:"
+    echo "    NW: $NW_SHAPEFILE"
+    echo "    NE: $NE_SHAPEFILE"
     echo "  Generating configs..."
     
     # Attempt Step 1: Generate DRT Config
@@ -289,8 +306,8 @@ for json_file in "${JSON_FILES[@]}"; do
         --cost-models "LeedsDrtCostModel,LeedsDrtCostModel" \
         --estimators "LeedsDrtUtilityEstimator,LeedsDrtUtilityEstimator" \
         --mode-availability "LeedsDrtModeAvailability" \
-        --config:multiModeDrt.drt[mode=drtNW].drtServiceAreaShapeFile="$NW_SHAPEFILE" \
-        --config:multiModeDrt.drt[mode=drtNE].drtServiceAreaShapeFile="$NE_SHAPEFILE"; then
+        --config:multiModeDrt.drt[mode=drtNW].drtServiceAreaShapeFile=$NW_SHAPEFILE \
+        --config:multiModeDrt.drt[mode=drtNE].drtServiceAreaShapeFile=$NE_SHAPEFILE; then
         
         # Step 1 Succeeded. Attempt Step 2: Feeder Config
         if java -cp "$CLASSPATH" com.husseinmahfouz.matsim.drt.RunAdaptConfigForFeederDrt \
