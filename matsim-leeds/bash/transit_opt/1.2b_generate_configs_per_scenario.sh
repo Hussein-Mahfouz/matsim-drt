@@ -272,6 +272,11 @@ for json_file in "${JSON_FILES[@]}"; do
     drt_cfg_abs=$(cd "$(dirname "$drt_cfg")" && pwd)/$(basename "$drt_cfg")
     feeder_cfg_abs=$(cd "$(dirname "$feeder_cfg")" && pwd)/$(basename "$feeder_cfg")
 
+    # Get absolute path to DRT shapefiles from matsim-leeds root
+    DRT_SHAPEFILES_DIR="$(pwd)/data/supply/drt"
+    NW_SHAPEFILE="$DRT_SHAPEFILES_DIR/nw_cluster_08_00_11_00.shp"
+    NE_SHAPEFILE="$DRT_SHAPEFILES_DIR/ne_cluster_08_00_11_00.shp"
+
     echo "  Generating configs..."
     
     # Attempt Step 1: Generate DRT Config
@@ -285,8 +290,8 @@ for json_file in "${JSON_FILES[@]}"; do
         --cost-models "LeedsDrtCostModel,LeedsDrtCostModel" \
         --estimators "LeedsDrtUtilityEstimator,LeedsDrtUtilityEstimator" \
         --mode-availability "LeedsDrtModeAvailability" \
-        --config:multiModeDrt.drt[mode=drtNW].drtServiceAreaShapeFile=../../../../drt/nw_cluster_08_00_11_00.shp \
-        --config:multiModeDrt.drt[mode=drtNE].drtServiceAreaShapeFile=../../../../drt/ne_cluster_08_00_11_00.shp; then
+        --config:multiModeDrt.drt[mode=drtNW].drtServiceAreaShapeFile="$NW_SHAPEFILE" \
+        --config:multiModeDrt.drt[mode=drtNE].drtServiceAreaShapeFile="$NE_SHAPEFILE"; then
         
         # Step 1 Succeeded. Attempt Step 2: Feeder Config
         if java -cp "$CLASSPATH" com.husseinmahfouz.matsim.drt.RunAdaptConfigForFeederDrt \
