@@ -23,7 +23,7 @@ base_solution_dir <- "data/supply/transit_opt_paper/basic/combined_solution_00"
 # Parent directory containing multiple objective subfolders
 # - type: string (directory path)
 # - expected: contains subfolders like min_total_stops/, min_variance_stops/, etc.
-parent_dir <- "data/supply/transit_opt_paper"
+parent_dir <- "data/supply/transit_opt_paper/iteration_01"
 # parent_dir <- "data/external/gtfs_optimisation"
 
 # List objective folders (immediate children only - but not all of them)
