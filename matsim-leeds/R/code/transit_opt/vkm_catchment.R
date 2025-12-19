@@ -393,20 +393,27 @@ vkm_by_solution <- function(
     message("###############")
     message("\n")
 
-    vkm_all_combinations(
-      trips_file = trips_file,
-      solution_dir = sol_dir,
-      stops = stops,
-      boundary_sf = boundary_sf,
-      catchment_radius = catchment_radius,
-      levels = levels,
-      accesses = accesses,
-      modes = modes,
-      include_all = include_all,
-      zones = zones,
-      drt_zones = drt_zones
-    ) |>
-      mutate(solution = basename(sol_dir), .before = everything())
+    # Wrap the processing logic in tryCatch
+    tryCatch({
+      vkm_all_combinations(
+        trips_file = trips_file,
+        solution_dir = sol_dir,
+        stops = stops,
+        boundary_sf = boundary_sf,
+        catchment_radius = catchment_radius,
+        levels = levels,
+        accesses = accesses,
+        modes = modes,
+        include_all = include_all,
+        zones = zones,
+        drt_zones = drt_zones
+      ) |>
+        mutate(solution = basename(sol_dir), .before = everything())
+    }, error = function(e) {
+      # If an error occurs (like the CSV parse error), print a warning and return NULL
+      message(glue::glue("⚠️  SKIPPING {basename(sol_dir)} due to error: {e$message}"))
+      return(NULL)
+    })
   })
 }
 

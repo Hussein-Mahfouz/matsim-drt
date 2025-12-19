@@ -348,16 +348,22 @@ mode_share_by_solution <- function(
     message("###############")
     message("\n")
 
-    mode_share_all_combinations(
-      trips_file = trips_file,
-      stops = stops,
-      catchment_radius = catchment_radius,
-      levels = levels,
-      accesses = accesses,
-      include_all = include_all,
-      zones = zones,
-      drt_zones = drt_zones
-    ) |>
-      mutate(solution = basename(sol_dir), .before = everything())
+    # Wrap in tryCatch to skip corrupted files
+    tryCatch({
+      mode_share_all_combinations(
+        trips_file = trips_file,
+        stops = stops,
+        catchment_radius = catchment_radius,
+        levels = levels,
+        accesses = accesses,
+        include_all = include_all,
+        zones = zones,
+        drt_zones = drt_zones
+      ) |>
+        mutate(solution = basename(sol_dir), .before = everything())
+    }, error = function(e) {
+      message(glue::glue("⚠️  SKIPPING {basename(sol_dir)}: {e$message}"))
+      return(NULL)
+    })
   })
 }
