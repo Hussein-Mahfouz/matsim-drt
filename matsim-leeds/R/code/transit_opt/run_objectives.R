@@ -329,3 +329,37 @@ vkm_results <- all_vkm_results |>
   )
 
 write_csv(vkm_results, file.path("output", "vkm_by_objective.csv"))
+
+
+message("\n")
+message("##########################################")
+message("## COMBINING SOLUTION OBJECTIVE VALUES")
+message("##########################################")
+message("\n")
+
+# Function to find and read the summary CSV for each objective
+read_solution_summary <- function(obj_dir) {
+  summary_file <- list.files(
+    path = obj_dir,
+    pattern = "combined_solution_summary.csv",
+    full.names = TRUE,
+    recursive = TRUE
+  )
+  if (length(summary_file) == 0) {
+    return(NULL)
+  }
+  df <- read_csv(summary_file, show_col_types = FALSE)
+  df$objective_name <- basename(obj_dir)
+  df
+}
+
+# Combine all
+all_solution_objectives_df <- map_dfr(objective_dirs, read_solution_summary) %>%
+  select(objective_name, everything())
+
+# Save to CSV
+write_csv(all_solution_objectives_df, "output/solution_objective_values.csv")
+
+message(
+  "✓ Combined solution objective values written to output/solution_objective_values.csv\n"
+)
