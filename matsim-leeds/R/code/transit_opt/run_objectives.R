@@ -368,8 +368,8 @@ all_solution_objectives_df <- purrr::map2_dfr(
   select(objective_name, everything())
 
 # Save to CSV
-write_csv(all_solution_objectives_df, "output/solution_objective_values.csv")
+write_csv(all_solution_objectives_df, "output/pso_objective_values.csv")
 
 message(
-  "✓ Combined solution objective values written to output/solution_objective_values.csv\n"
+  "✓ Combined solution objective values written to output/pso_objective_values.csv\n"
 )
