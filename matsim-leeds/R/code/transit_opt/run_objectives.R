@@ -335,24 +335,36 @@ message("## COMBINING SOLUTION OBJECTIVE VALUES")
 message("##########################################")
 message("\n")
 
-# Function to find and read the summary CSV for each objective
-read_solution_summary <- function(obj_dir) {
-  summary_file <- list.files(
-    path = obj_dir,
-    pattern = "combined_solution_summary.csv",
-    full.names = TRUE,
-    recursive = TRUE
-  )
-  if (length(summary_file) == 0) {
+# List of objective names (e.g. "sc_avg_var", ...)
+objective_names <- basename(objective_dirs)
+
+# Build the correct paths
+summary_paths <- file.path(
+  "../../transit_opt/output",
+  objective_names,
+  "iteration_01",
+  "pso_results",
+  "combined_solution_summary.csv"
+)
+
+
+# Function to read each summary file
+read_solution_summary <- function(path, objective_name) {
+  if (!file.exists(path)) {
+    message(glue::glue("No combined_solution_summary.csv found in {path}"))
     return(NULL)
   }
-  df <- read_csv(summary_file, show_col_types = FALSE)
-  df$objective_name <- basename(obj_dir)
+  df <- read_csv(path, show_col_types = FALSE)
+  df$objective_name <- objective_name
   df
 }
 
-# Combine all
-all_solution_objectives_df <- map_dfr(objective_dirs, read_solution_summary) %>%
+# Read and combine all
+all_solution_objectives_df <- purrr::map2_dfr(
+  summary_paths,
+  objective_names,
+  read_solution_summary
+) %>%
   select(objective_name, everything())
 
 # Save to CSV
