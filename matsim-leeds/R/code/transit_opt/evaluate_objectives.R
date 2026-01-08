@@ -26,17 +26,21 @@ all_drt_deployments <- read_csv("R/output/drt_fleet_deployments.csv")
 # SECTION 0a: Configuration - Filter objectives
 ##########
 
-# Set to NULL to include all objectives, or specify a vector of objectives to KEEP
-# Example: c("wt_avg_tot", "wt_avg_var") to keep only these
-# Example: NULL to keep all objectives
+# ===== USER CONFIGURATION =====
+# Objective filtering
 OBJECTIVES_TO_INCLUDE <- NULL
+OBJECTIVES_TO_EXCLUDE <- "^sc_"
 
-# Alternatively, set objectives to EXCLUDE (ignored if OBJECTIVES_TO_INCLUDE is not NULL)
-# Example: c("sc_avg_var", "sc_int_var") to exclude these
-# Example: "^sc_" to exclude all objectives starting with "sc_"
-OBJECTIVES_TO_EXCLUDE <- "^sc_" # Exclude all Service Coverage objectives
+# Correlation analysis: Maximum solution rank to include (NULL = use all)
+# Solutions with rank > this value will be excluded from correlation analysis
+# Motivation: High-rank solutions (e.g., 1023, 2047) are essentially random
+MAX_SOLUTION_RANK_FOR_CORRELATION <- NULL # Only use top 127 solutions (or set to NULL for all)
 
-# Apply the filter
+# Top-k Recall configuration
+TOPK_HEATMAP_K_CONFIG <- 5
+TOPK_LINE_PLOT_MAX_K_CONFIG <- 5
+# ==============================
+
 if (!is.null(OBJECTIVES_TO_INCLUDE)) {
   message(glue::glue(
     "Filtering to include only: {paste(OBJECTIVES_TO_INCLUDE, collapse = ', ')}"
@@ -82,10 +86,9 @@ obj_pso_joined <- obj_pso |>
     pso_pct_change_vs_base = 100 *
       (objective_sol - baseline_objective_value_pen) /
       baseline_objective_value_pen,
-    pso_frac_of_base = round(objective_sol / baseline_objective_value_pen, 2)
+    pso_frac_of_base = objective_sol / baseline_objective_value_pen
   )
 
-# Join to mode share and VKM
 res_mode_share <- res_mode_share |>
   left_join(
     obj_pso_joined,
@@ -104,7 +107,6 @@ res_vkm <- res_vkm |>
 
 message("Creating combined mode categories...")
 
-# PT+DRT combined for mode share
 pt_drt_combined <- res_mode_share |>
   filter(mode == "pt" | str_detect(mode, "^drt")) |>
   group_by(objective, solution, solution_id, level, access, zones) |>
@@ -131,16 +133,12 @@ res_mode_share <- bind_rows(res_mode_share, pt_drt_combined) |>
   arrange(objective, solution, solution_id, level, access, zones, mode) |>
   mutate(share_delta = share_solution - share_base)
 
-# PT+DRT and Car+Taxi combined for VKM
-
-# PT+DRT combined for VKM - FIXED: carry over PSO columns
 pt_drt_vkm_combined <- res_vkm |>
   filter(mode == "pt" | str_detect(mode, "^drt")) |>
   group_by(objective, solution, solution_id, level, access, zones) |>
   summarise(
     total_distance_km_solution = sum(total_distance_km_solution, na.rm = TRUE),
     total_distance_km_base = sum(total_distance_km_base, na.rm = TRUE),
-    # Carry over PSO columns
     rank = first(rank),
     swarm_id = first(swarm_id),
     objective_sol = first(objective_sol),
@@ -157,14 +155,12 @@ pt_drt_vkm_combined <- res_vkm |>
     delta_km_pct = (delta_km / total_distance_km_base) * 100
   )
 
-# Car+Taxi combined for VKM - FIXED: carry over PSO columns
 car_taxi_combined <- res_vkm |>
   filter(mode %in% c("car", "taxi")) |>
   group_by(objective, solution, solution_id, level, access, zones) |>
   summarise(
     total_distance_km_solution = sum(total_distance_km_solution, na.rm = TRUE),
     total_distance_km_base = sum(total_distance_km_base, na.rm = TRUE),
-    # Carry over PSO columns
     rank = first(rank),
     swarm_id = first(swarm_id),
     objective_sol = first(objective_sol),
@@ -222,7 +218,6 @@ objective_labels_short <- c(
   "wt_peak_var" = "WT-Peak-Var"
 )
 
-# Also filter the labels to match
 if (!is.null(OBJECTIVES_TO_INCLUDE)) {
   objective_labels <- objective_labels[
     names(objective_labels) %in% OBJECTIVES_TO_INCLUDE
@@ -245,35 +240,131 @@ zones_labels <- c("pt" = "PT", "pt+drt" = "PT+DRT", "all" = "All")
 
 main_modes <- c("pt+drt", "car", "walk", "bike", "taxi")
 
-# Create output directory
 dir.create("R/plots/transit_opt_paper", showWarnings = FALSE, recursive = TRUE)
 dir.create(
-  "R/tables/transit_opt_paper/tables/",
+  "R/plots/transit_opt_paper/tables",
   showWarnings = FALSE,
   recursive = TRUE
 )
+
 ##########################################################################
-# SECTION 4.1: VALIDATION - Correlation Analysis
+# SECTION 4.1: VALIDATION - Correlation Analysis (with Filter Sensitivity)
 ##########################################################################
 
 message("\n==========================================")
 message("SECTION 4.1: VALIDATION - Correlation Analysis")
 message("==========================================\n")
 
-# Calculate correlation for ALL filter combinations
-# This shows how correlation varies by catchment definition
+# Apply solution rank filter for correlation analysis
+if (!is.null(MAX_SOLUTION_RANK_FOR_CORRELATION)) {
+  message(glue::glue(
+    "Filtering to solutions with rank ≤ {MAX_SOLUTION_RANK_FOR_CORRELATION} for correlation analysis"
+  ))
+
+  res_mode_share_corr <- res_mode_share |>
+    filter(solution_id <= MAX_SOLUTION_RANK_FOR_CORRELATION)
+
+  res_vkm_extended_corr <- res_vkm_extended |>
+    filter(solution_id <= MAX_SOLUTION_RANK_FOR_CORRELATION)
+
+  n_solutions_used <- n_distinct(res_mode_share_corr$solution_id)
+  message(glue::glue(
+    "Using {n_solutions_used} solutions for correlation analysis"
+  ))
+} else {
+  message("Using all solutions for correlation analysis")
+  res_mode_share_corr <- res_mode_share
+  res_vkm_extended_corr <- res_vkm_extended
+}
 
 # Define all filter combinations
-filter_combinations <- expand_grid(
-  level = c("trip", "person"),
-  access = c("origin", "origin+destination"),
-  zones = c("pt", "pt+drt")
-)
+# Note: "all" only appears as "All | All | All" (not mixed with other filters)
+filter_combinations <- bind_rows(
+  # All combinations of trip/person × origin/origin+destination × pt/pt+drt
+  expand_grid(
+    level = c("trip", "person"),
+    access = c("origin", "origin+destination"),
+    zones = c("pt", "pt+drt")
+  ),
+  # Add the single "all" combination
+  tibble(
+    level = "all",
+    access = "all",
+    zones = "all"
+  )
+) |>
+  mutate(
+    filter_label = paste(
+      level_labels[level],
+      access_labels[access],
+      zones_labels[zones],
+      sep = " | "
+    )
+  )
+
+# Function to calculate correlation with proper Spearman p-value
+calc_correlation <- function(data, x_var, y_var) {
+  x <- data[[x_var]]
+  y <- data[[y_var]]
+
+  # Remove NAs
+  complete_idx <- !is.na(x) & !is.na(y)
+  x <- x[complete_idx]
+  y <- y[complete_idx]
+
+  n <- length(x)
+
+  if (n < 3) {
+    return(tibble(
+      n_solutions = n,
+      cor_spearman = NA_real_,
+      cor_pearson = NA_real_,
+      p_value_spearman = NA_real_,
+      p_value_pearson = NA_real_
+    ))
+  }
+
+  # Spearman correlation and p-value
+  spearman_test <- tryCatch(
+    cor.test(x, y, method = "spearman", exact = FALSE),
+    error = function(e) NULL
+  )
+
+  # Pearson correlation and p-value
+  pearson_test <- tryCatch(
+    cor.test(x, y, method = "pearson"),
+    error = function(e) NULL
+  )
+
+  tibble(
+    n_solutions = n,
+    cor_spearman = if (!is.null(spearman_test)) {
+      spearman_test$estimate
+    } else {
+      NA_real_
+    },
+    cor_pearson = if (!is.null(pearson_test)) {
+      pearson_test$estimate
+    } else {
+      NA_real_
+    },
+    p_value_spearman = if (!is.null(spearman_test)) {
+      spearman_test$p.value
+    } else {
+      NA_real_
+    },
+    p_value_pearson = if (!is.null(pearson_test)) {
+      pearson_test$p.value
+    } else {
+      NA_real_
+    }
+  )
+}
 
 # Correlation: PSO objective vs PT+DRT mode share change (all combinations)
 correlation_mode_share <- filter_combinations |>
-  pmap_dfr(function(level, access, zones) {
-    res_mode_share |>
+  pmap_dfr(function(level, access, zones, filter_label) {
+    res_mode_share_corr |>
       filter(
         mode == "pt+drt",
         level == !!level,
@@ -283,30 +374,13 @@ correlation_mode_share <- filter_combinations |>
         !is.na(share_delta)
       ) |>
       group_by(objective) |>
-      summarise(
-        n_solutions = n(),
-        cor_spearman = cor(
-          pso_frac_of_base,
-          share_delta,
-          method = "spearman",
-          use = "complete.obs"
-        ),
-        cor_pearson = cor(
-          pso_frac_of_base,
-          share_delta,
-          method = "pearson",
-          use = "complete.obs"
-        ),
-        p_value = tryCatch(
-          cor.test(pso_frac_of_base, share_delta, method = "spearman")$p.value,
-          error = function(e) NA_real_
-        ),
-        .groups = "drop"
-      ) |>
+      group_modify(~ calc_correlation(.x, "pso_frac_of_base", "share_delta")) |>
+      ungroup() |>
       mutate(
         level = level,
         access = access,
         zones = zones,
+        filter_label = filter_label,
         outcome = "PT+DRT Mode Share",
         objective_clean = objective_labels_short[objective]
       )
@@ -314,8 +388,8 @@ correlation_mode_share <- filter_combinations |>
 
 # Correlation: PSO objective vs Car mode share change (all combinations)
 correlation_car <- filter_combinations |>
-  pmap_dfr(function(level, access, zones) {
-    res_mode_share |>
+  pmap_dfr(function(level, access, zones, filter_label) {
+    res_mode_share_corr |>
       filter(
         mode == "car",
         level == !!level,
@@ -325,30 +399,13 @@ correlation_car <- filter_combinations |>
         !is.na(share_delta)
       ) |>
       group_by(objective) |>
-      summarise(
-        n_solutions = n(),
-        cor_spearman = cor(
-          pso_frac_of_base,
-          share_delta,
-          method = "spearman",
-          use = "complete.obs"
-        ),
-        cor_pearson = cor(
-          pso_frac_of_base,
-          share_delta,
-          method = "pearson",
-          use = "complete.obs"
-        ),
-        p_value = tryCatch(
-          cor.test(pso_frac_of_base, share_delta, method = "spearman")$p.value,
-          error = function(e) NA_real_
-        ),
-        .groups = "drop"
-      ) |>
+      group_modify(~ calc_correlation(.x, "pso_frac_of_base", "share_delta")) |>
+      ungroup() |>
       mutate(
         level = level,
         access = access,
         zones = zones,
+        filter_label = filter_label,
         outcome = "Car Mode Share",
         objective_clean = objective_labels_short[objective]
       )
@@ -356,8 +413,8 @@ correlation_car <- filter_combinations |>
 
 # Correlation: PSO objective vs Car+Taxi VKM change (all combinations)
 correlation_vkm <- filter_combinations |>
-  pmap_dfr(function(level, access, zones) {
-    res_vkm_extended |>
+  pmap_dfr(function(level, access, zones, filter_label) {
+    res_vkm_extended_corr |>
       filter(
         mode == "car+taxi",
         level == !!level,
@@ -367,36 +424,19 @@ correlation_vkm <- filter_combinations |>
         !is.na(delta_km)
       ) |>
       group_by(objective) |>
-      summarise(
-        n_solutions = n(),
-        cor_spearman = cor(
-          pso_frac_of_base,
-          delta_km,
-          method = "spearman",
-          use = "complete.obs"
-        ),
-        cor_pearson = cor(
-          pso_frac_of_base,
-          delta_km,
-          method = "pearson",
-          use = "complete.obs"
-        ),
-        p_value = tryCatch(
-          cor.test(pso_frac_of_base, delta_km, method = "spearman")$p.value,
-          error = function(e) NA_real_
-        ),
-        .groups = "drop"
-      ) |>
+      group_modify(~ calc_correlation(.x, "pso_frac_of_base", "delta_km")) |>
+      ungroup() |>
       mutate(
         level = level,
         access = access,
         zones = zones,
+        filter_label = filter_label,
         outcome = "Car+Taxi VKM",
         objective_clean = objective_labels_short[objective]
       )
   })
 
-# Combine all correlations
+# Combine all correlations (no need to add "all" separately - it's already included)
 all_correlations <- bind_rows(
   correlation_mode_share,
   correlation_car,
@@ -404,30 +444,113 @@ all_correlations <- bind_rows(
 ) |>
   mutate(
     significance = case_when(
-      p_value < 0.001 ~ "***",
-      p_value < 0.01 ~ "**",
-      p_value < 0.05 ~ "*",
+      p_value_spearman < 0.001 ~ "***",
+      p_value_spearman < 0.01 ~ "**",
+      p_value_spearman < 0.05 ~ "*",
       TRUE ~ ""
-    ),
-    filter_config = paste(level, access, zones, sep = " | ")
+    )
   )
 
 # Save full correlation table
 write_csv(
   all_correlations,
-  "R/tables/transit_opt_paper/tables/table_4_1_correlations_all.csv"
+  "R/plots/transit_opt_paper/tables/table_4_1_correlations_all.csv"
 )
 
-# Plot 1: Heatmap for ONE filter config (for paper figure)
-# Use trip | origin+destination | pt+drt as the main result
-main_filter_correlations <- all_correlations |>
-  filter(
-    level == "trip",
-    access == "origin+destination",
-    zones == "pt+drt"
+# -------------------------
+# Table 1: Correlation Matrix (objectives x filter combinations)
+# -------------------------
+
+correlation_table_wide <- all_correlations |>
+  filter(outcome == "PT+DRT Mode Share") |>
+  select(objective_clean, filter_label, cor_spearman, significance) |>
+  mutate(
+    cor_display = paste0(round(cor_spearman, 2), significance)
+  ) |>
+  select(objective_clean, filter_label, cor_display) |>
+  pivot_wider(
+    names_from = filter_label,
+    values_from = cor_display
   )
 
-correlation_plot_data <- main_filter_correlations |>
+write_csv(
+  correlation_table_wide,
+  "R/plots/transit_opt_paper/tables/table_4_1_correlation_matrix.csv"
+)
+
+# -------------------------
+# Plot 1: Faceted Multi-outcome Heatmap (by filter combination)
+# -------------------------
+
+faceted_heatmap_data <- all_correlations |>
+  mutate(
+    objective_clean = factor(objective_clean, levels = objective_labels_short),
+    outcome = factor(
+      outcome,
+      levels = c("PT+DRT Mode Share", "Car Mode Share", "Car+Taxi VKM")
+    ),
+    filter_label = factor(filter_label)
+  )
+
+ggplot(
+  faceted_heatmap_data,
+  aes(x = outcome, y = objective_clean, fill = cor_spearman)
+) +
+  geom_tile(color = "white") +
+  geom_text(
+    aes(label = paste0(round(cor_spearman, 2), significance)),
+    size = 3.5,
+    fontface = "bold"
+  ) +
+  facet_wrap(~filter_label, ncol = 3) +
+  scale_fill_gradient2(
+    low = "#d73027",
+    mid = "white",
+    high = "#1a9850",
+    midpoint = 0,
+    limits = c(-1, 1),
+    name = "Spearman\nCorrelation"
+  ) +
+  labs(
+    title = "Correlation: Proxy Objective vs. MATSim Outcomes",
+    subtitle = "By catchment definition (Aggregation | Access | Zones)",
+    x = "MATSim Outcome",
+    y = "Proxy Objective",
+    caption = paste(
+      "Expected correlations if proxy is effective:\n",
+      "• PT+DRT Mode Share: Negative (lower proxy → higher PT+DRT share)\n",
+      "• Car Mode Share: Positive (higher proxy → higher car share)\n",
+      "• Car+Taxi VKM: Positive (higher proxy → higher car VKM)\n",
+      "* p<0.05, ** p<0.01, *** p<0.001 (Spearman)"
+    )
+  ) +
+  theme_bw(base_size = 10) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+    axis.text.y = element_text(size = 8),
+    strip.text = element_text(face = "bold", size = 9),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.caption = element_text(hjust = 0, size = 8, color = "gray30"),
+    legend.position = "right",
+    panel.grid = element_blank()
+  )
+
+ggsave(
+  "R/plots/transit_opt_paper/fig_4_1a_correlation_heatmap_faceted.png",
+  width = 14,
+  height = 14,
+  dpi = 300
+)
+
+# -------------------------
+# Plot 2a: Multi-outcome Heatmap for main filter config
+# -------------------------
+
+main_filter_label <- "Person | O+D | PT+DRT"
+no_filter_label <- "All | All | All"
+
+main_filter_correlations <- all_correlations |>
+  filter(filter_label == main_filter_label) |>
   mutate(
     objective_clean = factor(objective_clean, levels = objective_labels_short),
     outcome = factor(
@@ -437,7 +560,7 @@ correlation_plot_data <- main_filter_correlations |>
   )
 
 ggplot(
-  correlation_plot_data,
+  main_filter_correlations,
   aes(x = outcome, y = objective_clean, fill = cor_spearman)
 ) +
   geom_tile(color = "white") +
@@ -455,12 +578,18 @@ ggplot(
   ) +
   labs(
     title = "Correlation: Proxy Objective vs. MATSim Outcomes",
-    subtitle = "Filter: Trip-level | Origin+Destination | PT+DRT catchment",
+    subtitle = paste("Filter:", main_filter_label),
     x = "MATSim Outcome",
     y = "Proxy Objective",
-    caption = "Negative correlation expected: lower proxy value should improve outcomes\n* p<0.05, ** p<0.01, *** p<0.001"
+    caption = paste(
+      "Expected correlations if proxy is effective:\n",
+      "• PT+DRT Mode Share: Negative (lower proxy → higher PT+DRT share)\n",
+      "• Car Mode Share: Positive (higher proxy → higher car share)\n",
+      "• Car+Taxi VKM: Positive (higher proxy → higher car VKM)\n",
+      "* p<0.05, ** p<0.01, *** p<0.001 (Spearman)"
+    )
   ) +
-  theme_minimal(base_size = 11) +
+  theme_bw(base_size = 11) +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
     plot.title = element_text(face = "bold", size = 14),
@@ -468,59 +597,74 @@ ggplot(
   )
 
 ggsave(
-  "R/plots/transit_opt_paper/fig_4_1_correlation_heatmap.png",
-  width = 10,
+  "R/plots/transit_opt_paper/fig_4_1b_correlation_heatmap_outcomes.png",
+  width = 7,
   height = 8,
   dpi = 300
 )
 
-# Plot 2: Correlation by filter configuration (shows sensitivity)
-correlation_sensitivity <- all_correlations |>
-  filter(outcome == "PT+DRT Mode Share") |>
+# -------------------------
+# Plot 2b: Multi-outcome Heatmap for NO filter (All | All | All)
+# -------------------------
+
+no_filter_correlations <- all_correlations |>
+  filter(filter_label == no_filter_label) |>
   mutate(
     objective_clean = factor(objective_clean, levels = objective_labels_short),
-    filter_config = factor(filter_config)
+    outcome = factor(
+      outcome,
+      levels = c("PT+DRT Mode Share", "Car Mode Share", "Car+Taxi VKM")
+    )
   )
 
 ggplot(
-  correlation_sensitivity,
-  aes(x = filter_config, y = cor_spearman, fill = cor_spearman)
+  no_filter_correlations,
+  aes(x = outcome, y = objective_clean, fill = cor_spearman)
 ) +
-  geom_col() +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-  facet_wrap(~objective_clean, ncol = 4) +
+  geom_tile(color = "white") +
+  geom_text(
+    aes(label = paste0(round(cor_spearman, 2), significance)),
+    size = 3
+  ) +
   scale_fill_gradient2(
     low = "#d73027",
     mid = "white",
     high = "#1a9850",
     midpoint = 0,
     limits = c(-1, 1),
-    name = "Correlation"
+    name = "Spearman\nCorrelation"
   ) +
   labs(
-    title = "Correlation Sensitivity to Catchment Definition",
-    subtitle = "Spearman correlation: Proxy Objective vs. PT+DRT Mode Share Change",
-    x = "Filter Configuration (Level | Access | Zones)",
-    y = "Spearman Correlation",
-    caption = "Negative correlation = better proxy (lower proxy → higher mode share)"
+    title = "Correlation: Proxy Objective vs. MATSim Outcomes",
+    subtitle = "No spatial filtering applied",
+    x = "MATSim Outcome",
+    y = "Proxy Objective",
+    caption = paste(
+      "Expected correlations if proxy is effective:\n",
+      "• PT+DRT Mode Share: Negative (lower proxy → higher PT+DRT share)\n",
+      "• Car Mode Share: Positive (higher proxy → higher car share)\n",
+      "• Car+Taxi VKM: Positive (higher proxy → higher car VKM)\n",
+      "* p<0.05, ** p<0.01, *** p<0.001 (Spearman)"
+    )
   ) +
-  theme_bw(base_size = 10) +
+  theme_bw(base_size = 11) +
   theme(
-    legend.position = "right",
-    axis.text.x = element_text(angle = 45, hjust = 1, size = 7),
-    strip.text = element_text(face = "bold", size = 8),
+    axis.text.x = element_text(angle = 45, hjust = 1),
     plot.title = element_text(face = "bold", size = 14),
     plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
   )
 
 ggsave(
-  "R/plots/transit_opt_paper/fig_4_1_correlation_sensitivity.png",
-  width = 16,
-  height = 10,
+  "R/plots/transit_opt_paper/fig_4_1b_correlation_heatmap_outcomes_no_filter.png",
+  width = 10,
+  height = 9,
   dpi = 300
 )
 
-# Plot 3: Scatter plots for main filter config
+# -------------------------
+# Plot 3a: Scatter plots for main filter config
+# -------------------------
+
 scatter_data <- res_mode_share |>
   filter(
     mode == "pt+drt",
@@ -542,7 +686,7 @@ ggplot(
   scatter_data,
   aes(x = pso_frac_of_base, y = share_delta)
 ) +
-  geom_point(aes(color = solution_id), size = 2, alpha = 0.7) +
+  geom_point(aes(color = solution_id), size = 2.5, alpha = 0.8) +
   geom_smooth(
     method = "lm",
     se = TRUE,
@@ -554,11 +698,11 @@ ggplot(
   facet_wrap(~objective_clean, scales = "free_x", ncol = 4) +
   labs(
     title = "Proxy Objective Value vs. PT+DRT Mode Share Change",
-    subtitle = "Each point is a solution; lower proxy value = better optimization",
+    subtitle = paste("Filter:", main_filter_label),
     x = "Proxy Objective (fraction of baseline)",
     y = "PT+DRT Mode Share Change (pp)",
     color = "Solution\nRank",
-    caption = "Dashed line shows linear trend. Good proxies should show negative correlation."
+    caption = "Dashed line: linear trend. Lower proxy value = better optimization."
   ) +
   colorspace::scale_color_continuous_sequential(
     palette = "Viridis",
@@ -573,11 +717,669 @@ ggplot(
   )
 
 ggsave(
-  "R/plots/transit_opt_paper/fig_4_1_proxy_vs_mode_share.png",
+  "R/plots/transit_opt_paper/fig_4_1c_proxy_vs_mode_share.png",
   width = 16,
   height = 10,
   dpi = 300
 )
+
+# -------------------------
+# Plot 3b: Scatter plots for NO filter (All | All | All)
+# -------------------------
+
+scatter_data_no_filter <- res_mode_share |>
+  filter(
+    mode == "pt+drt",
+    level == "all",
+    access == "all",
+    zones == "all",
+    !is.na(pso_frac_of_base),
+    !is.na(share_delta)
+  ) |>
+  mutate(
+    objective_clean = factor(
+      objective,
+      levels = names(objective_labels),
+      labels = objective_labels
+    )
+  )
+
+ggplot(
+  scatter_data_no_filter,
+  aes(x = pso_frac_of_base, y = share_delta)
+) +
+  geom_point(aes(color = solution_id), size = 2.5, alpha = 0.8) +
+  geom_smooth(
+    method = "lm",
+    se = TRUE,
+    color = "black",
+    linetype = "dashed",
+    linewidth = 0.5
+  ) +
+  geom_hline(yintercept = 0, linetype = "dotted", color = "gray50") +
+  facet_wrap(~objective_clean, scales = "free_x", ncol = 4) +
+  labs(
+    title = "Proxy Objective Value vs. PT+DRT Mode Share Change",
+    subtitle = "No spatial filtering applied",
+    x = "Proxy Objective (fraction of baseline)",
+    y = "PT+DRT Mode Share Change (pp)",
+    color = "Solution\nRank",
+    caption = "Dashed line: linear trend. Lower proxy value = better optimization."
+  ) +
+  colorspace::scale_color_continuous_sequential(
+    palette = "Viridis",
+    rev = TRUE
+  ) +
+  theme_bw(base_size = 10) +
+  theme(
+    legend.position = "right",
+    strip.text = element_text(face = "bold", size = 8),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
+  )
+
+ggsave(
+  "R/plots/transit_opt_paper/fig_4_1c_proxy_vs_mode_share_no_filter.png",
+  width = 16,
+  height = 10,
+  dpi = 300
+)
+
+# -------------------------
+# Top-k Recall Analysis
+# -------------------------
+
+message("Calculating Top-k Recall...")
+
+# Determine actual number of solutions per objective (for validation)
+n_solutions_per_objective <- res_mode_share |>
+  filter(mode == "pt+drt", level == "all", access == "all", zones == "all") |>
+  group_by(objective) |>
+  summarise(n = n_distinct(solution_id), .groups = "drop") |>
+  pull(n) |>
+  min()
+
+message(glue::glue("Solutions per objective: {n_solutions_per_objective}"))
+
+# Validate and apply configuration
+TOPK_HEATMAP_K <- min(TOPK_HEATMAP_K_CONFIG, n_solutions_per_objective)
+TOPK_LINE_PLOT_K_VALUES <- 1:min(
+  TOPK_LINE_PLOT_MAX_K_CONFIG,
+  n_solutions_per_objective
+)
+
+message(glue::glue(
+  "K values for line plot: {paste(TOPK_LINE_PLOT_K_VALUES, collapse = ', ')}"
+))
+message(glue::glue("K value for heatmap: {TOPK_HEATMAP_K}"))
+
+# calc_topk_recall function (unchanged)
+calc_topk_recall <- function(
+  data,
+  proxy_col,
+  outcome_col,
+  outcome_direction = "higher",
+  k_values = c(1, 2, 3, 5)
+) {
+  data <- data |>
+    filter(!is.na(.data[[proxy_col]]) & !is.na(.data[[outcome_col]]))
+
+  n_total <- nrow(data)
+
+  map_dfr(k_values, function(k) {
+    n_top_k <- k
+
+    if (n_top_k < 1 || n_top_k > n_total) {
+      return(tibble(
+        k = k,
+        n_top_k = n_top_k,
+        n_recalled = NA_integer_,
+        recall_pct = NA_real_
+      ))
+    }
+
+    top_k_proxy <- data |>
+      slice_min(order_by = .data[[proxy_col]], n = n_top_k) |>
+      pull(solution_id)
+
+    if (outcome_direction == "higher") {
+      top_k_outcome <- data |>
+        slice_max(order_by = .data[[outcome_col]], n = n_top_k) |>
+        pull(solution_id)
+    } else {
+      top_k_outcome <- data |>
+        slice_min(order_by = .data[[outcome_col]], n = n_top_k) |>
+        pull(solution_id)
+    }
+
+    n_recalled <- length(intersect(top_k_proxy, top_k_outcome))
+
+    tibble(
+      k = k,
+      n_top_k = n_top_k,
+      n_recalled = n_recalled,
+      recall_pct = round(100 * n_recalled / n_top_k, 1)
+    )
+  })
+}
+
+# Calculate Top-k Recall for ALL outcomes using filter_combinations (which now includes "all")
+# PT+DRT Mode Share (higher = better)
+topk_pt_drt <- filter_combinations |>
+  pmap_dfr(function(level, access, zones, filter_label) {
+    res_mode_share |>
+      filter(
+        mode == "pt+drt",
+        level == !!level,
+        access == !!access,
+        zones == !!zones
+      ) |>
+      group_by(objective) |>
+      group_modify(
+        ~ {
+          calc_topk_recall(
+            .x,
+            proxy_col = "pso_frac_of_base",
+            outcome_col = "share_delta",
+            outcome_direction = "higher",
+            k_values = TOPK_LINE_PLOT_K_VALUES
+          )
+        }
+      ) |>
+      ungroup() |>
+      mutate(
+        filter_label = filter_label,
+        outcome = "PT+DRT Mode Share",
+        objective_clean = objective_labels_short[objective]
+      )
+  })
+
+# Car Mode Share (lower = better)
+topk_car <- filter_combinations |>
+  pmap_dfr(function(level, access, zones, filter_label) {
+    res_mode_share |>
+      filter(
+        mode == "car",
+        level == !!level,
+        access == !!access,
+        zones == !!zones
+      ) |>
+      group_by(objective) |>
+      group_modify(
+        ~ {
+          calc_topk_recall(
+            .x,
+            proxy_col = "pso_frac_of_base",
+            outcome_col = "share_delta",
+            outcome_direction = "lower",
+            k_values = TOPK_LINE_PLOT_K_VALUES
+          )
+        }
+      ) |>
+      ungroup() |>
+      mutate(
+        filter_label = filter_label,
+        outcome = "Car Mode Share",
+        objective_clean = objective_labels_short[objective]
+      )
+  })
+
+# Car+Taxi VKM (lower = better)
+topk_vkm <- filter_combinations |>
+  pmap_dfr(function(level, access, zones, filter_label) {
+    res_vkm_extended |>
+      filter(
+        mode == "car+taxi",
+        level == !!level,
+        access == !!access,
+        zones == !!zones
+      ) |>
+      group_by(objective) |>
+      group_modify(
+        ~ {
+          calc_topk_recall(
+            .x,
+            proxy_col = "pso_frac_of_base",
+            outcome_col = "delta_km",
+            outcome_direction = "lower",
+            k_values = TOPK_LINE_PLOT_K_VALUES
+          )
+        }
+      ) |>
+      ungroup() |>
+      mutate(
+        filter_label = filter_label,
+        outcome = "Car+Taxi VKM",
+        objective_clean = objective_labels_short[objective]
+      )
+  })
+
+# Combine all outcomes (no need to add "all" separately)
+topk_recall_results <- bind_rows(topk_pt_drt, topk_car, topk_vkm)
+
+# Save full table
+write_csv(
+  topk_recall_results,
+  "R/plots/transit_opt_paper/tables/table_4_1_topk_recall.csv"
+)
+# -------------------------
+# Plot: Top-k Recall by k value - Main filter
+# -------------------------
+
+topk_by_k_data <- topk_recall_results |>
+  filter(filter_label == main_filter_label) |>
+  mutate(
+    objective_clean = factor(objective_clean, levels = objective_labels_short),
+    outcome = factor(
+      outcome,
+      levels = c("PT+DRT Mode Share", "Car Mode Share", "Car+Taxi VKM")
+    )
+  )
+
+random_chance_line <- tibble(
+  k = TOPK_LINE_PLOT_K_VALUES,
+  random_pct = 100 * k / n_solutions_per_objective
+)
+
+ggplot(
+  topk_by_k_data,
+  aes(x = k, y = recall_pct, color = objective_clean, group = objective_clean)
+) +
+  geom_line(
+    data = random_chance_line,
+    aes(x = k, y = random_pct),
+    inherit.aes = FALSE,
+    linetype = "dashed",
+    color = "gray50",
+    linewidth = 1
+  ) +
+  geom_line(linewidth = 0.8, alpha = 0.8) +
+  geom_point(size = 2) +
+  facet_wrap(~outcome, ncol = 1) +
+  scale_x_continuous(
+    breaks = TOPK_LINE_PLOT_K_VALUES,
+    labels = TOPK_LINE_PLOT_K_VALUES
+  ) +
+  scale_y_continuous(limits = c(0, 100)) +
+  scale_color_brewer(palette = "Set2") +
+  labs(
+    title = "Top-k Recall by Number of Solutions Selected",
+    subtitle = paste("Filter:", main_filter_label),
+    x = "k (Number of Top Solutions)",
+    y = "Recall (%)",
+    color = "Proxy Objective",
+    caption = paste0(
+      "Recall = % of proxy's top-k that are also MATSim's top-k\n",
+      "Dashed line = random chance (",
+      n_solutions_per_objective,
+      " solutions per objective)"
+    )
+  ) +
+  theme_bw(base_size = 11) +
+  theme(
+    legend.position = "right",
+    strip.text = element_text(face = "bold", size = 10),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
+  )
+
+ggsave(
+  "R/plots/transit_opt_paper/fig_4_1e_topk_recall_by_k.png",
+  width = 12,
+  height = 14,
+  dpi = 300
+)
+
+# -------------------------
+# Plot: Top-k Recall by k value - NO filter (All | All | All)
+# -------------------------
+
+topk_by_k_data_no_filter <- topk_recall_results |>
+  filter(filter_label == no_filter_label) |>
+  mutate(
+    objective_clean = factor(objective_clean, levels = objective_labels_short),
+    outcome = factor(
+      outcome,
+      levels = c("PT+DRT Mode Share", "Car Mode Share", "Car+Taxi VKM")
+    )
+  )
+
+ggplot(
+  topk_by_k_data_no_filter,
+  aes(x = k, y = recall_pct, color = objective_clean, group = objective_clean)
+) +
+  geom_line(
+    data = random_chance_line,
+    aes(x = k, y = random_pct),
+    inherit.aes = FALSE,
+    linetype = "dashed",
+    color = "gray50",
+    linewidth = 1
+  ) +
+  geom_line(linewidth = 0.8, alpha = 0.8) +
+  geom_point(size = 2) +
+  facet_wrap(~outcome, ncol = 1) +
+  scale_x_continuous(
+    breaks = TOPK_LINE_PLOT_K_VALUES,
+    labels = TOPK_LINE_PLOT_K_VALUES
+  ) +
+  scale_y_continuous(limits = c(0, 100)) +
+  scale_color_brewer(palette = "Set2") +
+  labs(
+    title = "Top-k Recall by Number of Solutions Selected",
+    subtitle = "No spatial filtering applied",
+    x = "k (Number of Top Solutions)",
+    y = "Recall (%)",
+    color = "Proxy Objective",
+    caption = paste0(
+      "Recall = % of proxy's top-k that are also MATSim's top-k\n",
+      "Dashed line = random chance (",
+      n_solutions_per_objective,
+      " solutions per objective)"
+    )
+  ) +
+  theme_bw(base_size = 11) +
+  theme(
+    legend.position = "right",
+    strip.text = element_text(face = "bold", size = 10),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
+  )
+
+ggsave(
+  "R/plots/transit_opt_paper/fig_4_1e_topk_recall_by_k_no_filter.png",
+  width = 12,
+  height = 14,
+  dpi = 300
+)
+
+# -------------------------
+# Plot: Simplified line plot - Main filter
+# -------------------------
+
+topk_by_k_simple <- topk_recall_results |>
+  filter(
+    filter_label == main_filter_label,
+    outcome == "PT+DRT Mode Share"
+  ) |>
+  mutate(
+    objective_clean = factor(objective_clean, levels = objective_labels_short)
+  )
+
+ggplot(
+  topk_by_k_simple,
+  aes(x = k, y = recall_pct, color = objective_clean, group = objective_clean)
+) +
+  geom_line(
+    data = random_chance_line,
+    aes(x = k, y = random_pct),
+    inherit.aes = FALSE,
+    linetype = "dashed",
+    color = "gray50",
+    linewidth = 1
+  ) +
+  geom_line(linewidth = 0.8, alpha = 0.8) +
+  geom_point(size = 2.5) +
+  scale_x_continuous(
+    breaks = TOPK_LINE_PLOT_K_VALUES,
+    labels = TOPK_LINE_PLOT_K_VALUES
+  ) +
+  scale_y_continuous(limits = c(0, 100)) +
+  scale_color_brewer(palette = "Set2") +
+  labs(
+    title = "Top-k Recall: Proxy vs. PT+DRT Mode Share",
+    subtitle = paste("Filter:", main_filter_label),
+    x = "k (Number of Top Solutions)",
+    y = "Recall (%)",
+    color = "Proxy Objective",
+    caption = "Recall = % of proxy's top-k solutions that are also MATSim's top-k\nDashed line = random chance"
+  ) +
+  theme_bw(base_size = 11) +
+  theme(
+    legend.position = "bottom",
+    legend.box = "horizontal",
+    plot.title = element_text(face = "bold", size = 14),
+    plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
+  ) +
+  guides(color = guide_legend(nrow = 2))
+
+ggsave(
+  "R/plots/transit_opt_paper/fig_4_1f_topk_recall_simple.png",
+  width = 10,
+  height = 8,
+  dpi = 300
+)
+
+# -------------------------
+# Plot: Simplified line plot - NO filter
+# -------------------------
+
+topk_by_k_simple_no_filter <- topk_recall_results |>
+  filter(
+    filter_label == no_filter_label,
+    outcome == "PT+DRT Mode Share"
+  ) |>
+  mutate(
+    objective_clean = factor(objective_clean, levels = objective_labels_short)
+  )
+
+ggplot(
+  topk_by_k_simple_no_filter,
+  aes(x = k, y = recall_pct, color = objective_clean, group = objective_clean)
+) +
+  geom_line(
+    data = random_chance_line,
+    aes(x = k, y = random_pct),
+    inherit.aes = FALSE,
+    linetype = "dashed",
+    color = "gray50",
+    linewidth = 1
+  ) +
+  geom_line(linewidth = 0.8, alpha = 0.8) +
+  geom_point(size = 2.5) +
+  scale_x_continuous(
+    breaks = TOPK_LINE_PLOT_K_VALUES,
+    labels = TOPK_LINE_PLOT_K_VALUES
+  ) +
+  scale_y_continuous(limits = c(0, 100)) +
+  scale_color_brewer(palette = "Set2") +
+  labs(
+    title = "Top-k Recall: Proxy vs. PT+DRT Mode Share",
+    subtitle = "No spatial filtering applied",
+    x = "k (Number of Top Solutions)",
+    y = "Recall (%)",
+    color = "Proxy Objective",
+    caption = "Recall = % of proxy's top-k solutions that are also MATSim's top-k\nDashed line = random chance"
+  ) +
+  theme_bw(base_size = 11) +
+  theme(
+    legend.position = "bottom",
+    legend.box = "horizontal",
+    plot.title = element_text(face = "bold", size = 14),
+    plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
+  ) +
+  guides(color = guide_legend(nrow = 2))
+
+ggsave(
+  "R/plots/transit_opt_paper/fig_4_1f_topk_recall_simple_no_filter.png",
+  width = 10,
+  height = 8,
+  dpi = 300
+)
+
+
+# -------------------------
+# Table: Solution Rankings by Multiple Metrics
+# -------------------------
+
+message("Creating solution rankings table...")
+
+# Create rankings for each outcome metric
+solution_rankings <- res_mode_share |>
+  filter(
+    level == "all",
+    access == "all",
+    zones == "all"
+  ) |>
+  select(objective, solution_id, mode, share_delta, pso_frac_of_base) |>
+  # Pivot to get PT+DRT and Car in columns
+  pivot_wider(
+    names_from = mode,
+    values_from = share_delta,
+    names_prefix = "share_delta_"
+  ) |>
+  # Join Car+Taxi VKM data
+  left_join(
+    res_vkm_extended |>
+      filter(
+        mode == "car+taxi",
+        level == "all",
+        access == "all",
+        zones == "all"
+      ) |>
+      select(objective, solution_id, car_taxi_vkm = delta_km),
+    by = c("objective", "solution_id")
+  ) |>
+  # Calculate ranks within each objective
+  group_by(objective) |>
+  mutate(
+    # Rank by PT+DRT mode share (higher = better, so rank 1 = highest)
+    rank_pt_drt_share = rank(-`share_delta_pt+drt`, ties.method = "min"),
+
+    # Rank by Car mode share (lower = better, so rank 1 = lowest)
+    rank_car_share = rank(`share_delta_car`, ties.method = "min"),
+
+    # Rank by Car+Taxi VKM (lower = better, so rank 1 = lowest)
+    rank_car_taxi_vkm = rank(car_taxi_vkm, ties.method = "min"),
+
+    # Rank by proxy objective (lower = better)
+    rank_proxy = rank(pso_frac_of_base, ties.method = "min")
+  ) |>
+  ungroup() |>
+  # Add objective labels
+  mutate(
+    objective_clean = objective_labels_short[objective]
+  ) |>
+  # Reorder columns for readability
+  select(
+    objective_clean,
+    solution_id,
+    pso_frac_of_base,
+    rank_proxy,
+    `share_delta_pt+drt`,
+    rank_pt_drt_share,
+    share_delta_car,
+    rank_car_share,
+    car_taxi_vkm,
+    rank_car_taxi_vkm,
+    everything()
+  ) |>
+  arrange(objective_clean, rank_proxy)
+
+# Save full rankings table
+write_csv(
+  solution_rankings,
+  "R/plots/transit_opt_paper/tables/table_4_1_solution_rankings_all.csv"
+)
+
+# -------------------------
+# Table: Top-N Solutions per Objective and Metric
+# -------------------------
+
+# Configuration: how many top solutions to show
+TOP_N_SOLUTIONS <- 3
+
+# Create a summary showing top-N for each metric
+top_solutions_summary <- bind_rows(
+  # Top by PT+DRT mode share
+  solution_rankings |>
+    filter(rank_pt_drt_share <= TOP_N_SOLUTIONS) |>
+    mutate(ranking_metric = "PT+DRT Mode Share (Higher is Better)") |>
+    select(
+      objective_clean,
+      ranking_metric,
+      solution_id,
+      rank = rank_pt_drt_share,
+      metric_value = `share_delta_pt+drt`,
+      proxy_value = pso_frac_of_base,
+      proxy_rank = rank_proxy
+    ),
+
+  # Top by Car mode share reduction
+  solution_rankings |>
+    filter(rank_car_share <= TOP_N_SOLUTIONS) |>
+    mutate(ranking_metric = "Car Mode Share (Lower is Better)") |>
+    select(
+      objective_clean,
+      ranking_metric,
+      solution_id,
+      rank = rank_car_share,
+      metric_value = share_delta_car,
+      proxy_value = pso_frac_of_base,
+      proxy_rank = rank_proxy
+    ),
+
+  # Top by Car+Taxi VKM reduction
+  solution_rankings |>
+    filter(rank_car_taxi_vkm <= TOP_N_SOLUTIONS) |>
+    mutate(ranking_metric = "Car+Taxi VKM (Lower is Better)") |>
+    select(
+      objective_clean,
+      ranking_metric,
+      solution_id,
+      rank = rank_car_taxi_vkm,
+      metric_value = car_taxi_vkm,
+      proxy_value = pso_frac_of_base,
+      proxy_rank = rank_proxy
+    )
+) |>
+  arrange(objective_clean, ranking_metric, rank)
+
+write_csv(
+  top_solutions_summary,
+  "R/plots/transit_opt_paper/tables/table_4_1_top_solutions_summary.csv"
+)
+
+# -------------------------
+# Table: Compare Top Solutions Across Metrics (Wide Format for Paper)
+# -------------------------
+
+# Create a paper-ready comparison showing if top proxy solutions match top outcome solutions
+top_solutions_comparison <- solution_rankings |>
+  group_by(objective_clean) |>
+  summarise(
+    # Top 3 solutions by proxy
+    top3_proxy = paste(solution_id[rank_proxy <= 3], collapse = ", "),
+
+    # Top 3 by PT+DRT share
+    top3_pt_drt = paste(solution_id[rank_pt_drt_share <= 3], collapse = ", "),
+    overlap_pt_drt = length(intersect(
+      solution_id[rank_proxy <= 3],
+      solution_id[rank_pt_drt_share <= 3]
+    )),
+
+    # Top 3 by Car share
+    top3_car = paste(solution_id[rank_car_share <= 3], collapse = ", "),
+    overlap_car = length(intersect(
+      solution_id[rank_proxy <= 3],
+      solution_id[rank_car_share <= 3]
+    )),
+
+    # Top 3 by Car+Taxi VKM
+    top3_vkm = paste(solution_id[rank_car_taxi_vkm <= 3], collapse = ", "),
+    overlap_vkm = length(intersect(
+      solution_id[rank_proxy <= 3],
+      solution_id[rank_car_taxi_vkm <= 3]
+    )),
+
+    .groups = "drop"
+  )
+
+write_csv(
+  top_solutions_comparison,
+  "R/plots/transit_opt_paper/tables/table_4_1_top_solutions_comparison.csv"
+)
+
 
 ##########################################################################
 # SECTION 4.2: SYSTEM PERFORMANCE COMPARISON
@@ -587,12 +1389,10 @@ message("\n==========================================")
 message("SECTION 4.2: SYSTEM PERFORMANCE COMPARISON")
 message("==========================================\n")
 
-# Table 2: Compare Baseline vs Best Solution per Objective
-
 # Get best solution (rank 0) for each objective
 best_solutions_summary <- res_mode_share |>
   filter(
-    solution_id == 0, # Best solution
+    solution_id == 0,
     level == "trip",
     access == "origin+destination",
     zones == "pt+drt"
@@ -635,7 +1435,7 @@ best_vkm_summary <- res_vkm_extended |>
 # Add DRT fleet data (peak interval: 8-12h)
 best_drt_fleet <- all_drt_deployments |>
   filter(
-    str_detect(solution, "_00$"), # Best solution
+    str_detect(solution, "_00$"),
     interval_label == "8-12"
   ) |>
   group_by(objective) |>
@@ -655,13 +1455,10 @@ table_4_2_scenario_comparison <- best_solutions_summary |>
   ) |>
   select(
     objective_clean,
-    # Mode share changes
     `pt+drt_share_delta`,
     car_share_delta,
-    # VKM changes
     `pt+drt_delta_km`,
     `car+taxi_delta_km`,
-    # DRT fleet
     drt_fleet_total
   ) |>
   rename(
@@ -675,10 +1472,13 @@ table_4_2_scenario_comparison <- best_solutions_summary |>
 
 write_csv(
   table_4_2_scenario_comparison,
-  "R/tables/transit_opt_paper/tables/table_4_2_scenario_comparison.csv"
+  "R/plots/transit_opt_paper/tables/table_4_2_scenario_comparison.csv"
 )
 
+# -------------------------
 # Plot: Trade-off between PT+DRT gain and Car reduction
+# -------------------------
+
 tradeoff_data <- res_mode_share |>
   filter(
     mode %in% c("pt+drt", "car"),
@@ -713,11 +1513,11 @@ ggplot(
   facet_wrap(~objective_clean, scales = "fixed", ncol = 4) +
   labs(
     title = "PT+DRT Gain vs. Car Loss Trade-off",
-    subtitle = "Trip-level | Origin+Destination | PT+DRT catchment",
+    subtitle = paste("Filter:", main_filter_label),
     x = "Car Mode Share Change (pp)",
     y = "PT+DRT Mode Share Change (pp)",
     color = "Proxy Value\n(× baseline)",
-    caption = "Diagonal: 1:1 substitution. Lower-left quadrant = desirable (PT gain, car loss).\nDarker colors = better proxy optimization."
+    caption = "Diagonal: 1:1 substitution. Lower-left quadrant = desirable."
   ) +
   colorspace::scale_color_continuous_sequential(
     palette = "Viridis",
@@ -733,13 +1533,16 @@ ggplot(
   )
 
 ggsave(
-  "R/plots/transit_opt_paper/fig_4_2_pt_car_tradeoff.png",
+  "R/plots/transit_opt_paper/fig_4_2a_pt_car_tradeoff.png",
   width = 16,
   height = 10,
   dpi = 300
 )
 
-# Plot: VKM efficiency (PT service vs ridership gain)
+# -------------------------
+# Plot: VKM efficiency
+# -------------------------
+
 vkm_mode_tradeoff <- res_vkm_extended |>
   filter(
     mode == "pt+drt",
@@ -782,11 +1585,11 @@ ggplot(
   facet_wrap(~objective_clean, scales = "fixed", ncol = 4) +
   labs(
     title = "PT Service Investment vs. Ridership Gain",
-    subtitle = "Trip-level | Origin+Destination | PT+DRT catchment",
+    subtitle = paste("Filter:", main_filter_label),
     x = "PT+DRT VKM Change (1000s km)",
     y = "PT+DRT Mode Share Change (pp)",
     color = "Proxy Value\n(× baseline)",
-    caption = "Upper-right = efficient (ridership gains with service increase).\nDarker colors = better proxy optimization."
+    caption = "Upper-right = efficient (ridership gains with service increase)."
   ) +
   colorspace::scale_color_continuous_sequential(
     palette = "Viridis",
@@ -802,7 +1605,7 @@ ggplot(
   )
 
 ggsave(
-  "R/plots/transit_opt_paper/fig_4_2_vkm_vs_mode_share.png",
+  "R/plots/transit_opt_paper/fig_4_2b_vkm_vs_mode_share.png",
   width = 16,
   height = 10,
   dpi = 300
@@ -816,132 +1619,50 @@ message("\n==========================================")
 message("SECTION 4.3: CATCHMENT SENSITIVITY ANALYSIS")
 message("==========================================\n")
 
-# Table 3: Impact by Catchment Type
-# Show how results vary by filter configuration
-
+# Table 3: Mode share change by catchment type (best solutions only)
 catchment_sensitivity_summary <- res_mode_share |>
   filter(
     mode == "pt+drt",
-    solution_id == 0 # Best solution
-  ) |>
-  group_by(objective, level, access, zones) |>
-  summarise(
-    share_delta_mean = mean(share_delta, na.rm = TRUE),
-    share_delta_sd = sd(share_delta, na.rm = TRUE),
-    .groups = "drop"
+    solution_id == 0
   ) |>
   mutate(
     objective_clean = objective_labels_short[objective],
-    level_clean = level_labels[level],
-    access_clean = access_labels[access],
-    zones_clean = zones_labels[zones],
-    filter_config = paste(level_clean, access_clean, zones_clean, sep = " | ")
-  )
+    filter_label = paste(
+      level_labels[level],
+      access_labels[access],
+      zones_labels[zones],
+      sep = " | "
+    )
+  ) |>
+  select(objective_clean, filter_label, share_delta)
 
-# Pivot for table format
 table_4_3_catchment <- catchment_sensitivity_summary |>
-  select(objective_clean, filter_config, share_delta_mean) |>
   pivot_wider(
-    names_from = filter_config,
-    values_from = share_delta_mean
+    names_from = filter_label,
+    values_from = share_delta
   )
 
 write_csv(
   table_4_3_catchment,
-  "R/tables/transit_opt_paper/tables/table_4_3_catchment_sensitivity.csv"
+  "R/plots/transit_opt_paper/tables/table_4_3_catchment_sensitivity.csv"
 )
 
-# Plot: Filter sensitivity for PT+DRT mode share
-sensitivity_plot_data <- res_mode_share |>
-  filter(mode == "pt+drt", !is.na(share_delta)) |>
-  mutate(
-    level_clean = factor(
-      level,
-      levels = names(level_labels),
-      labels = level_labels
-    ),
-    access_clean = factor(
-      access,
-      levels = names(access_labels),
-      labels = access_labels
-    ),
-    zones_clean = factor(
-      zones,
-      levels = names(zones_labels),
-      labels = zones_labels
-    ),
-    objective_clean = factor(
-      objective,
-      levels = names(objective_labels),
-      labels = objective_labels
-    )
-  )
+# -------------------------
+# Plot: Bar chart comparing filter configurations
+# -------------------------
 
-ggplot(
-  sensitivity_plot_data,
-  aes(
-    x = solution_id,
-    y = share_delta,
-    color = level_clean,
-    linetype = zones_clean,
-    shape = access_clean,
-    group = interaction(level, access, zones)
-  )
-) +
-  geom_line(linewidth = 0.5, alpha = 0.8) +
-  geom_point(size = 1.5, alpha = 0.7) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
-  facet_wrap(~objective_clean, scales = "fixed", ncol = 4) +
-  labs(
-    title = "PT+DRT Mode Share Change by Solution and Filter Configuration",
-    subtitle = "Sensitivity to catchment definition and aggregation level",
-    x = "Solution Rank",
-    y = "Mode Share Change (pp)",
-    color = "Aggregation",
-    linetype = "Catchment",
-    shape = "Access",
-    caption = paste(
-      "Aggregation: Trip = individual trips; Person = persons with ALL trips in catchment\n",
-      "Catchment: PT = 400m buffer; PT+DRT = buffer + DRT zones\n",
-      "Access: O = origin only; O+D = both trip ends in catchment"
-    )
-  ) +
-  scale_color_brewer(palette = "Dark2") +
-  scale_linetype_manual(
-    values = c("PT" = "dashed", "PT+DRT" = "solid", "All" = "dotted")
-  ) +
-  scale_shape_manual(values = c("O" = 16, "O+D" = 17, "All" = 15)) +
-  theme_bw(base_size = 10) +
-  theme(
-    legend.position = "bottom",
-    legend.box = "vertical",
-    legend.box.just = "left",
-    strip.text = element_text(face = "bold", size = 8),
-    panel.grid.minor = element_blank(),
-    plot.title = element_text(face = "bold", size = 14),
-    plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
-  ) +
-  guides(
-    color = guide_legend(order = 1, nrow = 1, title.position = "left"),
-    linetype = guide_legend(order = 2, nrow = 1, title.position = "left"),
-    shape = guide_legend(order = 3, nrow = 1, title.position = "left")
-  )
-
-ggsave(
-  "R/plots/transit_opt_paper/fig_4_3_catchment_sensitivity.png",
-  width = 16,
-  height = 12,
-  dpi = 300
-)
-
-# Plot: Comparison of catchment impact for best solutions only
 best_catchment_comparison <- res_mode_share |>
   filter(
     mode == "pt+drt",
     solution_id == 0
   ) |>
   mutate(
-    filter_label = paste(level, access, zones, sep = " | "),
+    filter_label = paste(
+      level_labels[level],
+      access_labels[access],
+      zones_labels[zones],
+      sep = " | "
+    ),
     objective_clean = factor(
       objective,
       levels = names(objective_labels_short),
@@ -957,9 +1678,9 @@ ggplot(
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
   facet_wrap(~objective_clean, scales = "fixed", ncol = 4) +
   labs(
-    title = "PT+DRT Mode Share Change by Filter Configuration (Best Solutions)",
-    subtitle = "Comparing different catchment and aggregation definitions",
-    x = "Filter Configuration (Level | Access | Zones)",
+    title = "PT+DRT Mode Share Change by Catchment Definition",
+    subtitle = "Best solutions (rank 0) only",
+    x = "Filter Configuration (Aggregation | Access | Zones)",
     y = "Mode Share Change (pp)",
     fill = "Catchment"
   ) +
@@ -979,6 +1700,7 @@ ggsave(
   dpi = 300
 )
 
+
 ##########################################################################
 # SUMMARY OUTPUT
 ##########################################################################
@@ -987,17 +1709,28 @@ message("\n==========================================")
 message("ANALYSIS COMPLETE")
 message("==========================================\n")
 
-message("Tables saved to: R/tables/transit_opt_paper/tables/")
-message("  - table_4_1_correlations.csv")
+message("Tables saved to: R/plots/transit_opt_paper/tables/")
+message("  - table_4_1_correlations_all.csv (full correlation data)")
+message("  - table_4_1_correlation_matrix.csv (objectives x filters)")
+message("  - table_4_1_topk_recall.csv (top-k recall data)")
+message("  - table_4_1_solution_rankings_all.csv (all solutions with ranks)")
+message("  - table_4_1_top_solutions_summary.csv (top N per metric)")
+message("  - table_4_1_top_solutions_comparison.csv (overlap analysis)")
 message("  - table_4_2_scenario_comparison.csv")
 message("  - table_4_3_catchment_sensitivity.csv")
 
 message("\nPlots saved to: R/plots/transit_opt_paper/")
-message("  - fig_4_1_correlation_heatmap.png")
-message("  - fig_4_1_proxy_vs_mode_share.png")
-message("  - fig_4_2_pt_car_tradeoff.png")
-message("  - fig_4_2_vkm_vs_mode_share.png")
-message("  - fig_4_3_catchment_sensitivity.png")
+message("  - fig_4_1a_correlation_heatmap_faceted.png")
+message("  - fig_4_1b_correlation_heatmap_outcomes.png")
+message("  - fig_4_1b_correlation_heatmap_outcomes_no_filter.png")
+message("  - fig_4_1c_proxy_vs_mode_share.png")
+message("  - fig_4_1c_proxy_vs_mode_share_no_filter.png")
+message("  - fig_4_1e_topk_recall_by_k.png")
+message("  - fig_4_1e_topk_recall_by_k_no_filter.png")
+message("  - fig_4_1f_topk_recall_simple.png")
+message("  - fig_4_1f_topk_recall_simple_no_filter.png")
+message("  - fig_4_2a_pt_car_tradeoff.png")
+message("  - fig_4_2b_vkm_vs_mode_share.png")
 message("  - fig_4_3_catchment_comparison_bar.png")
 
 message("\nNote: Spatial/temporal plots are in plot_maps.R")
