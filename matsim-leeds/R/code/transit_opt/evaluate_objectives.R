@@ -1,40 +1,83 @@
 library(tidyverse)
 
+##########
+# SECTION 0: Reading in data
+##########
 
-##########
-# Reading in data
-##########
+message("\n==========================================")
+message("LOADING DATA")
+message("==========================================\n")
 
 ## PSO results
+obj_base <- read_csv("../../transit_opt/output/base_objective_values.csv") |>
+  rename(baseline_objective_value_pen = penalized_objective_value)
 
-# These results are for each objective function (e.g. sc_avg_var, wt_sum_tot ...)
-# objective values for the baseline GTFS feed
-obj_base <- read_csv("../../transit_opt/output/base_objective_values.csv")
-
-# Objective values for the top n schedules based on PSO
 obj_pso <- read_csv("R/output/pso_objective_values.csv")
 
 ## MATSim results
 res_mode_share <- read_csv("R/output/mode_share_by_objective.csv")
 res_vkm <- read_csv("R/output/vkm_by_objective.csv")
 
-obj_base = obj_base |>
-  rename(c("baseline_objective_value_pen" = "penalized_objective_value"))
+## DRT fleet deployments
+all_drt_deployments <- read_csv("R/output/drt_fleet_deployments.csv")
+
+
 ##########
-# Prepare PSO columns
+# SECTION 0a: Configuration - Filter objectives
 ##########
 
-# Join baseline value onto each PSO solution
+# Set to NULL to include all objectives, or specify a vector of objectives to KEEP
+# Example: c("wt_avg_tot", "wt_avg_var") to keep only these
+# Example: NULL to keep all objectives
+OBJECTIVES_TO_INCLUDE <- NULL
+
+# Alternatively, set objectives to EXCLUDE (ignored if OBJECTIVES_TO_INCLUDE is not NULL)
+# Example: c("sc_avg_var", "sc_int_var") to exclude these
+# Example: "^sc_" to exclude all objectives starting with "sc_"
+OBJECTIVES_TO_EXCLUDE <- "^sc_" # Exclude all Service Coverage objectives
+
+# Apply the filter
+if (!is.null(OBJECTIVES_TO_INCLUDE)) {
+  message(glue::glue(
+    "Filtering to include only: {paste(OBJECTIVES_TO_INCLUDE, collapse = ', ')}"
+  ))
+  res_mode_share <- res_mode_share |>
+    filter(objective %in% OBJECTIVES_TO_INCLUDE)
+  res_vkm <- res_vkm |> filter(objective %in% OBJECTIVES_TO_INCLUDE)
+  obj_pso <- obj_pso |> filter(objective_name %in% OBJECTIVES_TO_INCLUDE)
+  obj_base <- obj_base |> filter(config_name %in% OBJECTIVES_TO_INCLUDE)
+  all_drt_deployments <- all_drt_deployments |>
+    filter(objective %in% OBJECTIVES_TO_INCLUDE)
+} else if (!is.null(OBJECTIVES_TO_EXCLUDE)) {
+  message(glue::glue("Filtering to exclude: {OBJECTIVES_TO_EXCLUDE}"))
+  res_mode_share <- res_mode_share |>
+    filter(!str_detect(objective, OBJECTIVES_TO_EXCLUDE))
+  res_vkm <- res_vkm |> filter(!str_detect(objective, OBJECTIVES_TO_EXCLUDE))
+  obj_pso <- obj_pso |>
+    filter(!str_detect(objective_name, OBJECTIVES_TO_EXCLUDE))
+  obj_base <- obj_base |>
+    filter(!str_detect(config_name, OBJECTIVES_TO_EXCLUDE))
+  all_drt_deployments <- all_drt_deployments |>
+    filter(!str_detect(objective, OBJECTIVES_TO_EXCLUDE))
+}
+
+message(glue::glue(
+  "Objectives in analysis: {paste(unique(res_mode_share$objective), collapse = ', ')}"
+))
+
+
+##########
+# SECTION 0b: Prepare PSO columns and join to results
+##########
+
+message("Preparing PSO objective values...")
+
 obj_pso_joined <- obj_pso |>
   left_join(
     obj_base |> select(config_name, baseline_objective_value_pen),
     by = c("objective_name" = "config_name")
   ) |>
-  # rename to avoid clash
-  rename(c("objective_sol" = "objective"))
-
-# Calculate change relative to baseline
-obj_pso_joined <- obj_pso_joined |>
+  rename(objective_sol = objective) |>
   mutate(
     pso_pct_change_vs_base = 100 *
       (objective_sol - baseline_objective_value_pen) /
@@ -42,30 +85,29 @@ obj_pso_joined <- obj_pso_joined |>
     pso_frac_of_base = round(objective_sol / baseline_objective_value_pen, 2)
   )
 
-# Join base and solution objectives onto mode share and vkm
-res_mode_share = res_mode_share |>
+# Join to mode share and VKM
+res_mode_share <- res_mode_share |>
   left_join(
     obj_pso_joined,
     by = c("objective" = "objective_name", "solution" = "solution_id")
   )
 
-res_vkm = res_vkm |>
+res_vkm <- res_vkm |>
   left_join(
     obj_pso_joined,
     by = c("objective" = "objective_name", "solution" = "solution_id")
   )
 
 ##########
-# Mode Share Analysis
+# SECTION 0c: Create combined modes (PT+DRT, Car+Taxi)
 ##########
 
-##########
-# Add PT+DRT combined mode and percentage point delta
-##########
+message("Creating combined mode categories...")
 
-pt_drt_combined <- res_mode_share %>%
-  filter(mode == "pt" | str_detect(mode, "^drt")) %>%
-  group_by(objective, solution, solution_id, level, access, zones) %>%
+# PT+DRT combined for mode share
+pt_drt_combined <- res_mode_share |>
+  filter(mode == "pt" | str_detect(mode, "^drt")) |>
+  group_by(objective, solution, solution_id, level, access, zones) |>
   summarise(
     n_solution = sum(n_solution, na.rm = TRUE),
     share_solution = sum(share_solution, na.rm = TRUE),
@@ -73,7 +115,6 @@ pt_drt_combined <- res_mode_share %>%
     share_base = sum(share_base, na.rm = TRUE),
     n_pct_change = ((n_solution - n_base) / n_base) * 100,
     share_pct_change = ((share_solution - share_base) / share_base) * 100,
-    # Keep the PSO columns (they're the same for all pt/drt rows in a group)
     rank = first(rank),
     swarm_id = first(swarm_id),
     objective_sol = first(objective_sol),
@@ -83,17 +124,72 @@ pt_drt_combined <- res_mode_share %>%
     pso_pct_change_vs_base = first(pso_pct_change_vs_base),
     pso_frac_of_base = first(pso_frac_of_base),
     .groups = "drop"
-  ) %>%
+  ) |>
   mutate(mode = "pt+drt")
 
-res_mode_share <- bind_rows(res_mode_share, pt_drt_combined) %>%
-  arrange(objective, solution, solution_id, level, access, zones, mode)
-
-res_mode_share <- res_mode_share %>%
+res_mode_share <- bind_rows(res_mode_share, pt_drt_combined) |>
+  arrange(objective, solution, solution_id, level, access, zones, mode) |>
   mutate(share_delta = share_solution - share_base)
 
+# PT+DRT and Car+Taxi combined for VKM
+
+# PT+DRT combined for VKM - FIXED: carry over PSO columns
+pt_drt_vkm_combined <- res_vkm |>
+  filter(mode == "pt" | str_detect(mode, "^drt")) |>
+  group_by(objective, solution, solution_id, level, access, zones) |>
+  summarise(
+    total_distance_km_solution = sum(total_distance_km_solution, na.rm = TRUE),
+    total_distance_km_base = sum(total_distance_km_base, na.rm = TRUE),
+    # Carry over PSO columns
+    rank = first(rank),
+    swarm_id = first(swarm_id),
+    objective_sol = first(objective_sol),
+    generation_found = first(generation_found),
+    violations = first(violations),
+    baseline_objective_value_pen = first(baseline_objective_value_pen),
+    pso_pct_change_vs_base = first(pso_pct_change_vs_base),
+    pso_frac_of_base = first(pso_frac_of_base),
+    .groups = "drop"
+  ) |>
+  mutate(
+    mode = "pt+drt",
+    delta_km = total_distance_km_solution - total_distance_km_base,
+    delta_km_pct = (delta_km / total_distance_km_base) * 100
+  )
+
+# Car+Taxi combined for VKM - FIXED: carry over PSO columns
+car_taxi_combined <- res_vkm |>
+  filter(mode %in% c("car", "taxi")) |>
+  group_by(objective, solution, solution_id, level, access, zones) |>
+  summarise(
+    total_distance_km_solution = sum(total_distance_km_solution, na.rm = TRUE),
+    total_distance_km_base = sum(total_distance_km_base, na.rm = TRUE),
+    # Carry over PSO columns
+    rank = first(rank),
+    swarm_id = first(swarm_id),
+    objective_sol = first(objective_sol),
+    generation_found = first(generation_found),
+    violations = first(violations),
+    baseline_objective_value_pen = first(baseline_objective_value_pen),
+    pso_pct_change_vs_base = first(pso_pct_change_vs_base),
+    pso_frac_of_base = first(pso_frac_of_base),
+    .groups = "drop"
+  ) |>
+  mutate(
+    mode = "car+taxi",
+    delta_km = total_distance_km_solution - total_distance_km_base,
+    delta_km_pct = (delta_km / total_distance_km_base) * 100
+  )
+
+res_vkm_extended <- bind_rows(
+  res_vkm,
+  pt_drt_vkm_combined,
+  car_taxi_combined
+) |>
+  arrange(objective, solution, solution_id, level, access, zones, mode)
+
 ##########
-# Improved Labels
+# SECTION 0d: Labels for plots
 ##########
 
 objective_labels <- c(
@@ -111,744 +207,330 @@ objective_labels <- c(
   "wt_peak_var" = "Wait Time\nPeak Variance"
 )
 
-# Better, more concise labels
-level_labels <- c(
-  "trip" = "Trip",
-  "person" = "Person",
-  "all" = "All"
+objective_labels_short <- c(
+  "sc_avg_var" = "SC-Avg-Var",
+  "sc_int_var" = "SC-Int-Var",
+  "sc_peak_var" = "SC-Peak-Var",
+  "sc_sum_var" = "SC-Sum-Var",
+  "wt_avg_tot" = "WT-Avg-Tot",
+  "wt_avg_var" = "WT-Avg-Var",
+  "wt_int_tot" = "WT-Int-Tot",
+  "wt_int_var" = "WT-Int-Var",
+  "wt_sum_tot" = "WT-Sum-Tot",
+  "wt_sum_var" = "WT-Sum-Var",
+  "wt_peak_tot" = "WT-Peak-Tot",
+  "wt_peak_var" = "WT-Peak-Var"
 )
 
-access_labels <- c(
-  "origin" = "O",
-  "origin+destination" = "O+D",
-  "all" = "All"
-)
+# Also filter the labels to match
+if (!is.null(OBJECTIVES_TO_INCLUDE)) {
+  objective_labels <- objective_labels[
+    names(objective_labels) %in% OBJECTIVES_TO_INCLUDE
+  ]
+  objective_labels_short <- objective_labels_short[
+    names(objective_labels_short) %in% OBJECTIVES_TO_INCLUDE
+  ]
+} else if (!is.null(OBJECTIVES_TO_EXCLUDE)) {
+  objective_labels <- objective_labels[
+    !str_detect(names(objective_labels), OBJECTIVES_TO_EXCLUDE)
+  ]
+  objective_labels_short <- objective_labels_short[
+    !str_detect(names(objective_labels_short), OBJECTIVES_TO_EXCLUDE)
+  ]
+}
 
-zones_labels <- c(
-  "pt" = "PT",
-  "pt+drt" = "PT+DRT",
-  "all" = "All"
-)
+level_labels <- c("trip" = "Trip", "person" = "Person", "all" = "All")
+access_labels <- c("origin" = "O", "origin+destination" = "O+D", "all" = "All")
+zones_labels <- c("pt" = "PT", "pt+drt" = "PT+DRT", "all" = "All")
 
 main_modes <- c("pt+drt", "car", "walk", "bike", "taxi")
 
-##########
-# Plot 1: PT+DRT Mode Share Change - IMPROVED
-##########
+# Create output directory
+dir.create("R/plots/transit_opt_paper", showWarnings = FALSE, recursive = TRUE)
+dir.create(
+  "R/tables/transit_opt_paper/tables/",
+  showWarnings = FALSE,
+  recursive = TRUE
+)
+##########################################################################
+# SECTION 4.1: VALIDATION - Correlation Analysis
+##########################################################################
 
-pt_drt_plot_data <- res_mode_share %>%
-  filter(mode == "pt+drt", !is.na(share_delta)) %>%
+message("\n==========================================")
+message("SECTION 4.1: VALIDATION - Correlation Analysis")
+message("==========================================\n")
+
+# Calculate correlation for ALL filter combinations
+# This shows how correlation varies by catchment definition
+
+# Define all filter combinations
+filter_combinations <- expand_grid(
+  level = c("trip", "person"),
+  access = c("origin", "origin+destination"),
+  zones = c("pt", "pt+drt")
+)
+
+# Correlation: PSO objective vs PT+DRT mode share change (all combinations)
+correlation_mode_share <- filter_combinations |>
+  pmap_dfr(function(level, access, zones) {
+    res_mode_share |>
+      filter(
+        mode == "pt+drt",
+        level == !!level,
+        access == !!access,
+        zones == !!zones,
+        !is.na(pso_frac_of_base),
+        !is.na(share_delta)
+      ) |>
+      group_by(objective) |>
+      summarise(
+        n_solutions = n(),
+        cor_spearman = cor(
+          pso_frac_of_base,
+          share_delta,
+          method = "spearman",
+          use = "complete.obs"
+        ),
+        cor_pearson = cor(
+          pso_frac_of_base,
+          share_delta,
+          method = "pearson",
+          use = "complete.obs"
+        ),
+        p_value = tryCatch(
+          cor.test(pso_frac_of_base, share_delta, method = "spearman")$p.value,
+          error = function(e) NA_real_
+        ),
+        .groups = "drop"
+      ) |>
+      mutate(
+        level = level,
+        access = access,
+        zones = zones,
+        outcome = "PT+DRT Mode Share",
+        objective_clean = objective_labels_short[objective]
+      )
+  })
+
+# Correlation: PSO objective vs Car mode share change (all combinations)
+correlation_car <- filter_combinations |>
+  pmap_dfr(function(level, access, zones) {
+    res_mode_share |>
+      filter(
+        mode == "car",
+        level == !!level,
+        access == !!access,
+        zones == !!zones,
+        !is.na(pso_frac_of_base),
+        !is.na(share_delta)
+      ) |>
+      group_by(objective) |>
+      summarise(
+        n_solutions = n(),
+        cor_spearman = cor(
+          pso_frac_of_base,
+          share_delta,
+          method = "spearman",
+          use = "complete.obs"
+        ),
+        cor_pearson = cor(
+          pso_frac_of_base,
+          share_delta,
+          method = "pearson",
+          use = "complete.obs"
+        ),
+        p_value = tryCatch(
+          cor.test(pso_frac_of_base, share_delta, method = "spearman")$p.value,
+          error = function(e) NA_real_
+        ),
+        .groups = "drop"
+      ) |>
+      mutate(
+        level = level,
+        access = access,
+        zones = zones,
+        outcome = "Car Mode Share",
+        objective_clean = objective_labels_short[objective]
+      )
+  })
+
+# Correlation: PSO objective vs Car+Taxi VKM change (all combinations)
+correlation_vkm <- filter_combinations |>
+  pmap_dfr(function(level, access, zones) {
+    res_vkm_extended |>
+      filter(
+        mode == "car+taxi",
+        level == !!level,
+        access == !!access,
+        zones == !!zones,
+        !is.na(pso_frac_of_base),
+        !is.na(delta_km)
+      ) |>
+      group_by(objective) |>
+      summarise(
+        n_solutions = n(),
+        cor_spearman = cor(
+          pso_frac_of_base,
+          delta_km,
+          method = "spearman",
+          use = "complete.obs"
+        ),
+        cor_pearson = cor(
+          pso_frac_of_base,
+          delta_km,
+          method = "pearson",
+          use = "complete.obs"
+        ),
+        p_value = tryCatch(
+          cor.test(pso_frac_of_base, delta_km, method = "spearman")$p.value,
+          error = function(e) NA_real_
+        ),
+        .groups = "drop"
+      ) |>
+      mutate(
+        level = level,
+        access = access,
+        zones = zones,
+        outcome = "Car+Taxi VKM",
+        objective_clean = objective_labels_short[objective]
+      )
+  })
+
+# Combine all correlations
+all_correlations <- bind_rows(
+  correlation_mode_share,
+  correlation_car,
+  correlation_vkm
+) |>
   mutate(
-    level_clean = factor(
-      level,
-      levels = names(level_labels),
-      labels = level_labels
+    significance = case_when(
+      p_value < 0.001 ~ "***",
+      p_value < 0.01 ~ "**",
+      p_value < 0.05 ~ "*",
+      TRUE ~ ""
     ),
-    access_clean = factor(
-      access,
-      levels = names(access_labels),
-      labels = access_labels
-    ),
-    zones_clean = factor(
-      zones,
-      levels = names(zones_labels),
-      labels = zones_labels
-    ),
-    objective_clean = factor(
-      objective,
-      levels = names(objective_labels),
-      labels = objective_labels
-    )
+    filter_config = paste(level, access, zones, sep = " | ")
   )
 
-ggplot(
-  pt_drt_plot_data,
-  aes(
-    x = pso_frac_of_base,
-    y = share_delta,
-    color = level_clean,
-    linetype = zones_clean,
-    shape = access_clean,
-    group = interaction(level, access, zones)
-  )
-) +
-  geom_line(linewidth = 0.5, alpha = 0.8) +
-  geom_point(size = 2, alpha = 0.7) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
-  facet_wrap(~objective_clean, scales = "fixed", ncol = 4) +
-  labs(
-    title = "Change in PT+DRT Mode Share by Solution",
-    subtitle = "Absolute change in percentage points relative to baseline",
-    x = "Objective Value (fraction of baseline)",
-    y = "Mode Share Change (percentage points)",
-    color = "Aggregation Level",
-    linetype = "Catchment Definition",
-    shape = "Access Filter",
-    caption = paste(
-      "Aggregation: Trip-level = individual trips; Person-level = persons with all trips in catchment\n",
-      "Catchment: PT only = 400m buffer around stops; PT+DRT = stops + DRT operating zones\n",
-      "Access: Origin only vs. both trip ends within catchment"
-    )
-  ) +
-  scale_x_continuous(
-    limits = c(0, 1.5),
-    breaks = seq(0, 1.5, 0.1)
-  ) +
-  scale_color_brewer(palette = "Dark2") +
-  scale_linetype_manual(
-    values = c("PT" = "dashed", "PT+DRT" = "solid", "All" = "dotted")
-  ) +
-  scale_shape_manual(
-    values = c("O" = 16, "O+D" = 17, "All" = 15)
-  ) +
-  theme_bw(base_size = 11) +
-  theme(
-    legend.position = "bottom",
-    legend.box = "vertical",
-    # 1. Aligns the stacked legends to the left of their box
-    legend.box.just = "left",
-    # 2. Anchors the whole legend block to the left of the plot area
-    legend.justification = "left",
-    # 3. Reduces whitespace between the 3 stacked legends
-    legend.spacing.y = unit(0, "pt"),
-    # Optional: Fine-tune margins to pull it tighter to the plot
-    legend.margin = margin(t = 5, r = 0, b = 0, l = 0),
-    legend.box.margin = margin(0, 0, 0, 0),
-    strip.text = element_text(face = "bold", size = 9),
-    axis.text.x = element_text(angle = 45, hjust = 0.5),
-    axis.ticks.x = element_line(color = "gray30"),
-    panel.grid.minor = element_blank(),
-    plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(color = "gray40"),
-    plot.caption = element_text(
-      hjust = 0,
-      size = 8,
-      color = "gray30",
-      margin = margin(t = 10)
-    )
-  ) +
-  guides(
-    color = guide_legend(
-      order = 1,
-      nrow = 1,
-      title.position = "left", # Title above legend items
-      title.hjust = 0, # Left-align title
-      label.position = "right" # Labels to right of symbols
-    ),
-    linetype = guide_legend(
-      order = 2,
-      nrow = 1,
-      title.position = "left",
-      title.hjust = 0
-    ),
-    shape = guide_legend(
-      order = 3,
-      nrow = 1,
-      title.position = "left",
-      title.hjust = 0
-    )
-  )
-
-ggsave(
-  "R/plots/transit_opt_paper/ms_pt_drt_share_change_by_solution_facet_objective.png",
-  width = 16,
-  height = 9,
-  dpi = 300
+# Save full correlation table
+write_csv(
+  all_correlations,
+  "R/tables/transit_opt_paper/tables/table_4_1_correlations_all.csv"
 )
 
-
-# Plot waiting time objective only
-ggplot(
-  pt_drt_plot_data %>%
-    filter(str_detect(objective, 'wt_')),
-  aes(
-    x = pso_frac_of_base,
-    y = share_delta,
-    color = level_clean,
-    linetype = zones_clean,
-    shape = access_clean,
-    group = interaction(level, access, zones)
-  )
-) +
-  geom_line(linewidth = 0.5, alpha = 0.8) +
-  geom_point(size = 2, alpha = 0.7) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
-  facet_wrap(~objective_clean, scales = "free_x", ncol = 4) +
-  labs(
-    title = "Change in PT+DRT Mode Share by Solution",
-    subtitle = "Absolute change in percentage points relative to baseline",
-    x = "Objective Value (fraction of baseline)",
-    y = "Mode Share Change (percentage points)",
-    color = "Aggregation Level",
-    linetype = "Catchment Definition",
-    shape = "Access Filter",
-    caption = paste(
-      "Aggregation: Trip-level = individual trips; Person-level = persons with all trips in catchment\n",
-      "Catchment: PT only = 400m buffer around stops; PT+DRT = stops + DRT operating zones\n",
-      "Access: Origin only vs. both trip ends within catchment"
-    )
-  ) +
-  scale_x_continuous(
-    limits = c(0, 1.5), # Set explicit limits for all facets
-    breaks = seq(0, 1.5, 0.25) # Cleaner breaks
-  ) +
-  scale_color_brewer(palette = "Dark2") +
-  scale_linetype_manual(
-    values = c("PT" = "dashed", "PT+DRT" = "solid", "All" = "dotted")
-  ) +
-  scale_shape_manual(
-    values = c("O" = 16, "O+D" = 17, "All" = 15)
-  ) +
-  theme_bw(base_size = 11) +
-  theme(
-    legend.position = "bottom",
-    legend.box = "vertical",
-    # 1. Aligns the stacked legends to the left of their box
-    legend.box.just = "left",
-    # 2. Anchors the whole legend block to the left of the plot area
-    legend.justification = "left",
-    # 3. Reduces whitespace between the 3 stacked legends
-    legend.spacing.y = unit(0, "pt"),
-    # Optional: Fine-tune margins to pull it tighter to the plot
-    legend.margin = margin(t = 5, r = 0, b = 0, l = 0),
-    legend.box.margin = margin(0, 0, 0, 0),
-    strip.text = element_text(face = "bold", size = 9),
-    axis.text.x = element_text(angle = 45, hjust = 0.5),
-    axis.ticks.x = element_line(color = "gray30"),
-    panel.grid.minor = element_blank(),
-    plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(color = "gray40"),
-    plot.caption = element_text(
-      hjust = 0,
-      size = 8,
-      color = "gray30",
-      margin = margin(t = 10)
-    )
-  ) +
-  guides(
-    color = guide_legend(
-      order = 1,
-      nrow = 1,
-      title.position = "left", # Title above legend items
-      title.hjust = 0, # Left-align title
-      label.position = "right" # Labels to right of symbols
-    ),
-    linetype = guide_legend(
-      order = 2,
-      nrow = 1,
-      title.position = "left",
-      title.hjust = 0
-    ),
-    shape = guide_legend(
-      order = 3,
-      nrow = 1,
-      title.position = "left",
-      title.hjust = 0
-    )
-  )
-
-ggsave(
-  "R/plots/transit_opt_paper/ms_pt_drt_share_change_by_solution_facet_objective_wt_only.png",
-  width = 16,
-  height = 9,
-  dpi = 300
-)
-
-# Facet by Objective AND Zone definition
-ggplot(
-  pt_drt_plot_data,
-  aes(
-    x = pso_frac_of_base,
-    y = share_delta,
-    color = level_clean,
-    # You can keep linetype if you want the legend,
-    # but strictly speaking it's no longer needed for distinction
-    shape = access_clean,
-    group = interaction(level, access, zones)
-  )
-) +
-  geom_line(linewidth = 0.5, alpha = 0.8) +
-  geom_point(size = 2, alpha = 0.7) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
-  facet_grid(zones_clean ~ objective_clean, scales = "free_x") +
-  labs(
-    title = "Change in PT+DRT Mode Share by Solution",
-    subtitle = "Absolute change in percentage points relative to baseline",
-    x = "Objective Value (fraction of baseline)",
-    y = "Mode Share Change (percentage points)",
-    color = "Aggregation Level",
-    linetype = "Catchment Definition",
-    shape = "Access Filter"
-  ) +
-  scale_x_continuous(
-    limits = c(0, 1.5), # Set explicit limits for all facets
-    breaks = seq(0, 1.5, 0.25) # Cleaner breaks
-  ) +
-  scale_color_brewer(palette = "Dark2") +
-  scale_shape_manual(
-    values = c("O" = 16, "O+D" = 17, "All" = 15)
-  ) +
-  theme_bw(base_size = 11) +
-  theme(
-    legend.position = "bottom",
-    legend.box = "vertical",
-    legend.box.just = "left", # Keeps your previous alignment fix
-    legend.justification = "left",
-    legend.spacing.y = unit(0, "pt"),
-    strip.text = element_text(face = "bold", size = 9),
-    axis.text.x = element_text(angle = 60, hjust = 0.5),
-    axis.ticks.x = element_line(color = "gray30"),
-    panel.grid.minor = element_blank()
-  ) +
-  guides(
-    color = guide_legend(
-      order = 1,
-      nrow = 1,
-      title.position = "left",
-      title.hjust = 0
-    ),
-    shape = guide_legend(
-      order = 3,
-      nrow = 1,
-      title.position = "left",
-      title.hjust = 0
-    )
-  )
-
-ggsave(
-  "R/plots/transit_opt_paper/ms_pt_drt_share_change_by_solution_facet_objective_catchment.png",
-  width = 16,
-  height = 9,
-  dpi = 300
-)
-
-
-# Facet by Objective AND Zone definition - Wait time objectives only
-ggplot(
-  pt_drt_plot_data %>%
-    filter(str_detect(objective, 'wt_')),
-  aes(
-    x = pso_frac_of_base,
-    y = share_delta,
-    color = level_clean,
-    # You can keep linetype if you want the legend,
-    # but strictly speaking it's no longer needed for distinction
-    shape = access_clean,
-    group = interaction(level, access, zones)
-  )
-) +
-  geom_line(linewidth = 0.5, alpha = 0.8) +
-  geom_point(size = 2, alpha = 0.7) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
-  facet_grid(zones_clean ~ objective_clean, scales = "free_x") +
-  labs(
-    title = "Change in PT+DRT Mode Share by Solution",
-    subtitle = "Absolute change in percentage points relative to baseline",
-    x = "Objective Value (fraction of baseline)",
-    y = "Mode Share Change (percentage points)",
-    color = "Aggregation Level",
-    linetype = "Catchment Definition",
-    shape = "Access Filter"
-  ) +
-  scale_x_continuous(
-    limits = c(0, 1.5), # Set explicit limits for all facets
-    breaks = seq(0, 1.5, 0.25) # Cleaner breaks
-  ) +
-  scale_color_brewer(palette = "Dark2") +
-  scale_shape_manual(
-    values = c("O" = 16, "O+D" = 17, "All" = 15)
-  ) +
-  theme_bw(base_size = 11) +
-  theme(
-    legend.position = "bottom",
-    legend.box = "vertical",
-    legend.box.just = "left", # Keeps your previous alignment fix
-    legend.justification = "left",
-    legend.spacing.y = unit(0, "pt"),
-    strip.text = element_text(face = "bold", size = 9),
-    axis.text.x = element_text(angle = 60, hjust = 0.5),
-    axis.ticks.x = element_line(color = "gray30"),
-    panel.grid.minor = element_blank()
-  ) +
-  guides(
-    color = guide_legend(
-      order = 1,
-      nrow = 1,
-      title.position = "left",
-      title.hjust = 0
-    ),
-    shape = guide_legend(
-      order = 3,
-      nrow = 1,
-      title.position = "left",
-      title.hjust = 0
-    )
-  )
-
-ggsave(
-  "R/plots/transit_opt_paper/ms_pt_drt_share_change_by_solution_facet_objective_catchment_wt_only.png",
-  width = 16,
-  height = 9,
-  dpi = 300
-)
-
-##########
-# Plot 2: All Modes - Same filter config, vary mode
-##########
-
-all_modes_plot_data <- res_mode_share %>%
+# Plot 1: Heatmap for ONE filter config (for paper figure)
+# Use trip | origin+destination | pt+drt as the main result
+main_filter_correlations <- all_correlations |>
   filter(
-    mode %in% main_modes,
-    !is.na(share_delta),
     level == "trip",
     access == "origin+destination",
     zones == "pt+drt"
-  ) %>%
+  )
+
+correlation_plot_data <- main_filter_correlations |>
   mutate(
-    objective_clean = factor(
-      objective,
-      levels = names(objective_labels),
-      labels = objective_labels
-    ),
-    mode_clean = factor(
-      mode,
-      levels = main_modes,
-      labels = c("PT+DRT", "Car", "Walk", "Bike", "Taxi")
+    objective_clean = factor(objective_clean, levels = objective_labels_short),
+    outcome = factor(
+      outcome,
+      levels = c("PT+DRT Mode Share", "Car Mode Share", "Car+Taxi VKM")
     )
   )
 
 ggplot(
-  all_modes_plot_data,
-  aes(
-    x = pso_frac_of_base,
-    y = share_delta,
-    color = mode_clean,
-    group = mode_clean
-  )
+  correlation_plot_data,
+  aes(x = outcome, y = objective_clean, fill = cor_spearman)
 ) +
-  geom_line(linewidth = 0.9) +
-  geom_point(size = 1.5, alpha = 0.7) +
-  geom_hline(
-    yintercept = 0,
-    linetype = "dashed",
-    color = "gray40",
-    alpha = 0.5
+  geom_tile(color = "white") +
+  geom_text(
+    aes(label = paste0(round(cor_spearman, 2), significance)),
+    size = 3
   ) +
-  facet_wrap(~objective_clean, scales = "free_x", nrow = 2) +
+  scale_fill_gradient2(
+    low = "#d73027",
+    mid = "white",
+    high = "#1a9850",
+    midpoint = 0,
+    limits = c(-1, 1),
+    name = "Spearman\nCorrelation"
+  ) +
   labs(
-    title = "Mode Share Changes Across All Transport Modes",
-    subtitle = "Trip-level | Origin+Destination filter | PT+DRT catchment zones",
-    x = "Objective Value (fraction of baseline)",
-    y = "Mode Share Change (percentage points)",
-    color = "Transport Mode",
-    caption = "Trips filtered to those with both origin and destination within 400m of PT stops or inside DRT zones"
+    title = "Correlation: Proxy Objective vs. MATSim Outcomes",
+    subtitle = "Filter: Trip-level | Origin+Destination | PT+DRT catchment",
+    x = "MATSim Outcome",
+    y = "Proxy Objective",
+    caption = "Negative correlation expected: lower proxy value should improve outcomes\n* p<0.05, ** p<0.01, *** p<0.001"
   ) +
-  scale_x_continuous(
-    limits = c(0, 1.5), # Set explicit limits for all facets
-    breaks = seq(0, 1.5, 0.25) # Cleaner breaks
-  ) +
-  scale_color_manual(
-    values = c(
-      "PT+DRT" = "#E41A1C",
-      "Car" = "#377EB8",
-      "Walk" = "#4DAF4A",
-      "Bike" = "#984EA3",
-      "Taxi" = "#FF7F00"
-    )
-  ) +
-  theme_bw(base_size = 11) +
+  theme_minimal(base_size = 11) +
   theme(
-    legend.position = "bottom",
-    strip.text = element_text(face = "bold", size = 9),
-    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
     plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(color = "gray40"),
-    plot.caption = element_text(
-      hjust = 0,
-      size = 8,
-      color = "gray30",
-      margin = margin(t = 10)
-    )
+    plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
   )
 
 ggsave(
-  "R/plots/transit_opt_paper/ms_all_modes_change_trip_origin-dest_pt-drt.png",
-  width = 14,
+  "R/plots/transit_opt_paper/fig_4_1_correlation_heatmap.png",
+  width = 10,
   height = 8,
   dpi = 300
 )
 
-# Same plot - Wait time objectives only
-
-ggplot(
-  all_modes_plot_data %>%
-    filter(str_detect(objective, 'wt_')),
-  aes(
-    x = pso_frac_of_base,
-    y = share_delta,
-    color = mode_clean,
-    group = mode_clean
-  )
-) +
-  geom_line(linewidth = 0.9) +
-  geom_point(size = 1.5, alpha = 0.7) +
-  geom_hline(
-    yintercept = 0,
-    linetype = "dashed",
-    color = "gray40",
-    alpha = 0.5
-  ) +
-  facet_wrap(~objective_clean, scales = "free_x", nrow = 2) +
-  labs(
-    title = "Mode Share Changes Across All Transport Modes",
-    subtitle = "Trip-level | Origin+Destination filter | PT+DRT catchment zones",
-    x = "Objective Value (fraction of baseline)",
-    y = "Mode Share Change (percentage points)",
-    color = "Transport Mode",
-    caption = "Trips filtered to those with both origin and destination within 400m of PT stops or inside DRT zones"
-  ) +
-  scale_x_continuous(
-    limits = c(0.5, 1.5), # Set explicit limits for all facets
-    breaks = seq(0, 1.5, 0.25) # Cleaner breaks
-  ) +
-  scale_color_manual(
-    values = c(
-      "PT+DRT" = "#E41A1C",
-      "Car" = "#377EB8",
-      "Walk" = "#4DAF4A",
-      "Bike" = "#984EA3",
-      "Taxi" = "#FF7F00"
-    )
-  ) +
-  theme_bw(base_size = 11) +
-  theme(
-    legend.position = "bottom",
-    strip.text = element_text(face = "bold", size = 9),
-    panel.grid.minor = element_blank(),
-    plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(color = "gray40"),
-    plot.caption = element_text(
-      hjust = 0,
-      size = 8,
-      color = "gray30",
-      margin = margin(t = 10)
-    )
-  )
-
-ggsave(
-  "R/plots/transit_opt_paper/ms_all_modes_change_trip_origin-dest_pt-drt_wt_only.png",
-  width = 14,
-  height = 8,
-  dpi = 300
-)
-
-
-##########
-# Plot 3: Filter Sensitivity
-##########
-
-sensitivity_data <- res_mode_share %>%
-  filter(
-    objective == "wt_peak_tot",
-    mode %in% main_modes,
-    !is.na(share_delta)
-  ) %>%
-  filter(
-    !(mode %in% c("walk", "bike"))
-  ) %>%
+# Plot 2: Correlation by filter configuration (shows sensitivity)
+correlation_sensitivity <- all_correlations |>
+  filter(outcome == "PT+DRT Mode Share") |>
   mutate(
-    level_clean = factor(
-      level,
-      levels = names(level_labels),
-      labels = level_labels
-    ),
-    access_clean = factor(
-      access,
-      levels = names(access_labels),
-      labels = access_labels
-    ),
-    zones_clean = factor(
-      zones,
-      levels = names(zones_labels),
-      labels = zones_labels
-    ),
-    mode_clean = factor(
-      mode,
-      levels = main_modes,
-      labels = c("PT+DRT", "Car", "Walk", "Bike", "Taxi")
-    )
+    objective_clean = factor(objective_clean, levels = objective_labels_short),
+    filter_config = factor(filter_config)
   )
 
-# Facet by mode
 ggplot(
-  sensitivity_data,
-  aes(
-    x = pso_frac_of_base,
-    y = share_delta,
-    color = level_clean,
-    linetype = zones_clean,
-    shape = access_clean,
-    group = interaction(level, access, zones)
-  )
+  correlation_sensitivity,
+  aes(x = filter_config, y = cor_spearman, fill = cor_spearman)
 ) +
-  geom_line(linewidth = 0.8) +
-  geom_point(size = 2, alpha = 0.7) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
-  facet_wrap(~mode_clean, scales = "free_y", nrow = 1) +
+  geom_col() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  facet_wrap(~objective_clean, ncol = 4) +
+  scale_fill_gradient2(
+    low = "#d73027",
+    mid = "white",
+    high = "#1a9850",
+    midpoint = 0,
+    limits = c(-1, 1),
+    name = "Correlation"
+  ) +
   labs(
-    title = "Mode Share Sensitivity to Filter Definition",
-    subtitle = "Objective = Wait Time Peak Total",
-    x = "Objective Value (fraction of baseline)",
-    y = "Mode Share Change (percentage points)",
-    color = "Aggregation Level",
-    linetype = "Catchment Definition",
-    shape = "Access Filter",
-    caption = paste(
-      "Shows how different filtering assumptions affect measured mode share changes\n",
-      "Trip-level = all trips; Person-level = only persons with ALL trips in catchment\n",
-      "Origin only = relaxed filter; Origin+Destination = strict filter requiring both trip ends in catchment"
-    )
+    title = "Correlation Sensitivity to Catchment Definition",
+    subtitle = "Spearman correlation: Proxy Objective vs. PT+DRT Mode Share Change",
+    x = "Filter Configuration (Level | Access | Zones)",
+    y = "Spearman Correlation",
+    caption = "Negative correlation = better proxy (lower proxy → higher mode share)"
   ) +
-  scale_x_continuous(
-    limits = c(0, 1.5), # Set explicit limits for all facets
-    breaks = seq(0, 1.5, 0.25) # Cleaner breaks
-  ) +
-  scale_color_brewer(palette = "Dark2") +
-  scale_linetype_manual(
-    values = c("PT" = "dashed", "PT+DRT" = "solid", "All" = "dotted")
-  ) +
-  scale_shape_manual(
-    values = c("O" = 16, "O+D" = 17, "All" = 15)
-  ) +
-  theme_bw(base_size = 11) +
+  theme_bw(base_size = 10) +
   theme(
-    legend.position = "bottom",
-    legend.box = "vertical",
-    strip.text = element_text(face = "bold"),
-    panel.grid.minor = element_blank(),
+    legend.position = "right",
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 7),
+    strip.text = element_text(face = "bold", size = 8),
     plot.title = element_text(face = "bold", size = 14),
-    plot.caption = element_text(
-      hjust = 0,
-      size = 8,
-      color = "gray30",
-      margin = margin(t = 10)
-    )
-  ) +
-  guides(
-    color = guide_legend(order = 1, nrow = 1),
-    linetype = guide_legend(order = 2, nrow = 1),
-    shape = guide_legend(order = 3, nrow = 1)
+    plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
   )
 
 ggsave(
-  "R/plots/transit_opt_paper/ms_filter_sensitivity_wt_peak_tot_facet_mode.png",
-  width = 14,
-  height = 9,
-  dpi = 300
-)
-
-# Facet by mode and catchment
-
-ggplot(
-  sensitivity_data,
-  aes(
-    x = solution_id,
-    y = share_delta,
-    color = level_clean,
-    shape = access_clean,
-    group = interaction(level, access, zones)
-  )
-) +
-  geom_line(linewidth = 0.8, alpha = 0.8) +
-  geom_point(size = 2, alpha = 0.7) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
-  facet_grid(zones_clean ~ mode_clean, scales = "free_x") +
-  labs(
-    title = "Mode Share Sensitivity to Filter Definition",
-    subtitle = "Objective = Wait Time Peak Total - Faceted by Catchment Definition and Mode",
-    x = "Solution Rank",
-    y = "Mode Share Change (percentage points)",
-    color = "Aggregation Level",
-    shape = "Access Filter",
-    caption = paste(
-      "Rows show different catchment definitions (PT only vs PT+DRT vs All)\n",
-      "Trip-level = all trips; Person-level = only persons with ALL trips in catchment\n",
-      "Origin only = relaxed filter; Origin+Destination = strict filter requiring both trip ends in catchment"
-    )
-  ) +
-  scale_x_continuous(breaks = seq(0, 100, 20)) +
-  scale_color_brewer(palette = "Dark2") +
-  scale_shape_manual(
-    values = c("O" = 16, "O+D" = 17, "All" = 15)
-  ) +
-  theme_bw(base_size = 11) +
-  theme(
-    legend.position = "bottom",
-    legend.box = "horizontal",
-    legend.box.just = "left",
-    legend.spacing.y = unit(0.1, "cm"),
-    strip.text = element_text(face = "bold", size = 9),
-    strip.text.y = element_text(angle = 0), # Make row labels horizontal
-    panel.grid.minor = element_blank(),
-    plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(color = "gray40", size = 11),
-    plot.caption = element_text(
-      hjust = 0,
-      size = 8,
-      color = "gray30",
-      margin = margin(t = 10)
-    )
-  ) +
-  guides(
-    color = guide_legend(
-      order = 1,
-      nrow = 1,
-      title.position = "top",
-      title.hjust = 0
-    ),
-    shape = guide_legend(
-      order = 2,
-      nrow = 1,
-      title.position = "top",
-      title.hjust = 0
-    )
-  )
-
-ggsave(
-  "R/plots/transit_opt_paper/ms_filter_sensitivity_wt_peak_tot_facet_mode_catchment.png",
-  width = 14,
+  "R/plots/transit_opt_paper/fig_4_1_correlation_sensitivity.png",
+  width = 16,
   height = 10,
   dpi = 300
 )
 
-# Create data for all objectives (not just wt_peak_tot)
-sensitivity_all_objectives <- res_mode_share %>%
+# Plot 3: Scatter plots for main filter config
+scatter_data <- res_mode_share |>
   filter(
-    mode %in% main_modes,
-    !(mode %in% c("walk", "bike")),
+    mode == "pt+drt",
+    level == "trip",
+    access == "origin+destination",
+    zones == "pt+drt",
+    !is.na(pso_frac_of_base),
     !is.na(share_delta)
-  ) %>%
+  ) |>
   mutate(
-    level_clean = factor(
-      level,
-      levels = names(level_labels),
-      labels = level_labels
-    ),
-    access_clean = factor(
-      access,
-      levels = names(access_labels),
-      labels = access_labels
-    ),
-    zones_clean = factor(
-      zones,
-      levels = names(zones_labels),
-      labels = zones_labels
-    ),
-    mode_clean = factor(
-      mode,
-      levels = main_modes,
-      labels = c("PT+DRT", "Car", "Walk", "Bike", "Taxi")
-    ),
     objective_clean = factor(
       objective,
       levels = names(objective_labels),
@@ -857,207 +539,156 @@ sensitivity_all_objectives <- res_mode_share %>%
   )
 
 ggplot(
-  sensitivity_all_objectives,
-  aes(
-    x = solution_id,
-    y = share_delta,
-    color = level_clean,
-    linetype = zones_clean,
-    shape = access_clean,
-    group = interaction(level, access, zones)
-  )
+  scatter_data,
+  aes(x = pso_frac_of_base, y = share_delta)
 ) +
-  geom_line(linewidth = 0.6, alpha = 0.7) +
-  geom_point(size = 1.5, alpha = 0.6) +
-  geom_hline(
-    yintercept = 0,
+  geom_point(aes(color = solution_id), size = 2, alpha = 0.7) +
+  geom_smooth(
+    method = "lm",
+    se = TRUE,
+    color = "black",
     linetype = "dashed",
-    color = "gray40",
-    linewidth = 0.3
+    linewidth = 0.5
   ) +
-  facet_grid(mode_clean ~ objective_clean) +
+  geom_hline(yintercept = 0, linetype = "dotted", color = "gray50") +
+  facet_wrap(~objective_clean, scales = "free_x", ncol = 4) +
   labs(
-    title = "Mode Share Sensitivity Across Objectives and Modes",
-    subtitle = "Faceted by Objective (rows) and Transport Mode (columns)",
-    x = "Solution Rank",
-    y = "Mode Share Change (pp)",
-    color = "Aggregation Level",
-    linetype = "Catchment Definition",
-    shape = "Access Filter",
-    caption = paste(
-      "Shows how filter definitions affect mode share changes across all objectives\n",
-      "Trip-level = all trips; Person-level = only persons with ALL trips in catchment\n",
-      "PT only = 400m buffer; PT+DRT = stops + DRT zones\n",
-      "Origin only vs. Origin+Destination = one vs. both trip ends in catchment"
-    )
+    title = "Proxy Objective Value vs. PT+DRT Mode Share Change",
+    subtitle = "Each point is a solution; lower proxy value = better optimization",
+    x = "Proxy Objective (fraction of baseline)",
+    y = "PT+DRT Mode Share Change (pp)",
+    color = "Solution\nRank",
+    caption = "Dashed line shows linear trend. Good proxies should show negative correlation."
   ) +
-  scale_x_continuous(breaks = seq(0, 100, 10)) +
-  scale_color_brewer(palette = "Dark2") +
-  scale_linetype_manual(
-    values = c("PT" = "dashed", "PT+DRT" = "solid", "All" = "dotted")
-  ) +
-  scale_shape_manual(
-    values = c("O" = 16, "O+D" = 17, "All" = 15)
+  colorspace::scale_color_continuous_sequential(
+    palette = "Viridis",
+    rev = TRUE
   ) +
   theme_bw(base_size = 10) +
   theme(
-    legend.position = "bottom",
-    legend.box = "vertical",
-    legend.box.just = "left",
-    legend.spacing.y = unit(0, "pt"),
+    legend.position = "right",
     strip.text = element_text(face = "bold", size = 8),
-    strip.text.y = element_text(angle = 0, hjust = 0), # Horizontal row labels
-    axis.text.x = element_text(size = 7, angle = 45, hjust = 0.5),
-    axis.text.y = element_text(size = 7),
-    panel.grid.minor = element_blank(),
-    panel.spacing = unit(0.3, "lines"),
     plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(color = "gray40", size = 11),
-    plot.caption = element_text(
-      hjust = 0,
-      size = 7,
-      color = "gray30",
-      margin = margin(t = 10)
-    )
-  ) +
-  guides(
-    color = guide_legend(
-      order = 1,
-      nrow = 1,
-      title.position = "left",
-      title.hjust = 0
-    ),
-    linetype = guide_legend(
-      order = 2,
-      nrow = 1,
-      title.position = "left",
-      title.hjust = 0
-    ),
-    shape = guide_legend(
-      order = 3,
-      nrow = 1,
-      title.position = "left",
-      title.hjust = 0
-    )
+    plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
   )
 
 ggsave(
-  "R/plots/transit_opt_paper/ms_filter_sensitivity_grid_facet_objectives_mode.png",
-  width = 20,
-  height = 12,
+  "R/plots/transit_opt_paper/fig_4_1_proxy_vs_mode_share.png",
+  width = 16,
+  height = 10,
   dpi = 300
 )
 
-# Same plot but waiting time objectives only
+##########################################################################
+# SECTION 4.2: SYSTEM PERFORMANCE COMPARISON
+##########################################################################
 
-ggplot(
-  sensitivity_all_objectives %>%
-    filter(str_detect(objective, 'wt_')),
-  aes(
-    x = solution_id,
-    y = share_delta,
-    color = level_clean,
-    linetype = zones_clean,
-    shape = access_clean,
-    group = interaction(level, access, zones)
-  )
-) +
-  geom_line(linewidth = 0.6, alpha = 0.7) +
-  geom_point(size = 1.5, alpha = 0.6) +
-  geom_hline(
-    yintercept = 0,
-    linetype = "dashed",
-    color = "gray40",
-    linewidth = 0.3
-  ) +
-  facet_grid(mode_clean ~ objective_clean) +
-  labs(
-    title = "Mode Share Sensitivity Across Objectives and Modes",
-    subtitle = "Faceted by Objective (rows) and Transport Mode (columns)",
-    x = "Solution Rank",
-    y = "Mode Share Change (pp)",
-    color = "Aggregation Level",
-    linetype = "Catchment Definition",
-    shape = "Access Filter",
-    caption = paste(
-      "Shows how filter definitions affect mode share changes across all objectives\n",
-      "Trip-level = all trips; Person-level = only persons with ALL trips in catchment\n",
-      "PT only = 400m buffer; PT+DRT = stops + DRT zones\n",
-      "Origin only vs. Origin+Destination = one vs. both trip ends in catchment"
-    )
-  ) +
-  scale_x_continuous(breaks = seq(0, 100, 10)) +
-  scale_color_brewer(palette = "Dark2") +
-  scale_linetype_manual(
-    values = c("PT" = "dashed", "PT+DRT" = "solid", "All" = "dotted")
-  ) +
-  scale_shape_manual(
-    values = c("O" = 16, "O+D" = 17, "All" = 15)
-  ) +
-  theme_bw(base_size = 10) +
-  theme(
-    legend.position = "bottom",
-    legend.box = "vertical",
-    legend.box.just = "left",
-    legend.spacing.y = unit(0, "pt"),
-    strip.text = element_text(face = "bold", size = 8),
-    strip.text.y = element_text(angle = 0, hjust = 0), # Horizontal row labels
-    axis.text.x = element_text(size = 7, angle = 45, hjust = 0.5),
-    axis.text.y = element_text(size = 7),
-    panel.grid.minor = element_blank(),
-    panel.spacing = unit(0.3, "lines"),
-    plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(color = "gray40", size = 11),
-    plot.caption = element_text(
-      hjust = 0,
-      size = 7,
-      color = "gray30",
-      margin = margin(t = 10)
-    )
-  ) +
-  guides(
-    color = guide_legend(
-      order = 1,
-      nrow = 1,
-      title.position = "left",
-      title.hjust = 0
-    ),
-    linetype = guide_legend(
-      order = 2,
-      nrow = 1,
-      title.position = "left",
-      title.hjust = 0
-    ),
-    shape = guide_legend(
-      order = 3,
-      nrow = 1,
-      title.position = "left",
-      title.hjust = 0
-    )
+message("\n==========================================")
+message("SECTION 4.2: SYSTEM PERFORMANCE COMPARISON")
+message("==========================================\n")
+
+# Table 2: Compare Baseline vs Best Solution per Objective
+
+# Get best solution (rank 0) for each objective
+best_solutions_summary <- res_mode_share |>
+  filter(
+    solution_id == 0, # Best solution
+    level == "trip",
+    access == "origin+destination",
+    zones == "pt+drt"
+  ) |>
+  select(objective, mode, share_solution, share_base, share_delta) |>
+  pivot_wider(
+    names_from = mode,
+    values_from = c(share_solution, share_base, share_delta),
+    names_glue = "{mode}_{.value}"
   )
 
-ggsave(
-  "R/plots/transit_opt_paper/ms_filter_sensitivity_grid_facet_objectives_mode_wt_only.png",
-  width = 20,
-  height = 12,
-  dpi = 300
+# Add VKM data
+best_vkm_summary <- res_vkm_extended |>
+  filter(
+    solution_id == 0,
+    level == "trip",
+    access == "origin+destination",
+    zones == "pt+drt",
+    mode %in% c("pt+drt", "car+taxi")
+  ) |>
+  select(
+    objective,
+    mode,
+    total_distance_km_solution,
+    total_distance_km_base,
+    delta_km,
+    delta_km_pct
+  ) |>
+  pivot_wider(
+    names_from = mode,
+    values_from = c(
+      total_distance_km_solution,
+      total_distance_km_base,
+      delta_km,
+      delta_km_pct
+    ),
+    names_glue = "{mode}_{.value}"
+  )
+
+# Add DRT fleet data (peak interval: 8-12h)
+best_drt_fleet <- all_drt_deployments |>
+  filter(
+    str_detect(solution, "_00$"), # Best solution
+    interval_label == "8-12"
+  ) |>
+  group_by(objective) |>
+  summarise(
+    drt_fleet_total = sum(fleet_size),
+    drt_fleet_ne = sum(fleet_size[scenario == "drtNE"]),
+    drt_fleet_nw = sum(fleet_size[scenario == "drtNW"]),
+    .groups = "drop"
+  )
+
+# Combine into Table 2
+table_4_2_scenario_comparison <- best_solutions_summary |>
+  left_join(best_vkm_summary, by = "objective") |>
+  left_join(best_drt_fleet, by = "objective") |>
+  mutate(
+    objective_clean = objective_labels_short[objective]
+  ) |>
+  select(
+    objective_clean,
+    # Mode share changes
+    `pt+drt_share_delta`,
+    car_share_delta,
+    # VKM changes
+    `pt+drt_delta_km`,
+    `car+taxi_delta_km`,
+    # DRT fleet
+    drt_fleet_total
+  ) |>
+  rename(
+    Objective = objective_clean,
+    `PT+DRT Share Δ (pp)` = `pt+drt_share_delta`,
+    `Car Share Δ (pp)` = car_share_delta,
+    `PT+DRT VKM Δ (km)` = `pt+drt_delta_km`,
+    `Car+Taxi VKM Δ (km)` = `car+taxi_delta_km`,
+    `DRT Fleet (8-12h)` = drt_fleet_total
+  )
+
+write_csv(
+  table_4_2_scenario_comparison,
+  "R/tables/transit_opt_paper/tables/table_4_2_scenario_comparison.csv"
 )
 
-
-##########
-# Plot 4: Trade-offs
-##########
-
-tradeoff_data <- res_mode_share %>%
+# Plot: Trade-off between PT+DRT gain and Car reduction
+tradeoff_data <- res_mode_share |>
   filter(
     mode %in% c("pt+drt", "car"),
     level == "trip",
     access == "origin+destination",
     zones == "pt+drt"
-  ) %>%
-  select(objective, solution_id, mode, share_delta) %>%
-  pivot_wider(names_from = mode, values_from = share_delta) %>%
-  rename(pt_drt_change = `pt+drt`, car_change = car) %>%
+  ) |>
+  select(objective, solution_id, mode, share_delta, pso_frac_of_base) |>
+  pivot_wider(names_from = mode, values_from = share_delta) |>
+  rename(pt_drt_change = `pt+drt`, car_change = car) |>
   mutate(
     objective_clean = factor(
       objective,
@@ -1068,10 +699,9 @@ tradeoff_data <- res_mode_share %>%
 
 ggplot(
   tradeoff_data,
-  aes(x = car_change, y = pt_drt_change, color = solution_id)
+  aes(x = car_change, y = pt_drt_change, color = pso_frac_of_base)
 ) +
-  geom_point(size = 2.5, alpha = 0.7) +
-  facet_wrap(~objective_clean, scales = "fixed", nrow = 2) +
+  geom_point(size = 2.5, alpha = 0.8) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
   geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
   geom_abline(
@@ -1079,790 +709,61 @@ ggplot(
     intercept = 0,
     linetype = "dotted",
     color = "gray30"
-  ) +
-  labs(
-    title = "PT+DRT Gain vs. Car Loss Trade-off",
-    subtitle = "Trip-level | Origin+Destination | PT+DRT catchment",
-    x = "Car Mode Share Change (percentage points)",
-    y = "PT+DRT Mode Share Change (percentage points)",
-    color = "Solution Rank",
-    caption = "Diagonal line shows perfect 1:1 substitution. Points above line indicate PT gains exceed car losses (potential walk/bike substitution)."
-  ) +
-  # scale_color_viridis_c(
-  #   breaks = seq(0, 100, 20),  # Show breaks at actual data points
-  #   limits = c(0, 100)          # Set scale limits to match data range
-  # ) +
-  colorspace::scale_color_continuous_sequential(
-    palette = "Lajolla",
-    rev = TRUE,
-    breaks = seq(0, 100, 20), # Show breaks at actual data points
-    limits = c(0, 100) # Set scale limits to match data range)
-  ) +
-  theme_bw(base_size = 11) +
-  theme(
-    legend.position = "right",
-    panel.grid.minor = element_blank(),
-    plot.title = element_text(face = "bold", size = 14),
-    plot.caption = element_text(
-      hjust = 0,
-      size = 8,
-      color = "gray30",
-      margin = margin(t = 10)
-    )
-  )
-
-ggsave(
-  "R/plots/transit_opt_paper/ms_pt_car_tradeoff.png",
-  width = 12,
-  height = 8,
-  dpi = 300
-)
-
-# Same plot but waiting time only
-
-ggplot(
-  tradeoff_data %>%
-    filter(str_detect(objective, 'wt_')),
-  aes(x = car_change, y = pt_drt_change, color = solution_id)
-) +
-  geom_point(size = 2.5, alpha = 0.7) +
-  facet_wrap(~objective_clean, scales = "fixed", nrow = 2) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
-  geom_abline(
-    slope = -1,
-    intercept = 0,
-    linetype = "dotted",
-    color = "gray30"
-  ) +
-  labs(
-    title = "PT+DRT Gain vs. Car Loss Trade-off",
-    subtitle = "Trip-level | Origin+Destination | PT+DRT catchment",
-    x = "Car Mode Share Change (percentage points)",
-    y = "PT+DRT Mode Share Change (percentage points)",
-    color = "Solution Rank",
-    caption = "Diagonal line shows perfect 1:1 substitution. Points above line indicate PT gains exceed car losses (potential walk/bike substitution)."
-  ) +
-  # scale_color_viridis_c(
-  #   breaks = seq(0, 100, 20),  # Show breaks at actual data points
-  #   limits = c(0, 100)          # Set scale limits to match data range
-  # ) +
-  colorspace::scale_color_continuous_sequential(
-    palette = "Lajolla",
-    rev = TRUE,
-    breaks = seq(0, 100, 20), # Show breaks at actual data points
-    limits = c(0, 100) # Set scale limits to match data range)
-  ) +
-  theme_bw(base_size = 11) +
-  theme(
-    legend.position = "right",
-    panel.grid.minor = element_blank(),
-    plot.title = element_text(face = "bold", size = 14),
-    plot.caption = element_text(
-      hjust = 0,
-      size = 8,
-      color = "gray30",
-      margin = margin(t = 10)
-    )
-  )
-
-ggsave(
-  "R/plots/transit_opt_paper/ms_pt_car_tradeoff_wt_only.png",
-  width = 12,
-  height = 8,
-  dpi = 300
-)
-
-##########
-# Best solutions table
-##########
-
-best_solutions <- res_mode_share %>%
-  filter(
-    mode %in% c("pt", "pt+drt"),
-    # level == "trip",
-    # access == "origin+destination",
-    # zones == "pt+drt"
-  ) %>%
-  group_by(objective, mode, level, access, zones) %>%
-  slice_max(share_delta, n = 3) %>%
-  arrange(objective, mode, level, access, zones, desc(share_delta)) %>%
-  mutate(rank_matsim = row_number()) %>%
-  ungroup() %>%
-  select(
-    objective,
-    solution_id,
-    rank_matsim,
-    mode,
-    level,
-    access,
-    zones,
-    share_delta,
-    share_solution,
-    share_base
-  )
-
-write_csv(
-  best_solutions,
-  "R/plots/transit_opt_paper/ms_best_solutions_pt_drt.csv"
-)
-
-
-##########
-# VKM Analysis
-##########
-
-# Combine PT and DRT VKM (sum their distances)
-pt_drt_vkm_combined <- res_vkm %>%
-  filter(mode == "pt" | str_detect(mode, "^drt")) %>%
-  group_by(objective, solution, solution_id, level, access, zones) %>%
-  summarise(
-    total_distance_km_solution = sum(total_distance_km_solution, na.rm = TRUE),
-    total_distance_km_base = sum(total_distance_km_base, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  mutate(
-    mode = "pt+drt",
-    delta_km = total_distance_km_solution - total_distance_km_base,
-    delta_km_pct = (delta_km / total_distance_km_base) * 100,
-    share_solution = NA_real_,
-    share_base = NA_real_,
-    share_pct_change = NA_real_
-  )
-
-# Add pt+drt to original data
-res_vkm <- bind_rows(res_vkm, pt_drt_vkm_combined) %>%
-  arrange(objective, solution, solution_id, level, access, zones, mode)
-
-# Add share_delta
-res_vkm <- res_vkm %>%
-  mutate(share_delta = share_solution - share_base)
-
-# Create car+taxi combined mode
-car_taxi_combined <- res_vkm %>%
-  filter(mode %in% c("car", "taxi")) %>%
-  group_by(objective, solution, solution_id, level, access, zones) %>%
-  summarise(
-    total_distance_km_solution = sum(total_distance_km_solution, na.rm = TRUE),
-    total_distance_km_base = sum(total_distance_km_base, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  mutate(
-    mode = "car+taxi",
-    share_solution = NA_real_,
-    share_base = NA_real_,
-    delta_km = total_distance_km_solution - total_distance_km_base,
-    delta_km_pct = (delta_km / total_distance_km_base) * 100,
-    share_pct_change = NA_real_
-  )
-
-# Combine with extended data
-res_vkm_extended <- bind_rows(res_vkm, car_taxi_combined) %>%
-  arrange(objective, solution, solution_id, level, access, zones, mode)
-
-# Recalculate shares for BOTH car+taxi AND pt+drt
-res_vkm_extended <- res_vkm_extended %>%
-  group_by(objective, solution, solution_id, level, access, zones) %>%
-  mutate(
-    # Total motorized includes car, taxi, pt, AND all drt modes
-    total_motorized_solution = sum(
-      total_distance_km_solution[
-        mode %in% c("car", "taxi", "pt") | str_detect(mode, "^drt")
-      ],
-      na.rm = TRUE
-    ),
-    total_motorized_base = sum(
-      total_distance_km_base[
-        mode %in% c("car", "taxi", "pt") | str_detect(mode, "^drt")
-      ],
-      na.rm = TRUE
-    )
-  ) %>%
-  ungroup() %>%
-  mutate(
-    share_solution = if_else(
-      mode %in% c("car+taxi", "pt+drt"),
-      (total_distance_km_solution / total_motorized_solution) * 100,
-      share_solution
-    ),
-    share_base = if_else(
-      mode %in% c("car+taxi", "pt+drt"),
-      (total_distance_km_base / total_motorized_base) * 100,
-      share_base
-    ),
-    share_delta = share_solution - share_base,
-    share_pct_change = if_else(
-      mode %in% c("car+taxi", "pt+drt"),
-      ((share_solution - share_base) / share_base) * 100,
-      share_pct_change
-    )
-  ) %>%
-  select(-total_motorized_solution, -total_motorized_base)
-
-
-##########
-# VKM Plot 1 (IMPROVED): Motorized VKM Change by Mode Group
-##########
-
-motorized_contributions_data <- res_vkm_extended %>%
-  filter(
-    mode %in% c("car+taxi", "pt+drt"),
-    level == "trip",
-    access == "origin+destination",
-    zones == "pt+drt"
-  ) %>%
-  mutate(
-    objective_clean = factor(
-      objective,
-      levels = names(objective_labels),
-      labels = objective_labels
-    ),
-    mode_clean = factor(
-      mode,
-      levels = c("pt+drt", "car+taxi"),
-      labels = c("PT+DRT", "Car+Taxi")
-    )
-  )
-
-ggplot(
-  motorized_contributions_data,
-  aes(
-    x = solution_id,
-    y = delta_km / 1000,
-    color = mode_clean,
-    group = mode_clean
-  )
-) +
-  geom_line(linewidth = 0.9) +
-  geom_point(size = 2, alpha = 0.7) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
-  facet_wrap(~objective_clean, scales = "free_x", nrow = 2) +
-  labs(
-    title = "Change in Vehicle Kilometers by Mode Group",
-    subtitle = "PT+DRT and Car+Taxi contributions | Trip-level | Origin+Destination | PT+DRT catchment",
-    x = "Solution Rank",
-    y = "VKM Change (thousands of km)",
-    color = "Mode Group",
-    caption = "Positive values indicate increased vehicle travel. PT increases from service expansion; Car+Taxi changes from modal shift."
-  ) +
-  scale_x_continuous(breaks = seq(0, 100, 20)) +
-  scale_color_manual(values = c("PT+DRT" = "#E41A1C", "Car+Taxi" = "#377EB8")) +
-  theme_bw(base_size = 11) +
-  theme(
-    legend.position = "bottom",
-    strip.text = element_text(face = "bold", size = 9),
-    panel.grid.minor = element_blank(),
-    plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(color = "gray40"),
-    plot.caption = element_text(
-      hjust = 0,
-      size = 8,
-      color = "gray30",
-      margin = margin(t = 10)
-    )
-  )
-
-ggsave(
-  "R/plots/transit_opt_paper/vkm_change_mode_group_km.png",
-  width = 14,
-  height = 8,
-  dpi = 300
-)
-
-##########
-# VKM Plot 2: VKM Share Change by Mode Group (using share_delta)
-##########
-
-vkm_share_group_data <- res_vkm_extended %>%
-  filter(
-    mode %in% c("car+taxi", "pt+drt"),
-    level == "trip",
-    access == "origin+destination",
-    zones == "pt+drt"
-  ) %>%
-  mutate(
-    objective_clean = factor(
-      objective,
-      levels = names(objective_labels),
-      labels = objective_labels
-    ),
-    mode_clean = factor(
-      mode,
-      levels = c("pt+drt", "car+taxi"),
-      labels = c("PT+DRT", "Car+Taxi")
-    )
-  )
-
-ggplot(
-  vkm_share_group_data,
-  aes(x = solution_id, y = share_delta, color = mode_clean, group = mode_clean)
-) +
-  geom_line(linewidth = 0.9) +
-  geom_point(size = 1.5, alpha = 0.7) +
-  geom_hline(
-    yintercept = 0,
-    linetype = "dashed",
-    color = "gray40",
-    alpha = 0.5
-  ) +
-  facet_wrap(~objective_clean, scales = "free_x", nrow = 2) +
-  labs(
-    title = "VKM Share Changes by Mode Group",
-    subtitle = "Percentage point change in share of total motorized VKM | Trip-level | Origin+Destination | PT+DRT",
-    x = "Solution Rank",
-    y = "VKM Share Change (percentage points)",
-    color = "Mode Group",
-    caption = "Share of total vehicle kilometers traveled. PT+DRT and Car+Taxi shares must sum to 100%, so changes are inversely related."
-  ) +
-  scale_x_continuous(breaks = seq(0, 100, 20)) +
-  scale_color_manual(values = c("PT+DRT" = "#E41A1C", "Car+Taxi" = "#377EB8")) +
-  theme_bw(base_size = 11) +
-  theme(
-    legend.position = "bottom",
-    strip.text = element_text(face = "bold", size = 9),
-    panel.grid.minor = element_blank(),
-    plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(color = "gray40"),
-    plot.caption = element_text(
-      hjust = 0,
-      size = 8,
-      color = "gray30",
-      margin = margin(t = 10)
-    )
-  )
-
-ggsave(
-  "R/plots/transit_opt_paper/vkm_change_mode_group_perc.png",
-  width = 14,
-  height = 8,
-  dpi = 300
-)
-
-##########
-# VKM Plot 2b: Total Motorized VKM Change by Filter Configuration
-##########
-
-# Calculate total motorized VKM (use only individual modes to avoid double counting)
-total_motorized_vkm_data <- res_vkm_extended %>%
-  filter(
-    mode %in% c("car", "taxi", "pt") | str_detect(mode, "^drt") # Individual modes only
-  ) %>%
-  group_by(objective, solution, solution_id, level, access, zones) %>%
-  summarise(
-    total_distance_km_solution = sum(total_distance_km_solution, na.rm = TRUE),
-    total_distance_km_base = sum(total_distance_km_base, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  mutate(
-    delta_km = total_distance_km_solution - total_distance_km_base,
-    delta_km_pct = (delta_km / total_distance_km_base) * 100,
-    combo = paste(level, access, zones, sep = " | ")
-  ) %>%
-  mutate(
-    level_clean = factor(
-      level,
-      levels = names(level_labels),
-      labels = level_labels
-    ),
-    access_clean = factor(
-      access,
-      levels = names(access_labels),
-      labels = access_labels
-    ),
-    zones_clean = factor(
-      zones,
-      levels = names(zones_labels),
-      labels = zones_labels
-    ),
-    combo_clean = paste(level_clean, access_clean, zones_clean, sep = " | "),
-    objective_clean = factor(
-      objective,
-      levels = names(objective_labels),
-      labels = objective_labels
-    )
-  )
-
-ggplot(
-  total_motorized_vkm_data,
-  aes(x = solution_id, y = delta_km / 1000, color = combo_clean, group = combo)
-) +
-  geom_line(linewidth = 0.7, alpha = 0.8) +
-  geom_point(size = 1.5, alpha = 0.6) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
-  facet_wrap(~objective_clean, scales = "fixed", nrow = 2) +
-  labs(
-    title = "Total Motorized VKM Change by Filter Configuration",
-    subtitle = "Sum of car, taxi, PT, and DRT vehicle kilometers",
-    x = "Solution Rank",
-    y = "Total Motorized VKM Change (thousands of km)",
-    color = "Filter Configuration",
-    caption = "Level | Access | Catchment. Shows how different filtering assumptions affect total measured vehicle travel."
-  ) +
-  scale_x_continuous(breaks = seq(0, 100, 20)) +
-  scale_color_brewer(palette = "Set1") +
-  theme_bw(base_size = 11) +
-  theme(
-    legend.position = "bottom",
-    legend.box = "vertical",
-    strip.text = element_text(face = "bold", size = 9),
-    panel.grid.minor = element_blank(),
-    plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(color = "gray40"),
-    plot.caption = element_text(
-      hjust = 0,
-      size = 8,
-      color = "gray30",
-      margin = margin(t = 10)
-    )
-  ) +
-  guides(color = guide_legend(nrow = 3, byrow = TRUE))
-
-ggsave(
-  "R/plots/transit_opt_paper/vkm_total_motorized_vkm_change_by_filter_km.png",
-  width = 14,
-  height = 8,
-  dpi = 300
-)
-
-##########
-# VKM Plot 2c: Mode Group VKM Change by Filter Configuration (Grid with two lines)
-##########
-
-# Prepare data with car+taxi and pt+drt separately
-mode_group_vkm_grid_data <- res_vkm_extended %>%
-  filter(
-    mode %in% c("car+taxi", "pt+drt") # Use the combined modes
-  ) %>%
-  mutate(
-    level_clean = factor(
-      level,
-      levels = names(level_labels),
-      labels = level_labels
-    ),
-    access_clean = factor(
-      access,
-      levels = names(access_labels),
-      labels = access_labels
-    ),
-    zones_clean = factor(
-      zones,
-      levels = names(zones_labels),
-      labels = zones_labels
-    ),
-    combo_clean = paste(level_clean, access_clean, zones_clean, sep = " | "),
-    objective_clean = factor(
-      objective,
-      levels = names(objective_labels),
-      labels = objective_labels
-    ),
-    mode_clean = factor(
-      mode,
-      levels = c("pt+drt", "car+taxi"),
-      labels = c("PT+DRT", "Car+Taxi")
-    )
-  )
-
-ggplot(
-  mode_group_vkm_grid_data,
-  aes(
-    x = solution_id,
-    y = delta_km / 1000,
-    color = mode_clean,
-    group = mode_clean
-  )
-) +
-  geom_line(linewidth = 0.7) +
-  geom_point(size = 1.2, alpha = 0.7) +
-  geom_hline(
-    yintercept = 0,
-    linetype = "dashed",
-    color = "gray40",
-    linewidth = 0.3
-  ) +
-  facet_grid(combo_clean ~ objective_clean, scales = "fixed") +
-  labs(
-    title = "VKM Change by Mode Group, Filter Configuration, and Objective",
-    subtitle = "Rows = Filter combinations (Level | Access | Catchment) | Columns = Objectives",
-    x = "Solution Rank",
-    y = "VKM Change (1000s km)",
-    color = "Mode Group",
-    caption = "PT+DRT increases from service expansion; Car+Taxi changes from modal shift and catchment filtering."
-  ) +
-  scale_x_continuous(breaks = seq(0, 100, 25)) +
-  scale_color_manual(values = c("PT+DRT" = "#E41A1C", "Car+Taxi" = "#377EB8")) +
-  theme_bw(base_size = 10) +
-  theme(
-    legend.position = "bottom",
-    strip.text = element_text(face = "bold", size = 8),
-    strip.text.y = element_text(angle = 0, hjust = 0),
-    panel.grid.minor = element_blank(),
-    axis.text.x = element_text(size = 7),
-    plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(color = "gray40"),
-    plot.caption = element_text(
-      hjust = 0,
-      size = 7,
-      color = "gray30",
-      margin = margin(t = 10)
-    )
-  )
-
-ggsave(
-  "R/plots/transit_opt_paper/vkm_change_grid_by_group_facet_filter_combination.png",
-  width = 16,
-  height = 12,
-  dpi = 300
-)
-
-
-##########
-# VKM Plot 2: VKM Share Change by Mode (Car vs Taxi vs PT)
-##########
-
-vkm_share_plot_data <- res_vkm_extended %>%
-  filter(
-    mode %in% c("car", "taxi", "pt"),
-    level == "trip",
-    access == "origin+destination",
-    zones == "pt+drt"
-  ) %>%
-  mutate(
-    objective_clean = factor(
-      objective,
-      levels = names(objective_labels),
-      labels = objective_labels
-    ),
-    mode_clean = factor(
-      mode,
-      levels = c("pt", "car", "taxi"),
-      labels = c("PT", "Car", "Taxi")
-    )
-  )
-
-ggplot(
-  vkm_share_plot_data,
-  aes(x = solution_id, y = share_delta, color = mode_clean, group = mode_clean)
-) +
-  geom_line(linewidth = 0.9) +
-  geom_point(size = 1.5, alpha = 0.7) +
-  geom_hline(
-    yintercept = 0,
-    linetype = "dashed",
-    color = "gray40",
-    alpha = 0.5
   ) +
   facet_wrap(~objective_clean, scales = "fixed", ncol = 4) +
   labs(
-    title = "VKM Share Changes by Mode",
-    subtitle = "Percentage point change in share of total motorized VKM | Trip-level | Origin+Destination | PT+DRT",
-    x = "Solution Rank",
-    y = "VKM Share Change (percentage points)",
-    color = "Mode",
-    caption = "Share of total vehicle kilometers traveled. PT gains typically come from increased service, not modal shift."
+    title = "PT+DRT Gain vs. Car Loss Trade-off",
+    subtitle = "Trip-level | Origin+Destination | PT+DRT catchment",
+    x = "Car Mode Share Change (pp)",
+    y = "PT+DRT Mode Share Change (pp)",
+    color = "Proxy Value\n(× baseline)",
+    caption = "Diagonal: 1:1 substitution. Lower-left quadrant = desirable (PT gain, car loss).\nDarker colors = better proxy optimization."
   ) +
-  scale_x_continuous(breaks = seq(0, 100, 20)) +
-  scale_color_manual(
-    values = c("PT" = "#E41A1C", "Car" = "#377EB8", "Taxi" = "#FF7F00")
+  colorspace::scale_color_continuous_sequential(
+    palette = "Viridis",
+    rev = TRUE
   ) +
   theme_bw(base_size = 11) +
   theme(
-    legend.position = "bottom",
+    legend.position = "right",
     strip.text = element_text(face = "bold", size = 9),
     panel.grid.minor = element_blank(),
     plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(color = "gray40"),
-    plot.caption = element_text(
-      hjust = 0,
-      size = 8,
-      color = "gray30",
-      margin = margin(t = 10)
-    )
+    plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
   )
 
 ggsave(
-  "R/plots/transit_opt_paper/vkm_change_by_mode_perc.png",
-  width = 14,
-  height = 8,
+  "R/plots/transit_opt_paper/fig_4_2_pt_car_tradeoff.png",
+  width = 16,
+  height = 10,
   dpi = 300
 )
 
-##########
-# VKM Plot 3: PT VKM Change (Absolute km)
-##########
-
-pt_vkm_plot_data <- res_vkm_extended %>%
-  filter(
-    mode == "pt",
-    level == "trip", # PT VKM is same across levels, so just pick one
-    access == "origin", # Same across access filters
-    zones == "pt" # Same across zones
-  ) %>%
-  mutate(
-    objective_clean = factor(
-      objective,
-      levels = names(objective_labels),
-      labels = objective_labels
-    )
-  )
-
-ggplot(
-  pt_vkm_plot_data,
-  aes(x = solution_id, y = delta_km / 1000)
-) +
-  geom_line(linewidth = 0.8, color = "#E41A1C") +
-  geom_point(size = 2, alpha = 0.7, color = "#E41A1C") +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
-  facet_wrap(~objective_clean, scales = "free_x", nrow = 2) +
-  labs(
-    title = "Change in PT Service Kilometers by Solution",
-    subtitle = "Total scheduled transit vehicle kilometers from GTFS",
-    x = "Solution Rank",
-    y = "PT VKM Change (thousands of km)",
-    caption = "Positive values = more PT service. Based on GTFS schedule, not actual ridership."
-  ) +
-  scale_x_continuous(breaks = seq(0, 100, 20)) +
-  theme_bw(base_size = 11) +
-  theme(
-    strip.text = element_text(face = "bold", size = 9),
-    panel.grid.minor = element_blank(),
-    plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(color = "gray40"),
-    plot.caption = element_text(
-      hjust = 0,
-      size = 8,
-      color = "gray30",
-      margin = margin(t = 10)
-    )
-  )
-
-ggsave(
-  "R/plots/transit_opt_paper/vkm_change_pt_only_km.png",
-  width = 14,
-  height = 8,
-  dpi = 300
-)
-
-##########
-# VKM Plot 5: Filter Sensitivity (like mode share)
-##########
-
-vkm_sensitivity_data <- res_vkm_extended %>%
-  filter(
-    objective == "wt_peak_tot",
-    mode %in% c("car", "taxi", "pt")
-  ) %>%
-  mutate(
-    level_clean = factor(
-      level,
-      levels = names(level_labels),
-      labels = level_labels
-    ),
-    access_clean = factor(
-      access,
-      levels = names(access_labels),
-      labels = access_labels
-    ),
-    zones_clean = factor(
-      zones,
-      levels = names(zones_labels),
-      labels = zones_labels
-    ),
-    mode_clean = factor(
-      mode,
-      levels = c("pt", "car", "taxi"),
-      labels = c("PT", "Car", "Taxi")
-    )
-  )
-
-ggplot(
-  vkm_sensitivity_data,
-  aes(
-    x = solution_id,
-    y = share_delta,
-    color = level_clean,
-    linetype = zones_clean,
-    shape = access_clean,
-    group = interaction(level, access, zones)
-  )
-) +
-  geom_line(linewidth = 0.8) +
-  geom_point(size = 2, alpha = 0.7) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
-  facet_wrap(~mode_clean, scales = "free_y", nrow = 1) +
-  labs(
-    title = "VKM Share Sensitivity to Filter Definition",
-    subtitle = "Objective = Wait Time Peak Total",
-    x = "Solution Rank",
-    y = "VKM Share Change (percentage points)",
-    color = "Aggregation Level",
-    linetype = "Catchment Definition",
-    shape = "Access Filter",
-    caption = "PT share is constant across filters (from GTFS). Car/Taxi vary based on which trips are included."
-  ) +
-  scale_x_continuous(breaks = seq(0, 100, 10)) +
-  scale_color_brewer(palette = "Dark2") +
-  scale_linetype_manual(
-    values = c("PT" = "dashed", "PT+DRT" = "solid", "All" = "dotted")
-  ) +
-  scale_shape_manual(
-    values = c("O" = 16, "O+D" = 17, "All" = 15)
-  ) +
-  theme_bw(base_size = 11) +
-  theme(
-    legend.position = "bottom",
-    legend.box = "vertical",
-    strip.text = element_text(face = "bold"),
-    panel.grid.minor = element_blank(),
-    plot.title = element_text(face = "bold", size = 14),
-    plot.caption = element_text(
-      hjust = 0,
-      size = 8,
-      color = "gray30",
-      margin = margin(t = 10)
-    )
-  ) +
-  guides(
-    color = guide_legend(order = 1, nrow = 1),
-    linetype = guide_legend(order = 2, nrow = 1),
-    shape = guide_legend(order = 3, nrow = 1)
-  )
-
-ggsave(
-  "R/plots/transit_opt_paper/vkm_filter_sensitivity_wt_peak_tot_facet_mode.png",
-  width = 14,
-  height = 6,
-  dpi = 300
-)
-
-
-##########
-# Combined Analysis (VKM + Mode Share)
-##########
-
-##########
-# Plot 1: VKM vs Mode Share Trade-off (PT service vs PT ridership)
-##########
-
-# Combine VKM and mode share data
-vkm_mode_tradeoff <- res_vkm_extended %>%
+# Plot: VKM efficiency (PT service vs ridership gain)
+vkm_mode_tradeoff <- res_vkm_extended |>
   filter(
     mode == "pt+drt",
     level == "trip",
     access == "origin+destination",
     zones == "pt+drt"
-  ) %>%
-  select(objective, solution_id, pt_vkm_change = delta_km) %>%
+  ) |>
+  select(objective, solution_id, pt_vkm_change = delta_km) |>
   left_join(
-    res_mode_share %>%
+    res_mode_share |>
       filter(
         mode == "pt+drt",
         level == "trip",
         access == "origin+destination",
         zones == "pt+drt"
-      ) %>%
-      select(objective, solution_id, pt_share_delta = share_delta),
+      ) |>
+      select(
+        objective,
+        solution_id,
+        pt_share_delta = share_delta,
+        pso_frac_of_base
+      ),
     by = c("objective", "solution_id")
-  ) %>%
+  ) |>
   mutate(
     objective_clean = factor(
       objective,
@@ -1873,43 +774,230 @@ vkm_mode_tradeoff <- res_vkm_extended %>%
 
 ggplot(
   vkm_mode_tradeoff,
-  aes(x = pt_vkm_change / 1000, y = pt_share_delta, color = solution_id)
+  aes(x = pt_vkm_change / 1000, y = pt_share_delta, color = pso_frac_of_base)
 ) +
-  geom_point(size = 2.5, alpha = 0.7) +
-  facet_wrap(~objective_clean, scales = "fixed", nrow = 2) +
+  geom_point(size = 2.5, alpha = 0.8) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
   geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  facet_wrap(~objective_clean, scales = "fixed", ncol = 4) +
   labs(
-    title = "PT Service Investment vs. Ridership Gain Trade-off",
+    title = "PT Service Investment vs. Ridership Gain",
     subtitle = "Trip-level | Origin+Destination | PT+DRT catchment",
-    x = "PT VKM Change (thousands of km)",
-    y = "PT+DRT Mode Share Change (percentage points)",
-    color = "Solution Rank",
-    caption = "Upper-right quadrant shows solutions with both increased service and ridership. Efficiency = vertical distance from horizontal axis per unit horizontal distance."
+    x = "PT+DRT VKM Change (1000s km)",
+    y = "PT+DRT Mode Share Change (pp)",
+    color = "Proxy Value\n(× baseline)",
+    caption = "Upper-right = efficient (ridership gains with service increase).\nDarker colors = better proxy optimization."
   ) +
   colorspace::scale_color_continuous_sequential(
-    palette = "Lajolla",
-    rev = TRUE,
-    breaks = seq(0, 100, 20), # Show breaks at actual data points
-    limits = c(0, 100) # Set scale limits to match data range)
+    palette = "Viridis",
+    rev = TRUE
   ) +
   theme_bw(base_size = 11) +
   theme(
     legend.position = "right",
+    strip.text = element_text(face = "bold", size = 9),
     panel.grid.minor = element_blank(),
     plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(color = "gray40"),
-    plot.caption = element_text(
-      hjust = 0,
-      size = 8,
-      color = "gray30",
-      margin = margin(t = 10)
-    )
+    plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
   )
 
 ggsave(
-  "R/plots/transit_opt_paper/vkm_pt_vkm_vs_pt_mode_share_tradeoff-mode_pt_drt-catchment_o_d-level_trip.png",
-  width = 12,
-  height = 8,
+  "R/plots/transit_opt_paper/fig_4_2_vkm_vs_mode_share.png",
+  width = 16,
+  height = 10,
   dpi = 300
 )
+
+##########################################################################
+# SECTION 4.3: CATCHMENT SENSITIVITY ANALYSIS
+##########################################################################
+
+message("\n==========================================")
+message("SECTION 4.3: CATCHMENT SENSITIVITY ANALYSIS")
+message("==========================================\n")
+
+# Table 3: Impact by Catchment Type
+# Show how results vary by filter configuration
+
+catchment_sensitivity_summary <- res_mode_share |>
+  filter(
+    mode == "pt+drt",
+    solution_id == 0 # Best solution
+  ) |>
+  group_by(objective, level, access, zones) |>
+  summarise(
+    share_delta_mean = mean(share_delta, na.rm = TRUE),
+    share_delta_sd = sd(share_delta, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    objective_clean = objective_labels_short[objective],
+    level_clean = level_labels[level],
+    access_clean = access_labels[access],
+    zones_clean = zones_labels[zones],
+    filter_config = paste(level_clean, access_clean, zones_clean, sep = " | ")
+  )
+
+# Pivot for table format
+table_4_3_catchment <- catchment_sensitivity_summary |>
+  select(objective_clean, filter_config, share_delta_mean) |>
+  pivot_wider(
+    names_from = filter_config,
+    values_from = share_delta_mean
+  )
+
+write_csv(
+  table_4_3_catchment,
+  "R/tables/transit_opt_paper/tables/table_4_3_catchment_sensitivity.csv"
+)
+
+# Plot: Filter sensitivity for PT+DRT mode share
+sensitivity_plot_data <- res_mode_share |>
+  filter(mode == "pt+drt", !is.na(share_delta)) |>
+  mutate(
+    level_clean = factor(
+      level,
+      levels = names(level_labels),
+      labels = level_labels
+    ),
+    access_clean = factor(
+      access,
+      levels = names(access_labels),
+      labels = access_labels
+    ),
+    zones_clean = factor(
+      zones,
+      levels = names(zones_labels),
+      labels = zones_labels
+    ),
+    objective_clean = factor(
+      objective,
+      levels = names(objective_labels),
+      labels = objective_labels
+    )
+  )
+
+ggplot(
+  sensitivity_plot_data,
+  aes(
+    x = solution_id,
+    y = share_delta,
+    color = level_clean,
+    linetype = zones_clean,
+    shape = access_clean,
+    group = interaction(level, access, zones)
+  )
+) +
+  geom_line(linewidth = 0.5, alpha = 0.8) +
+  geom_point(size = 1.5, alpha = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
+  facet_wrap(~objective_clean, scales = "fixed", ncol = 4) +
+  labs(
+    title = "PT+DRT Mode Share Change by Solution and Filter Configuration",
+    subtitle = "Sensitivity to catchment definition and aggregation level",
+    x = "Solution Rank",
+    y = "Mode Share Change (pp)",
+    color = "Aggregation",
+    linetype = "Catchment",
+    shape = "Access",
+    caption = paste(
+      "Aggregation: Trip = individual trips; Person = persons with ALL trips in catchment\n",
+      "Catchment: PT = 400m buffer; PT+DRT = buffer + DRT zones\n",
+      "Access: O = origin only; O+D = both trip ends in catchment"
+    )
+  ) +
+  scale_color_brewer(palette = "Dark2") +
+  scale_linetype_manual(
+    values = c("PT" = "dashed", "PT+DRT" = "solid", "All" = "dotted")
+  ) +
+  scale_shape_manual(values = c("O" = 16, "O+D" = 17, "All" = 15)) +
+  theme_bw(base_size = 10) +
+  theme(
+    legend.position = "bottom",
+    legend.box = "vertical",
+    legend.box.just = "left",
+    strip.text = element_text(face = "bold", size = 8),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
+  ) +
+  guides(
+    color = guide_legend(order = 1, nrow = 1, title.position = "left"),
+    linetype = guide_legend(order = 2, nrow = 1, title.position = "left"),
+    shape = guide_legend(order = 3, nrow = 1, title.position = "left")
+  )
+
+ggsave(
+  "R/plots/transit_opt_paper/fig_4_3_catchment_sensitivity.png",
+  width = 16,
+  height = 12,
+  dpi = 300
+)
+
+# Plot: Comparison of catchment impact for best solutions only
+best_catchment_comparison <- res_mode_share |>
+  filter(
+    mode == "pt+drt",
+    solution_id == 0
+  ) |>
+  mutate(
+    filter_label = paste(level, access, zones, sep = " | "),
+    objective_clean = factor(
+      objective,
+      levels = names(objective_labels_short),
+      labels = objective_labels_short
+    )
+  )
+
+ggplot(
+  best_catchment_comparison,
+  aes(x = filter_label, y = share_delta, fill = zones)
+) +
+  geom_col(position = "dodge") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
+  facet_wrap(~objective_clean, scales = "fixed", ncol = 4) +
+  labs(
+    title = "PT+DRT Mode Share Change by Filter Configuration (Best Solutions)",
+    subtitle = "Comparing different catchment and aggregation definitions",
+    x = "Filter Configuration (Level | Access | Zones)",
+    y = "Mode Share Change (pp)",
+    fill = "Catchment"
+  ) +
+  scale_fill_brewer(palette = "Set2") +
+  theme_bw(base_size = 10) +
+  theme(
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 7),
+    strip.text = element_text(face = "bold", size = 8),
+    plot.title = element_text(face = "bold", size = 14)
+  )
+
+ggsave(
+  "R/plots/transit_opt_paper/fig_4_3_catchment_comparison_bar.png",
+  width = 16,
+  height = 10,
+  dpi = 300
+)
+
+##########################################################################
+# SUMMARY OUTPUT
+##########################################################################
+
+message("\n==========================================")
+message("ANALYSIS COMPLETE")
+message("==========================================\n")
+
+message("Tables saved to: R/tables/transit_opt_paper/tables/")
+message("  - table_4_1_correlations.csv")
+message("  - table_4_2_scenario_comparison.csv")
+message("  - table_4_3_catchment_sensitivity.csv")
+
+message("\nPlots saved to: R/plots/transit_opt_paper/")
+message("  - fig_4_1_correlation_heatmap.png")
+message("  - fig_4_1_proxy_vs_mode_share.png")
+message("  - fig_4_2_pt_car_tradeoff.png")
+message("  - fig_4_2_vkm_vs_mode_share.png")
+message("  - fig_4_3_catchment_sensitivity.png")
+message("  - fig_4_3_catchment_comparison_bar.png")
+
+message("\nNote: Spatial/temporal plots are in plot_maps.R")
