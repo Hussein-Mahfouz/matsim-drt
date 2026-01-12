@@ -7,6 +7,6 @@ dependencies:
   - r-sf
   - r-glue
   - r-arrow
-  - r-tidytransit  
   - r-jsonlite     
-  - r-stplanr  
+  - r-curl  # Required for installing packages from R
+  - r-remotes  # For installing from GitHub if needed

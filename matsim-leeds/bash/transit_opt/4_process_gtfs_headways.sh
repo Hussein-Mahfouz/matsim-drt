@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # Process GTFS headways for transit optimization
@@ -21,8 +20,9 @@ fi
 # Get the current working directory (matsim-leeds root)
 MATSIM_DIR="$(pwd)"
 
-# Path to R script and conda environment file
+# Path to R scripts and conda environment file
 R_SCRIPT="$MATSIM_DIR/R/code/transit_opt/process_gtfs_headways.R"
+R_INSTALL_SCRIPT="$MATSIM_DIR/R/code/transit_opt/install_r_packages.R"
 CONDA_ENV_FILE="$MATSIM_DIR/R/r_transit_opt_env.yaml"
 CONDA_ENV_NAME="r-transit-opt"
 
@@ -56,11 +56,21 @@ if [ "$RUN_ON_CLUSTER" = true ]; then
             echo "Environment doesn't exist, creating..."
             conda env create -f "$CONDA_ENV_FILE"
         fi
+        
+        # Install additional R packages not in conda
+        echo "Installing additional R packages..."
+        source activate $CONDA_ENV_NAME
+        Rscript "$R_INSTALL_SCRIPT"
     else
         # Check if environment exists, create if not
         if ! conda env list | grep -q "^${CONDA_ENV_NAME} "; then
             echo "Creating conda environment: $CONDA_ENV_NAME"
             conda env create -f "$CONDA_ENV_FILE"
+            
+            # Install additional R packages
+            echo "Installing additional R packages..."
+            source activate $CONDA_ENV_NAME
+            Rscript "$R_INSTALL_SCRIPT"
         else
             echo "Using existing conda environment: $CONDA_ENV_NAME"
         fi
