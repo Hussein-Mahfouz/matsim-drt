@@ -8,5 +8,12 @@ dependencies:
   - r-glue
   - r-arrow
   - r-jsonlite     
+  - r-stplanr
   - r-curl  # Required for installing packages from R
   - r-remotes  # For installing from GitHub if needed
+  # System libraries needed for spatial packages
+  - proj
+  - geos
+  - gdal
+  - udunits2
+  - liblwgeom  # Needed for lwgeom R package
