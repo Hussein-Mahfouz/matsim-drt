@@ -7,8 +7,8 @@
 #   Cluster submission: bash bash/transit_opt/1.1_batch_gtfs_conversion.sh <scenario_name> <iteration_number> --cluster
 #   (--internal-run is used internally by Slurm, never call it manually)
 
-# Scenario name can be: sc_avg_var, sc_peak_var, sc_sum_var, wt_avg_tot, wt_avg_var, wt_int_tot, 
-#                       wt_int_tot, wt_int_var, wt_peak_tot, wt_peak_var, wt_sum_tot
+# Scenario name can be: sc_avg_var, sc_int_var, sc_peak_var, sc_sum_var, wt_avg_tot, wt_avg_var, wt_int_tot, 
+#                       wt_int_tot, wt_int_var, wt_peak_tot, wt_peak_var, wt_sum_tot, wt_sum_var
 
 # Run from matsim-leeds root: bash bash/transit_opt/1.1_batch_gtfs_conversion.sh <scenario_name> <iteration_number>
 

@@ -39,16 +39,17 @@ fi
 mkdir -p "data/supply/transit_opt_paper/drt_fleet_templates/$outputSubdirectory/"
 
 # Define fleet sizes
-fleet_sizes=(0 10 25 50 100)
+fleet_sizes=(0 10 25 50 100 150)
 
 # Define time intervals (beginHour endHour serviceBeginTime serviceEndTime)
+# We add a +/- 300s (5 min) overlap to prevent crashes at the handover points.
 time_intervals=(
-    "0 4 0 14400"
-    "4 8 14400 28800"
-    "8 12 28800 43200"
-    "12 16 43200 57600"
-    "16 20 57600 72000"
-    "20 24 72000 86400"
+    "0 4 0 14700"          # Ends 5 mins late (04:05)
+    "4 8 14100 29100"      # Starts 5 mins early (03:55), Ends 5 mins late (08:05)
+    "8 12 28500 43500"     # Starts 5 mins early (07:55), Ends 5 mins late (12:05)
+    "12 16 42900 57900"    # Starts 5 mins early (11:55), Ends 5 mins late (16:05) - FIXES YOUR CRASH
+    "16 20 57300 72300"    # Starts 5 mins early (15:55), Ends 5 mins late (20:05)
+    "20 24 71700 86400"    # Starts 5 mins early (19:55), Ends at midnight
 )
 
 # Generate vehicle files for all combinations
