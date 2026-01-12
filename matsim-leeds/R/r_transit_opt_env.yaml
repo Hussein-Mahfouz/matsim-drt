@@ -7,3 +7,6 @@ dependencies:
   - r-sf
   - r-glue
   - r-arrow
+  - r-tidytransit  
+  - r-jsonlite     
+  - r-stplanr  

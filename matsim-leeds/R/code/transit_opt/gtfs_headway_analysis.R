@@ -180,6 +180,7 @@ compare_headways <- function(solution_headways, base_headways) {
 #' @param solutions_parent_dir Parent directory containing objective folders
 #' @param objective_names Vector of objective folder names to process
 #' @param interval_hours Integer. Number of hours per interval.
+#' @param iteration_folder Name of the iteration folder (default: "iteration_01")
 #'
 #' @return A list with base_headways and a dataframe of all solution comparisons
 #'
@@ -187,7 +188,8 @@ process_all_gtfs_solutions <- function(
   base_gtfs_path,
   solutions_parent_dir = "../../transit_opt/output",
   objective_names = NULL,
-  interval_hours = 4
+  interval_hours = 4,
+  iteration_folder = "iteration_01"
 ) {
   # Calculate base headways
   message("========================================")
@@ -203,7 +205,7 @@ process_all_gtfs_solutions <- function(
       recursive = FALSE
     )
     objective_names <- objective_names[grepl(
-      "sc_avg_var|sc_int_var|sc_peak_var|sc_sum_var|wt_avg_tot|wt_avg_var|wt_int_tot|wt_int_var|wt_peak_tot|wt_peak_var|wt_sum_tot|wt_sum_var",
+      "sc_avg_var|sc_int_var|sc_peak_var|sc_sum_var|wt_avg_tot|wt_avg_var|wt_avg_atk|wt_int_tot|wt_int_var|wt_int_atk|wt_peak_tot|wt_peak_var|wt_peak_atk|wt_sum_tot|wt_sum_var|wt_sum_atk",
       objective_names
     )]
   }
@@ -217,7 +219,7 @@ process_all_gtfs_solutions <- function(
     pso_results_dir <- file.path(
       solutions_parent_dir,
       obj_name,
-      "iteration_01",
+      iteration_folder,
       "pso_results"
     )
 
@@ -381,12 +383,14 @@ load_drt_deployment <- function(drt_json_path) {
 #'
 #' @param solutions_parent_dir Parent directory containing objective folders
 #' @param objective_names Vector of objective folder names to process
+#' @param iteration_folder Name of the iteration folder (default: "iteration_01")
 #'
 #' @return Tibble with objective, solution, zone_id, interval_label, fleet_size
 #'
 load_all_drt_deployments <- function(
   solutions_parent_dir = "../../transit_opt/output",
-  objective_names = NULL
+  objective_names = NULL,
+  iteration_folder = "iteration_01"
 ) {
   message("Loading all DRT deployments...")
 
@@ -398,7 +402,7 @@ load_all_drt_deployments <- function(
       recursive = FALSE
     )
     objective_names <- objective_names[grepl(
-      "sc_avg_var|sc_int_var|sc_peak_var|sc_sum_var|wt_avg_tot|wt_avg_var|wt_int_tot|wt_int_var|wt_peak_tot|wt_peak_var|wt_sum_tot|wt_sum_var",
+      "sc_avg_var|sc_int_var|sc_peak_var|sc_sum_var|wt_avg_tot|wt_avg_var|wt_avg_atk|wt_int_tot|wt_int_var|wt_int_atk|wt_peak_tot|wt_peak_var|wt_peak_atk|wt_sum_tot|wt_sum_var|wt_sum_atk",
       objective_names
     )]
   }
@@ -409,7 +413,7 @@ load_all_drt_deployments <- function(
     pso_results_dir <- file.path(
       solutions_parent_dir,
       obj_name,
-      "iteration_01",
+      iteration_folder,
       "pso_results"
     )
 

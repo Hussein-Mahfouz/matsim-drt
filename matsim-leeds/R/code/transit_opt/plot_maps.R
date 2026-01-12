@@ -11,14 +11,9 @@ source("R/code/transit_opt/gtfs_headway_analysis.R")
 #  Configuration
 ####################
 
-# Toggle features on/off
-INCLUDE_DRT_FLEET <- TRUE
-REPROCESS_DATA <- FALSE # Set TRUE to recompute, FALSE to load from disk
-
 # Paths
-base_gtfs_path <- "data/supply/transit_opt_paper/basic/combined_solution_00/gtfs_feed.zip"
-solutions_parent_dir <- "../../transit_opt/output"
 output_dir <- "R/plots/transit_opt_paper"
+INCLUDE_DRT_FLEET <- TRUE
 
 # Create output directory
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
@@ -33,61 +28,22 @@ study_area <- layers$study_area
 basemap_urban_rural <- layers$basemap_urban_rural
 drt <- layers$drt
 
+
 ####################
-#  Load/Process GTFS Data
+#  Load Pre-processed Data
 ####################
 
-if (REPROCESS_DATA) {
-  message("\n========================================")
-  message("Processing GTFS data from scratch...")
-  message("========================================\n")
+message("Loading pre-processed GTFS headway data...")
 
-  # Base GTFS
-  gtfs <- read_gtfs(base_gtfs_path)
-  gtfs_sf_headways <- calculate_route_headway(gtfs, interval_hours = 4)
-  gtfs_sf_headways_overline <- aggregate_route_headways(gtfs_sf_headways)
+gtfs_sf_headways_overline <- readRDS("R/output/gtfs_sf_headways_overline.rds")
+all_solutions_overline <- readRDS(
+  "R/output/gtfs_headway_comparisons_overline.rds"
+)
+all_drt_deployments <- read_csv(
+  "R/output/drt_fleet_deployments.csv",
+  show_col_types = FALSE
+)
 
-  # All solutions comparison
-  results <- process_all_gtfs_solutions(
-    base_gtfs_path = base_gtfs_path,
-    solutions_parent_dir = solutions_parent_dir,
-    objective_names = NULL,
-    interval_hours = 4
-  )
-
-  all_solutions_overline <- aggregate_solution_comparisons(
-    results$all_solutions,
-    attrib = c("num_trips", "num_trips_diff"),
-    ncores = 3
-  )
-
-  # DRT deployments
-  all_drt_deployments <- load_all_drt_deployments(
-    solutions_parent_dir = solutions_parent_dir,
-    objective_names = NULL
-  )
-
-  # Save processed data
-  saveRDS(gtfs_sf_headways_overline, "R/output/gtfs_sf_headways_overline.rds")
-  saveRDS(
-    all_solutions_overline,
-    "R/output/gtfs_headway_comparisons_overline.rds"
-  )
-  write_csv(all_drt_deployments, "R/output/drt_fleet_deployments.csv")
-} else {
-  message("Loading pre-processed data from disk...")
-
-  gtfs <- read_gtfs(base_gtfs_path)
-  gtfs_sf_headways <- calculate_route_headway(gtfs, interval_hours = 4)
-  gtfs_sf_headways_overline <- readRDS("R/output/gtfs_sf_headways_overline.rds")
-  all_solutions_overline <- readRDS(
-    "R/output/gtfs_headway_comparisons_overline.rds"
-  )
-  all_drt_deployments <- read_csv(
-    "R/output/drt_fleet_deployments.csv",
-    show_col_types = FALSE
-  )
-}
 
 ####################
 #  Helper: Create Base Map Layers
@@ -261,7 +217,9 @@ best_pt_data <- all_solutions_overline |>
 
 plot2 <- tm_shape(study_area) +
   tm_borders(lwd = 0.5, col = "gray50") +
-  tm_shape(best_pt_data) +
+  tm_shape(study_area) +
+  tm_polygons(fill = "gray20") +
+  tm_shape(best_pt_data |> filter(num_trips_diff > 20 | num_trips_diff < -20)) +
   tm_lines(
     col = "num_trips_diff",
     col.scale = tm_scale_continuous(
@@ -269,7 +227,7 @@ plot2 <- tm_shape(study_area) +
       midpoint = 0
     ),
     col.legend = tm_legend(title = "Trip Diff"),
-    lwd = 0.8
+    lwd = 2,
   ) +
   tm_facets_wrap(by = "objective", ncol = 4) +
   tm_title("Bus Trip Changes (8am-12pm) - Best Solution per Objective") +
