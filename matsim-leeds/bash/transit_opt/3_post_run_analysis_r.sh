@@ -1,21 +1,55 @@
 #!/bin/bash
 
 # Run R analysis for transit optimization objectives
-# Local usage: bash bash/transit_opt/3_post_run_analysis_r.sh
-# HPC usage: bash bash/transit_opt/3_post_run_analysis_r.sh --cluster
-# Update environment: bash bash/transit_opt/3_post_run_analysis_r.sh --cluster --update-env
+#
+# USAGE:
+#   bash bash/transit_opt/3_post_run_analysis_r.sh [OPTIONS]
+#
+# OPTIONS:
+#   --cluster       Submit job to SLURM cluster (default: run locally)
+#   --update-env    Update/Create the conda environment before running
+#   --iteration ID  Specify iteration folder (default: iteration_01)
+#
+# EXAMPLES:
+#   # Run locally for default iteration_01
+#   bash bash/transit_opt/3_post_run_analysis_r.sh
+#
+#   # Run on cluster for iteration_02
+#   bash bash/transit_opt/3_post_run_analysis_r.sh --cluster --iteration iteration_02
+#
+#   # First run (setup env)
+#   bash bash/transit_opt/3_post_run_analysis_r.sh --cluster --update-env
 
 # Parse arguments
 RUN_ON_CLUSTER=false
 UPDATE_ENV=false
+ITERATION="iteration_01"  # Default iteration
 
-if [ "$1" == "--cluster" ]; then
-    RUN_ON_CLUSTER=true
-fi
 
-if [ "$2" == "--update-env" ]; then
-    UPDATE_ENV=true
-fi
+# Robust argument parsing
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --cluster)
+            RUN_ON_CLUSTER=true
+            shift
+            ;;
+        --update-env)
+            UPDATE_ENV=true
+            shift
+            ;;
+        --iteration)
+            ITERATION="$2"
+            shift
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
+echo "Target Iteration: $ITERATION"
 
 # Get the current working directory (matsim-leeds root)
 MATSIM_DIR="$(pwd)"
@@ -83,9 +117,9 @@ if [ "$RUN_ON_CLUSTER" = true ]; then
         --wrap="module load miniforge/24.7.1 && \
                 source activate $CONDA_ENV_NAME && \
                 cd $MATSIM_DIR && \
-                Rscript $R_SCRIPT"
+                Rscript $R_SCRIPT $ITERATION"
     
-    echo "Job submitted. Check logs in $LOG_DIR"
+    echo "Job submitted for $ITERATION. Check logs in $LOG_DIR"
 else
     echo "========================================="
     echo "Running R analysis locally"
@@ -97,7 +131,7 @@ else
     
     # Run locally (assumes R is available in PATH)
     cd "$MATSIM_DIR"
-    Rscript "$R_SCRIPT"
+    Rscript "$R_SCRIPT" "$ITERATION"
     
     echo ""
     echo "========================================="

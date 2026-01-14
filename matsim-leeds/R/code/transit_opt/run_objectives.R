@@ -7,8 +7,36 @@ source("R/code/transit_opt/mode_share_catchment.R")
 source("R/code/transit_opt/vkm_catchment.R")
 
 # -------------------------
-# Parameters (edit here)
+# Dynamic Configuration
 # -------------------------
+
+# Default iteration
+ITERATION_ID <- "iteration_01"
+
+# Check for command line arguments
+args <- commandArgs(trailingOnly = TRUE)
+if (length(args) > 0) {
+  ITERATION_ID <- args[1]
+  message(glue::glue("Using iteration from command line: {ITERATION_ID}"))
+} else {
+  message(glue::glue("No iteration specified, using default: {ITERATION_ID}"))
+}
+
+
+# -------------------------
+# Parameters
+# -------------------------
+
+# Output directory: output/iteration_01/
+# (We use "output" relative path so it works with the existing fetch script mapping)
+output_dir <- file.path("output", ITERATION_ID)
+dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+
+# ... (base_trips_file, base_solution_dir remain unchanged)
+
+# Parent directory containing multiple objective subfolders
+parent_dir <- file.path("data/supply/transit_opt_paper", ITERATION_ID)
+
 # Path to eqasim trips CSV for the baseline scenario (required)
 # - type: string (file path)
 # - expected: eqasim_trips.csv produced by your scenario pipeline
@@ -19,12 +47,6 @@ base_trips_file <- "data/supply/transit_opt_paper/basic/combined_solution_00/out
 # - type: string (directory path)
 # - expected: contains zip file with stops.txt, stop_times.txt, etc.
 base_solution_dir <- "data/supply/transit_opt_paper/basic/combined_solution_00"
-
-# Parent directory containing multiple objective subfolders
-# - type: string (directory path)
-# - expected: contains subfolders like min_total_stops/, min_variance_stops/, etc.
-parent_dir <- "data/supply/transit_opt_paper/iteration_01"
-# parent_dir <- "data/external/gtfs_optimisation"
 
 # List objective folders (immediate children only - but not all of them)
 objective_dirs <- list.dirs(parent_dir, full.names = TRUE, recursive = FALSE)
@@ -212,7 +234,7 @@ mode_results <- all_mode_results |>
   )
 
 # optional: write combined csv
-write_csv(mode_results, file.path("output", "mode_share_by_objective.csv"))
+write_csv(mode_results, file.path(output_dir, "mode_share_by_objective.csv"))
 
 # -------------------------
 # VKM analysis
@@ -327,7 +349,7 @@ vkm_results <- all_vkm_results |>
     share_pct_change
   )
 
-write_csv(vkm_results, file.path("output", "vkm_by_objective.csv"))
+write_csv(vkm_results, file.path(output_dir, "vkm_by_objective.csv"))
 
 message("\n")
 message("##########################################")
@@ -342,7 +364,7 @@ objective_names <- basename(objective_dirs)
 summary_paths <- file.path(
   "../../transit_opt/output",
   objective_names,
-  "iteration_01",
+  ITERATION_ID,
   "pso_results",
   "combined_solution_summary.csv"
 )
@@ -368,7 +390,10 @@ all_solution_objectives_df <- purrr::map2_dfr(
   select(objective_name, everything())
 
 # Save to CSV
-write_csv(all_solution_objectives_df, "output/pso_objective_values.csv")
+write_csv(
+  all_solution_objectives_df,
+  file.path(output_dir, "pso_objective_values.csv")
+)
 
 message(
   "✓ Combined solution objective values written to output/pso_objective_values.csv\n"

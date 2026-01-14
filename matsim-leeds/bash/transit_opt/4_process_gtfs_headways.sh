@@ -1,9 +1,24 @@
 #!/bin/bash
 
 # Process GTFS headways for transit optimization
-# Local usage: bash bash/transit_opt/4_process_gtfs_headways.sh
-# HPC usage: bash bash/transit_opt/4_process_gtfs_headways.sh --cluster
-# Update environment: bash bash/transit_opt/4_process_gtfs_headways.sh --cluster --update-env
+#
+# USAGE:
+#   bash bash/transit_opt/4_process_gtfs_headways.sh [OPTIONS]
+#
+# OPTIONS:
+#   --cluster       Submit job to SLURM cluster (default: run locally)
+#   --update-env    Update/Create the conda environment before running
+#   --iteration ID  Specify iteration folder (default: iteration_01)
+#
+# EXAMPLES:
+#   # Run locally for default iteration_01
+#   bash bash/transit_opt/4_process_gtfs_headways.sh
+#
+#   # Run on cluster for iteration_02
+#   bash bash/transit_opt/4_process_gtfs_headways.sh --cluster --iteration iteration_02
+#
+#   # First run (setup env + install extra packages)
+#   bash bash/transit_opt/4_process_gtfs_headways.sh --cluster --update-env
 
 # Parse arguments
 RUN_ON_CLUSTER=false
@@ -94,7 +109,7 @@ if [ "$RUN_ON_CLUSTER" = true ]; then
         --wrap="module load miniforge/24.7.1 && \
                 source activate $CONDA_ENV_NAME && \
                 cd $MATSIM_DIR && \
-                Rscript $R_SCRIPT"
+                Rscript $R_SCRIPT $ITERATION"
     
     echo "Job submitted. Check logs in $LOG_DIR"
 else

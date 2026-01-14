@@ -42,11 +42,30 @@ message("\n==========================================")
 message("GTFS HEADWAY PROCESSING")
 message("==========================================\n")
 
-# Paths (adjust for cluster filesystem)
+####################
+#  Dynamic Configuration
+####################
+
+# Default
+ITERATION_FOLDER <- "iteration_01"
+
+# Check for command line arguments
+args <- commandArgs(trailingOnly = TRUE)
+if (length(args) > 0) {
+  ITERATION_FOLDER <- args[1]
+  message(glue::glue("Using iteration from command line: {ITERATION_FOLDER}"))
+}
+
+####################
+#  Configuration
+####################
+
+# Paths
 BASE_GTFS_PATH <- "data/supply/transit_opt_paper/basic/combined_solution_00/gtfs_feed.zip"
 SOLUTIONS_PARENT_DIR <- "../../transit_opt/output"
-OUTPUT_DIR <- "R/output"
-ITERATION_FOLDER <- "iteration_01"
+
+# Update output directory to include iteration
+OUTPUT_DIR <- file.path("R/output", ITERATION_FOLDER)
 
 # Objectives to process (NULL = auto-detect)
 OBJECTIVES_TO_PROCESS <- NULL
