@@ -1827,86 +1827,223 @@ message("\n==========================================")
 message("SECTION 4.3: CATCHMENT SENSITIVITY ANALYSIS")
 message("==========================================\n")
 
-# Table 3: Mode share change by catchment type (best solutions only)
-catchment_sensitivity_summary <- res_mode_share |>
-  filter(
-    mode == "pt+drt",
-    solution_id == 0
-  ) |>
-  mutate(
-    objective_clean = objective_labels_short[objective],
-    filter_label = paste(
-      level_labels[level],
-      access_labels[access],
-      zones_labels[zones],
-      sep = " | "
-    )
-  ) |>
-  select(objective_clean, filter_label, share_delta)
-
-table_4_3_catchment <- catchment_sensitivity_summary |>
-  pivot_wider(
-    names_from = filter_label,
-    values_from = share_delta
-  )
-
-write_csv(
-  table_4_3_catchment,
-  file.path(plot_dir, "tables/table_4_3_catchment_sensitivity.csv")
-)
-
 # -------------------------
-# Plot: Bar chart comparing filter configurations
+# Helper Function to Generate 4.3 Plots and Tables
 # -------------------------
 
-best_catchment_comparison <- res_mode_share |>
-  filter(
-    mode == "pt+drt",
-    solution_id == 0
-  ) |>
-  mutate(
-    filter_label = paste(
-      level_labels[level],
-      access_labels[access],
-      zones_labels[zones],
-      sep = " | "
-    ),
-    objective_clean = factor(
-      objective,
-      levels = names(objective_labels_short),
-      labels = objective_labels_short
+generate_catchment_analysis <- function(target_solution_ids, suffix_label) {
+  
+  message(glue::glue("Generating catchment analysis for: {suffix_label}"))
+  
+  # 1. Prepare Base Frame
+  base_frame <- target_solution_ids |>
+    cross_join(
+      res_mode_share |> distinct(level, access, zones)
+    ) |>
+    mutate(
+      objective_clean = objective_labels_short[objective],
+      filter_label = paste(
+        level_labels[level],
+        access_labels[access],
+        zones_labels[zones],
+        sep = " | "
+      )
     )
+
+  # 2. Get Car + Taxi Mode Share Delta (Calculate on the fly)
+  # We need to sum the base and solution counts for car and taxi to get the correct delta
+  car_taxi_share_data <- res_mode_share |>
+    filter(mode %in% c("car", "taxi")) |>
+    group_by(objective, solution_id, level, access, zones) |>
+    summarise(
+      n_base_total = sum(n_base, na.rm = TRUE),
+      n_sol_total = sum(n_solution, na.rm = TRUE),
+      # Need total trips for the denominator to calculate share. 
+      # Assuming total trips are constant per level/access/zones filter, 
+      # we can infer the total from one of the shares, but it's safer to rely on the fact 
+      # that share_delta is additive if the denominator is the same.
+      # Delta(A+B) = (SolA+SolB)/Tot - (BaseA+BaseB)/Tot = DeltaA + DeltaB
+      share_delta_combined = sum(share_delta, na.rm = TRUE),
+      .groups = "drop"
+    )
+
+  # 3. Join all Validation Metrics
+  catchment_metrics <- base_frame |>
+    # PT+DRT Share
+    left_join(
+      res_mode_share |> 
+        filter(mode == "pt+drt") |> 
+        select(objective, solution_id, level, access, zones, share_delta),
+      by = c("objective", "solution_id", "level", "access", "zones")
+    ) |>
+    rename(pt_drt_share_change = share_delta) |>
+    
+    # Car+Taxi Share
+    left_join(
+      car_taxi_share_data |> 
+        select(objective, solution_id, level, access, zones, share_delta_combined),
+      by = c("objective", "solution_id", "level", "access", "zones")
+    ) |>
+    rename(car_taxi_share_change = share_delta_combined) |>
+    
+    # PT+DRT VKM
+    left_join(
+      res_vkm_extended |> 
+        filter(mode == "pt+drt") |> 
+        select(objective, solution_id, level, access, zones, delta_km),
+      by = c("objective", "solution_id", "level", "access", "zones")
+    ) |>
+    rename(pt_drt_vkm_change = delta_km) |>
+    
+    # Car+Taxi VKM
+    left_join(
+      res_vkm_extended |> 
+        filter(mode == "car+taxi") |> 
+        select(objective, solution_id, level, access, zones, delta_km),
+      by = c("objective", "solution_id", "level", "access", "zones")
+    ) |>
+    rename(car_taxi_vkm_change = delta_km) |>
+    
+    # Check if we still want Overall VKM for the table output
+    left_join(
+      vkm_overall_delta,
+      by = c("objective", "solution_id", "level", "access", "zones")
+    ) |>
+    rename(overall_vkm_change = total_delta_km)
+
+  # 4. Save Table (Full details)
+  table_data <- catchment_metrics |>
+    select(objective_clean, filter_label, ends_with("change")) |>
+    pivot_longer(ends_with("change"), names_to = "Metric", values_to = "Value") |>
+    pivot_wider(names_from = filter_label, values_from = Value)
+    
+  write_csv(
+    table_data,
+    file.path(plot_dir, glue::glue("tables/table_4_3_{suffix_label}_catchment_sensitivity.csv"))
   )
 
-ggplot(
-  best_catchment_comparison,
-  aes(x = filter_label, y = share_delta, fill = zones)
-) +
-  geom_col(position = "dodge") +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
-  facet_wrap(~objective_clean, scales = "fixed", ncol = 3) +
-  labs(
-    title = "PT+DRT Mode Share Change by Catchment Definition",
-    subtitle = "Best solutions (rank 0) only",
-    x = "Filter Configuration (Aggregation | Access | Zones)",
-    y = "Mode Share Change (pp)",
-    fill = "Catchment"
+  # 5. Prepare Plot Data
+  plot_data <- catchment_metrics |>
+    select(
+      objective_clean, 
+      filter_label, 
+      pt_drt_share_change, 
+      car_taxi_share_change,
+      pt_drt_vkm_change,
+      car_taxi_vkm_change
+    ) |>
+    pivot_longer(
+      cols = ends_with("change"),
+      names_to = "raw_metric",
+      values_to = "value"
+    ) |>
+    filter(
+      !str_detect(filter_label, "Access: O \\|"), 
+      !str_detect(filter_label, " \\| O \\| ") 
+    ) |>
+    mutate(
+      # Define Row Facets
+      Metric_Category = if_else(
+        str_detect(raw_metric, "share"),
+        "Mode Share Change (pp)",
+        "VKM Change ('000 km)"
+      ),
+      # Define Fill Color Groups (Shared across rows)
+      Mode_Group = case_when(
+        str_detect(raw_metric, "pt_drt") ~ "PT + DRT",
+        str_detect(raw_metric, "car_taxi") ~ "Car + Taxi"
+      ),
+      # Scale VKM for display
+      value_plot = if_else(
+        Metric_Category == "VKM Change ('000 km)",
+        value / 1000,
+        value
+      )
+    )
+
+  # 6. Plot
+  plot_grid <- ggplot(
+    plot_data,
+    aes(x = filter_label, y = value_plot, fill = Mode_Group)
   ) +
-  scale_fill_brewer(palette = "Set2") +
-  theme_bw(base_size = 10) +
-  theme(
-    legend.position = "bottom",
-    axis.text.x = element_text(angle = 45, hjust = 1, size = 7),
-    strip.text = element_text(face = "bold", size = 8),
-    plot.title = element_text(face = "bold", size = 14)
+    # Use position "dodge" for Share (side-by-side) and "stack" for VKM?
+    # Actually, stacked bars for mode share change can be misleading if they aren't parts of a whole (like total trips).
+    # Since these are deltas, 'dodge' is cleaner for comparison, but 'stack' shows net effect.
+    # The prompt asked for "one row per PT+DRT mode share and one for overall vkm... stacked chart".
+    # But now we have TWO mode shares in row 1. Let's use 'dodge' for Share and 'stack' for VKM.
+    # We can control this by mapping 'position' in the geom, but ggplot doesn't allow variable positions easily.
+    # Instead, let's just use 'col' (stacked by default) because Car change is usually negative 
+    # and PT change is positive, so they will naturally extend From 0 in opposite directions 
+    # (visually creating a diverging chart), or stack if they are on same side.
+    geom_col(position = "stack", width = 0.7) +
+    
+    geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
+    
+    facet_grid(
+      Metric_Category ~ objective_clean, 
+      scales = "free_y", 
+      switch = "y"
+    ) +
+    
+    scale_fill_manual(
+      values = c("PT + DRT" = "#7570b3", "Car + Taxi" = "#d95f02")
+    ) +
+    
+    labs(
+      title = "Catchment Sensitivity: Mode Share vs. VKM Balance",
+      subtitle = glue::glue("Analysis of {suffix_label} Solutions (Net impact on Mode Share and Total VKM)"),
+      x = "Catchment Definition",
+      y = NULL,
+      fill = "Mode Category"
+    ) +
+    
+    theme_bw(base_size = 10) +
+    theme(
+      legend.position = "bottom",
+      axis.text.x = element_text(angle = 45, hjust = 1, size = 6),
+      strip.text = element_text(face = "bold", size = 9),
+      strip.placement = "outside",
+      panel.grid.minor = element_blank()
+    )
+
+  ggsave(
+    file.path(plot_dir, glue::glue("fig_4_3_{suffix_label}_catchment_comparison_grid.png")),
+    plot_grid, width = 16, height = 10, dpi = 300
+  )
+}
+# -------------------------
+# Prepare Data: Calculate Total VKM Delta (PT+DRT + Car+Taxi)
+# -------------------------
+
+# Calculate overall delta globally first
+vkm_overall_delta <- res_vkm_extended |>
+  filter(mode %in% c("pt+drt", "car+taxi")) |>
+  group_by(objective, solution_id, level, access, zones) |>
+  summarise(
+    total_delta_km = sum(delta_km, na.rm = TRUE),
+    .groups = "drop"
   )
 
-ggsave(
-  file.path(plot_dir, "fig_4_3_catchment_comparison_bar.png"),
-  width = 16,
-  height = 10,
-  dpi = 300
-)
+# -------------------------
+# RUN 4.3a: Best by PSO Rank (Rank 0)
+# -------------------------
+
+# Get IDs for "Best Rank"
+ids_rank0 <- res_mode_share |>
+  filter(solution_id == 0) |>
+  distinct(objective, solution_id)
+
+generate_catchment_analysis(ids_rank0, "best_rank")
+
+# -------------------------
+# RUN 4.3b: Best by PT+DRT Share
+# -------------------------
+
+# Get IDs for "Best Share" (Reuse ids from Table 4.2b calculation earlier)
+ids_best_share <- best_by_pt_drt |>
+  select(objective, solution_id = best_solution_id)
+
+generate_catchment_analysis(ids_best_share, "best_share")
 
 
 ##########################################################################
