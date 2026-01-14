@@ -11,12 +11,17 @@ source("R/code/transit_opt/gtfs_headway_analysis.R")
 #  Configuration
 ####################
 
-# Paths
-output_dir <- "R/plots/transit_opt_paper"
-INCLUDE_DRT_FLEET <- TRUE
+ITERATION_ID <- "iteration_01" # Or "iteration_02"
 
-# Create output directory
+# Paths
+# Input directory: where the R/output/iteration_XX files are
+input_dir <- file.path("R/output", ITERATION_ID)
+
+# Output directory: where plots will be saved
+output_dir <- file.path("R/plots/transit_opt_paper", ITERATION_ID)
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+
+INCLUDE_DRT_FLEET <- TRUE
 
 ####################
 #  Load Spatial Layers
@@ -35,15 +40,50 @@ drt <- layers$drt
 
 message("Loading pre-processed GTFS headway data...")
 
-gtfs_sf_headways_overline <- readRDS("R/output/gtfs_sf_headways_overline.rds")
+gtfs_sf_headways_overline <- readRDS(
+  file.path(input_dir, "gtfs_sf_headways_overline.rds")
+)
 all_solutions_overline <- readRDS(
-  "R/output/gtfs_headway_comparisons_overline.rds"
+  file.path(input_dir, "gtfs_headway_comparisons_overline.rds")
 )
 all_drt_deployments <- read_csv(
-  "R/output/drt_fleet_deployments.csv",
+  file.path(input_dir, "drt_fleet_deployments.csv"),
   show_col_types = FALSE
 )
 
+
+# Replace 0 fleet size with 25
+all_drt_deployments <- all_drt_deployments |>
+  mutate(fleet_size = if_else(fleet_size == 0, 25, fleet_size))
+
+####################
+#  Configuration - Filter Objectives
+####################
+
+# ===== USER CONFIGURATION =====
+# Objective filtering (Same as evaluate_objectives.R)
+OBJECTIVES_TO_INCLUDE <- NULL
+OBJECTIVES_TO_EXCLUDE <- "^sc_|_var$|_sum_"
+
+if (!is.null(OBJECTIVES_TO_INCLUDE)) {
+  message(glue::glue(
+    "Filtering to include only: {paste(OBJECTIVES_TO_INCLUDE, collapse = ', ')}"
+  ))
+  all_solutions_overline <- all_solutions_overline |>
+    filter(objective %in% OBJECTIVES_TO_INCLUDE)
+  all_drt_deployments <- all_drt_deployments |>
+    filter(objective %in% OBJECTIVES_TO_INCLUDE)
+} else if (!is.null(OBJECTIVES_TO_EXCLUDE)) {
+  message(glue::glue("Filtering to exclude: {OBJECTIVES_TO_EXCLUDE}"))
+  all_solutions_overline <- all_solutions_overline |>
+    filter(!str_detect(objective, OBJECTIVES_TO_EXCLUDE))
+  all_drt_deployments <- all_drt_deployments |>
+    filter(!str_detect(objective, OBJECTIVES_TO_EXCLUDE))
+}
+
+message(glue::glue(
+  "Objectives in map analysis: {paste(unique(all_solutions_overline$objective), collapse = ', ')}"
+))
 
 ####################
 #  Helper: Create Base Map Layers
@@ -229,7 +269,7 @@ plot2 <- tm_shape(study_area) +
     col.legend = tm_legend(title = "Trip Diff"),
     lwd = 2,
   ) +
-  tm_facets_wrap(by = "objective", ncol = 4) +
+  tm_facets_wrap(by = "objective", ncol = 3) +
   tm_title("Bus Trip Changes (8am-12pm) - Best Solution per Objective") +
   tm_layout(frame = FALSE)
 
@@ -251,7 +291,7 @@ tmap_save(
 
 message("Creating Plot 3: Single objective detailed view...")
 
-selected_objective <- "wt_avg_var"
+selected_objective <- "wt_avg_atk"
 selected_solution <- "combined_solution_00"
 selected_interval <- "8-12"
 
@@ -346,7 +386,7 @@ plot4 <- tm_shape(study_area) +
     col.legend = tm_legend(title = "Trip Diff"),
     lwd = 0.5
   ) +
-  tm_facets_wrap(by = "solution", ncol = 4) +
+  tm_facets_wrap(by = "solution", ncol = 3) +
   tm_title(glue::glue(
     "Bus Trip Changes by Solution Rank - {selected_objective}"
   )) +
@@ -372,7 +412,7 @@ if (INCLUDE_DRT_FLEET) {
   # Get best solution DRT deployments for all objectives at 8-12h
   best_drt_data <- all_drt_deployments |>
     filter(
-      str_detect(solution, "_10$"),
+      str_detect(solution, "_00$"),
       interval_label == "8-12"
     )
 
@@ -406,7 +446,7 @@ if (INCLUDE_DRT_FLEET) {
       col = "#d95f02",
       lwd = 1
     ) +
-    tm_facets_wrap(by = "objective", ncol = 4) +
+    tm_facets_wrap(by = "objective", ncol = 3) +
     tm_title("DRT Fleet Deployment (8am-12pm) - Best Solutions by Objective") +
     tm_layout(frame = FALSE)
 
@@ -422,26 +462,36 @@ if (INCLUDE_DRT_FLEET) {
   )
 }
 
-
 ####################
 #  Plot 6: Combined PT + DRT for All Objectives (if enabled)
 ####################
 
-if (INCLUDE_DRT_FLEET) {
+if (
+  INCLUDE_DRT_FLEET &&
+    exists("drt_fleet_by_objective") &&
+    !is.null(drt_fleet_by_objective) &&
+    nrow(drt_fleet_by_objective) > 0
+) {
   message("Creating Plot 6: Combined PT + DRT for all objectives...")
 
   # Use the same best PT data from Plot 2
   best_pt_data_full <- all_solutions_overline |>
     filter(
-      str_detect(solution, "_10_gtfs$"),
+      str_detect(solution, "_00_gtfs$"),
       interval_label == "8-12"
     )
 
-  # Use the same DRT fleet data from Plot 5
-  # (already computed as drt_fleet_by_objective)
+  # Ensure levels are defined
+  if (!exists("fleet_levels")) {
+    fleet_levels <- sort(unique(all_drt_deployments$fleet_size))
+  }
 
   plot6 <- tm_shape(study_area) +
-    tm_borders(lwd = 0.5, col = "gray50", fill = "gray20") +
+    # Use tm_polygons for background (borders doesn't support fill)
+    tm_polygons(lwd = 0.5, border.col = "gray50", fill = "gray35") +
+
+    # Layer 2: DRT Zones
+    # Use numeric "fleet_size" matching Plot 5 logic
     tm_shape(drt_fleet_by_objective) +
     tm_polygons(
       fill = "fleet_size",
@@ -451,10 +501,13 @@ if (INCLUDE_DRT_FLEET) {
         labels = paste(fleet_levels, "vehicles")
       ),
       fill.legend = tm_legend(title = "DRT Fleet Size"),
-      fill_alpha = 0.15,
+      fill_alpha = 1.0, # Solid fill for visibility
       col = "#d95f02",
       lwd = 1.5
     ) +
+
+    # Layer 3: PT Network
+    # Showing increases in bus frequency (Blue/Green lines on top of Purple DRT)
     tm_shape(best_pt_data_full |> filter(num_trips_diff > 0)) +
     tm_lines(
       col = "num_trips_diff",
@@ -467,8 +520,10 @@ if (INCLUDE_DRT_FLEET) {
       lwd.scale = tm_scale_continuous(values.scale = 3),
       lwd.legend = tm_legend(show = FALSE)
     ) +
-    tm_facets_wrap(by = "objective", ncol = 4) +
-    tm_title("PT + DRT Changes (8am-12pm) - Best Solutions by Objective") +
+
+    # Faceting
+    tm_facets_wrap(by = "objective", ncol = 3) +
+    tm_title("PT + DRT Changes (8am-12pm) - Best Solutions (Rank 0)") +
     tm_layout(frame = FALSE)
 
   plot6

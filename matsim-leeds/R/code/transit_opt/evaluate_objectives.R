@@ -1,8 +1,27 @@
 library(tidyverse)
 
+
 ##########
-# SECTION 0: Reading in data
+# SECTION 0a: Configuration - Filter objectives
 ##########
+
+# ===== USER CONFIGURATION =====
+
+ITERATION_ID <- "iteration_01"
+message(glue::glue("\nRunning evaluation for: {ITERATION_ID}"))
+
+# Update Paths to read from the iteration folder
+input_dir <- file.path("R/output", ITERATION_ID)
+
+# Update Plot Output Directory to save to an iteration subfolder
+plot_dir <- file.path("R/plots/transit_opt_paper", ITERATION_ID)
+dir.create(plot_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(
+  file.path(plot_dir, "tables"),
+  showWarnings = FALSE,
+  recursive = TRUE
+)
+
 
 message("\n==========================================")
 message("LOADING DATA")
@@ -12,24 +31,31 @@ message("==========================================\n")
 obj_base <- read_csv("../../transit_opt/output/base_objective_values.csv") |>
   rename(baseline_objective_value_pen = penalized_objective_value)
 
-obj_pso <- read_csv("R/output/pso_objective_values.csv")
+# Read from input_dir
+obj_pso <- read_csv(file.path(input_dir, "pso_objective_values.csv"))
 
 ## MATSim results
-res_mode_share <- read_csv("R/output/mode_share_by_objective.csv")
-res_vkm <- read_csv("R/output/vkm_by_objective.csv")
+res_mode_share <- read_csv(file.path(input_dir, "mode_share_by_objective.csv"))
+res_vkm <- read_csv(file.path(input_dir, "vkm_by_objective.csv"))
 
 ## DRT fleet deployments
-all_drt_deployments <- read_csv("R/output/drt_fleet_deployments.csv")
+all_drt_deployments <- read_csv(file.path(
+  input_dir,
+  "drt_fleet_deployments.csv"
+))
 
+
+# Replace 0 fleet size with 25
+all_drt_deployments <- all_drt_deployments |>
+  mutate(fleet_size = if_else(fleet_size == 0, 25, fleet_size))
 
 ##########
-# SECTION 0a: Configuration - Filter objectives
+# SECTION 0b: Filter objectives
 ##########
 
-# ===== USER CONFIGURATION =====
 # Objective filtering
 OBJECTIVES_TO_INCLUDE <- NULL
-OBJECTIVES_TO_EXCLUDE <- "^sc_"
+OBJECTIVES_TO_EXCLUDE <- "^sc_|_var$|_sum_"
 
 # Correlation analysis: Maximum solution rank to include (NULL = use all)
 # Solutions with rank > this value will be excluded from correlation analysis
@@ -195,12 +221,16 @@ objective_labels <- c(
   "sc_sum_var" = "Service Coverage\nSum Variance",
   "wt_avg_tot" = "Wait Time\nAvg Total",
   "wt_avg_var" = "Wait Time\nAvg Variance",
+  "wt_avg_atk" = "Wait Time\nAvg Atkinson",
   "wt_int_tot" = "Wait Time\nInterval Total",
   "wt_int_var" = "Wait Time\nInterval Variance",
+  "wt_int_atk" = "Wait Time\nInterval Atkinson",
   "wt_sum_tot" = "Wait Time\nSum Total",
   "wt_sum_var" = "Wait Time\nSum Variance",
+  "wt_sum_atk" = "Wait Time\nSum Atkinson",
   "wt_peak_tot" = "Wait Time\nPeak Total",
-  "wt_peak_var" = "Wait Time\nPeak Variance"
+  "wt_peak_var" = "Wait Time\nPeak Variance",
+  "wt_peak_atk" = "Wait Time\nPeak Atkinson"
 )
 
 objective_labels_short <- c(
@@ -210,12 +240,16 @@ objective_labels_short <- c(
   "sc_sum_var" = "SC-Sum-Var",
   "wt_avg_tot" = "WT-Avg-Tot",
   "wt_avg_var" = "WT-Avg-Var",
+  "wt_avg_atk" = "WT-Avg-Atk",
   "wt_int_tot" = "WT-Int-Tot",
   "wt_int_var" = "WT-Int-Var",
+  "wt_int_atk" = "WT-Int-Atk",
   "wt_sum_tot" = "WT-Sum-Tot",
   "wt_sum_var" = "WT-Sum-Var",
+  "wt_sum_atk" = "WT-Sum-Atk",
   "wt_peak_tot" = "WT-Peak-Tot",
-  "wt_peak_var" = "WT-Peak-Var"
+  "wt_peak_var" = "WT-Peak-Var",
+  "wt_peak_atk" = "WT-Peak-Atk"
 )
 
 if (!is.null(OBJECTIVES_TO_INCLUDE)) {
@@ -239,13 +273,6 @@ access_labels <- c("origin" = "O", "origin+destination" = "O+D", "all" = "All")
 zones_labels <- c("pt" = "PT", "pt+drt" = "PT+DRT", "all" = "All")
 
 main_modes <- c("pt+drt", "car", "walk", "bike", "taxi")
-
-dir.create("R/plots/transit_opt_paper", showWarnings = FALSE, recursive = TRUE)
-dir.create(
-  "R/plots/transit_opt_paper/tables",
-  showWarnings = FALSE,
-  recursive = TRUE
-)
 
 ##########################################################################
 # SECTION 4.1: VALIDATION - Correlation Analysis (with Filter Sensitivity)
@@ -454,7 +481,7 @@ all_correlations <- bind_rows(
 # Save full correlation table
 write_csv(
   all_correlations,
-  "R/plots/transit_opt_paper/tables/table_4_1_correlations_all.csv"
+  file.path(plot_dir, "tables/table_4_1_correlations_all.csv")
 )
 
 # -------------------------
@@ -475,7 +502,7 @@ correlation_table_wide <- all_correlations |>
 
 write_csv(
   correlation_table_wide,
-  "R/plots/transit_opt_paper/tables/table_4_1_correlation_matrix.csv"
+  file.path(plot_dir, "tables/table_4_1_correlation_matrix.csv")
 )
 
 # -------------------------
@@ -536,11 +563,12 @@ ggplot(
   )
 
 ggsave(
-  "R/plots/transit_opt_paper/fig_4_1a_correlation_heatmap_faceted.png",
+  file.path(plot_dir, "fig_4_1a_correlation_heatmap_faceted.png"),
   width = 14,
   height = 14,
   dpi = 300
 )
+
 
 # -------------------------
 # Plot 2a: Multi-outcome Heatmap for main filter config
@@ -597,7 +625,7 @@ ggplot(
   )
 
 ggsave(
-  "R/plots/transit_opt_paper/fig_4_1b_correlation_heatmap_outcomes.png",
+  file.path(plot_dir, "fig_4_1b_correlation_heatmap_outcomes.png"),
   width = 7,
   height = 8,
   dpi = 300
@@ -655,7 +683,7 @@ ggplot(
   )
 
 ggsave(
-  "R/plots/transit_opt_paper/fig_4_1b_correlation_heatmap_outcomes_no_filter.png",
+  file.path(plot_dir, "fig_4_1b_correlation_heatmap_outcomes_no_filter.png"),
   width = 10,
   height = 9,
   dpi = 300
@@ -695,7 +723,7 @@ ggplot(
     linewidth = 0.5
   ) +
   geom_hline(yintercept = 0, linetype = "dotted", color = "gray50") +
-  facet_wrap(~objective_clean, scales = "free_x", ncol = 4) +
+  facet_wrap(~objective_clean, scales = "free_x", ncol = 3) +
   labs(
     title = "Proxy Objective Value vs. PT+DRT Mode Share Change",
     subtitle = paste("Filter:", main_filter_label),
@@ -717,12 +745,11 @@ ggplot(
   )
 
 ggsave(
-  "R/plots/transit_opt_paper/fig_4_1c_proxy_vs_mode_share.png",
+  file.path(plot_dir, "fig_4_1c_proxy_vs_mode_share.png"),
   width = 16,
   height = 10,
   dpi = 300
 )
-
 # -------------------------
 # Plot 3b: Scatter plots for NO filter (All | All | All)
 # -------------------------
@@ -757,7 +784,7 @@ ggplot(
     linewidth = 0.5
   ) +
   geom_hline(yintercept = 0, linetype = "dotted", color = "gray50") +
-  facet_wrap(~objective_clean, scales = "free_x", ncol = 4) +
+  facet_wrap(~objective_clean, scales = "free_x", ncol = 3) +
   labs(
     title = "Proxy Objective Value vs. PT+DRT Mode Share Change",
     subtitle = "No spatial filtering applied",
@@ -779,7 +806,7 @@ ggplot(
   )
 
 ggsave(
-  "R/plots/transit_opt_paper/fig_4_1c_proxy_vs_mode_share_no_filter.png",
+  file.path(plot_dir, "fig_4_1c_proxy_vs_mode_share_no_filter.png"),
   width = 16,
   height = 10,
   dpi = 300
@@ -960,7 +987,7 @@ topk_recall_results <- bind_rows(topk_pt_drt, topk_car, topk_vkm)
 # Save full table
 write_csv(
   topk_recall_results,
-  "R/plots/transit_opt_paper/tables/table_4_1_topk_recall.csv"
+  file.path(plot_dir, "tables/table_4_1_topk_recall.csv")
 )
 # -------------------------
 # Plot: Top-k Recall by k value - Main filter
@@ -1024,7 +1051,7 @@ ggplot(
   )
 
 ggsave(
-  "R/plots/transit_opt_paper/fig_4_1e_topk_recall_by_k.png",
+  file.path(plot_dir, "fig_4_1e_topk_recall_by_k.png"),
   width = 12,
   height = 14,
   dpi = 300
@@ -1087,7 +1114,7 @@ ggplot(
   )
 
 ggsave(
-  "R/plots/transit_opt_paper/fig_4_1e_topk_recall_by_k_no_filter.png",
+  file.path(plot_dir, "fig_4_1e_topk_recall_by_k_no_filter.png"),
   width = 12,
   height = 14,
   dpi = 300
@@ -1144,7 +1171,7 @@ ggplot(
   guides(color = guide_legend(nrow = 2))
 
 ggsave(
-  "R/plots/transit_opt_paper/fig_4_1f_topk_recall_simple.png",
+  file.path(plot_dir, "fig_4_1f_topk_recall_simple.png"),
   width = 10,
   height = 8,
   dpi = 300
@@ -1201,7 +1228,7 @@ ggplot(
   guides(color = guide_legend(nrow = 2))
 
 ggsave(
-  "R/plots/transit_opt_paper/fig_4_1f_topk_recall_simple_no_filter.png",
+  file.path(plot_dir, "fig_4_1f_topk_recall_simple_no_filter.png"),
   width = 10,
   height = 8,
   dpi = 300
@@ -1279,7 +1306,7 @@ solution_rankings <- res_mode_share |>
 # Save full rankings table
 write_csv(
   solution_rankings,
-  "R/plots/transit_opt_paper/tables/table_4_1_solution_rankings_all.csv"
+  file.path(plot_dir, "tables/table_4_1_solution_rankings_all.csv")
 )
 
 # -------------------------
@@ -1337,8 +1364,9 @@ top_solutions_summary <- bind_rows(
 
 write_csv(
   top_solutions_summary,
-  "R/plots/transit_opt_paper/tables/table_4_1_top_solutions_summary.csv"
+  file.path(plot_dir, "tables/table_4_1_top_solutions_summary.csv")
 )
+
 
 # -------------------------
 # Table: Compare Top Solutions Across Metrics (Wide Format for Paper)
@@ -1377,7 +1405,7 @@ top_solutions_comparison <- solution_rankings |>
 
 write_csv(
   top_solutions_comparison,
-  "R/plots/transit_opt_paper/tables/table_4_1_top_solutions_comparison.csv"
+  file.path(plot_dir, "tables/table_4_1_top_solutions_comparison.csv")
 )
 
 
@@ -1432,22 +1460,42 @@ best_vkm_summary <- res_vkm_extended |>
     names_glue = "{mode}_{.value}"
   )
 
-# Add DRT fleet data (peak interval: 8-12h)
+# Add DRT fleet data (ALL intervals, separated by zone)
 best_drt_fleet <- all_drt_deployments |>
-  filter(
-    str_detect(solution, "_00$"),
-    interval_label == "8-12"
-  ) |>
-  group_by(objective) |>
+  filter(str_detect(solution, "_00$")) |>
+  # First, create comma-separated lists per zone
+  group_by(objective, scenario, interval_label) |>
   summarise(
-    drt_fleet_total = sum(fleet_size),
-    drt_fleet_ne = sum(fleet_size[scenario == "drtNE"]),
-    drt_fleet_nw = sum(fleet_size[scenario == "drtNW"]),
+    interval_fleet = first(fleet_size),
     .groups = "drop"
-  )
+  ) |>
+  group_by(objective, scenario) |>
+  arrange(interval_label) |>
+  summarise(
+    fleet_by_interval = paste(interval_fleet, collapse = ", "),
+    .groups = "drop"
+  ) |>
+  # Now pivot to get one row per objective with both zones
+  pivot_wider(
+    names_from = scenario,
+    values_from = fleet_by_interval,
+    names_prefix = "fleet_"
+  ) |>
+  mutate(
+    # Combine both zones with " | " separator
+    drt_fleet_by_interval = paste0(
+      "(",
+      fleet_drtNE,
+      ") | (",
+      fleet_drtNW,
+      ")"
+    )
+  ) |>
+  select(objective, drt_fleet_by_interval)
 
-# Combine into Table 2
-table_4_2_scenario_comparison <- best_solutions_summary |>
+
+# Combine into Table 4.2a
+table_4_2a_scenario_comparison <- best_solutions_summary |>
   left_join(best_vkm_summary, by = "objective") |>
   left_join(best_drt_fleet, by = "objective") |>
   mutate(
@@ -1459,7 +1507,7 @@ table_4_2_scenario_comparison <- best_solutions_summary |>
     car_share_delta,
     `pt+drt_delta_km`,
     `car+taxi_delta_km`,
-    drt_fleet_total
+    drt_fleet_by_interval
   ) |>
   rename(
     Objective = objective_clean,
@@ -1467,13 +1515,173 @@ table_4_2_scenario_comparison <- best_solutions_summary |>
     `Car Share Δ (pp)` = car_share_delta,
     `PT+DRT VKM Δ (km)` = `pt+drt_delta_km`,
     `Car+Taxi VKM Δ (km)` = `car+taxi_delta_km`,
-    `DRT Fleet (8-12h)` = drt_fleet_total
+    `DRT Fleet by Interval (NE | NW)` = drt_fleet_by_interval
   )
 
 write_csv(
-  table_4_2_scenario_comparison,
-  "R/plots/transit_opt_paper/tables/table_4_2_scenario_comparison.csv"
+  table_4_2a_scenario_comparison,
+  file.path(plot_dir, "tables/table_4_2a_scenario_comparison_best_rank.csv")
 )
+
+message("✓ Table 4.2a saved (best solutions by PSO rank)")
+
+
+# -------------------------
+# Table 4.2b: Best Solutions by PT+DRT Mode Share
+# -------------------------
+
+# Find best solution ID per objective based on PT+DRT share delta
+best_by_pt_drt <- res_mode_share |>
+  filter(
+    mode == "pt+drt",
+    level == "trip",
+    access == "origin+destination",
+    zones == "pt+drt"
+  ) |>
+  group_by(objective) |>
+  slice_max(order_by = share_delta, n = 1, with_ties = FALSE) |>
+  ungroup() |>
+  select(
+    objective,
+    best_solution_id = solution_id,
+    best_share_delta = share_delta
+  )
+
+# Get summary for best PT+DRT solutions
+best_pt_drt_solutions_summary <- res_mode_share |>
+  inner_join(
+    best_by_pt_drt,
+    by = c("objective", "solution_id" = "best_solution_id")
+  ) |>
+  filter(
+    level == "trip",
+    access == "origin+destination",
+    zones == "pt+drt"
+  ) |>
+  select(
+    objective,
+    solution_id,
+    mode,
+    share_solution,
+    share_base,
+    share_delta
+  ) |>
+  pivot_wider(
+    names_from = mode,
+    values_from = c(share_solution, share_base, share_delta),
+    names_glue = "{mode}_{.value}"
+  )
+
+# Add VKM data for best PT+DRT solutions
+best_pt_drt_vkm_summary <- res_vkm_extended |>
+  inner_join(
+    best_by_pt_drt,
+    by = c("objective", "solution_id" = "best_solution_id")
+  ) |>
+  filter(
+    level == "trip",
+    access == "origin+destination",
+    zones == "pt+drt",
+    mode %in% c("pt+drt", "car+taxi")
+  ) |>
+  select(
+    objective,
+    solution_id,
+    mode,
+    total_distance_km_solution,
+    total_distance_km_base,
+    delta_km,
+    delta_km_pct
+  ) |>
+  pivot_wider(
+    names_from = mode,
+    values_from = c(
+      total_distance_km_solution,
+      total_distance_km_base,
+      delta_km,
+      delta_km_pct
+    ),
+    names_glue = "{mode}_{.value}"
+  )
+
+# Add DRT fleet data for best PT+DRT solutions (ALL intervals, separated by zone)
+best_pt_drt_fleet <- all_drt_deployments |>
+  inner_join(
+    best_by_pt_drt |>
+      mutate(
+        solution_pattern = paste0("_", sprintf("%02d", best_solution_id), "$")
+      ),
+    by = "objective"
+  ) |>
+  filter(str_detect(solution, solution_pattern)) |>
+  # First, create comma-separated lists per zone
+  group_by(objective, scenario, interval_label) |>
+  summarise(
+    interval_fleet = first(fleet_size),
+    .groups = "drop"
+  ) |>
+  group_by(objective, scenario) |>
+  arrange(interval_label) |>
+  summarise(
+    fleet_by_interval = paste(interval_fleet, collapse = ", "),
+    .groups = "drop"
+  ) |>
+  # Now pivot to get one row per objective with both zones
+  pivot_wider(
+    names_from = scenario,
+    values_from = fleet_by_interval,
+    names_prefix = "fleet_"
+  ) |>
+  mutate(
+    # Combine both zones with " | " separator
+    drt_fleet_by_interval = paste0(
+      "(",
+      fleet_drtNE,
+      ") | (",
+      fleet_drtNW,
+      ")"
+    )
+  ) |>
+  select(objective, drt_fleet_by_interval)
+
+# Combine into Table 4.2b
+table_4_2b_scenario_comparison <- best_pt_drt_solutions_summary |>
+  left_join(best_pt_drt_vkm_summary, by = c("objective", "solution_id")) |>
+  left_join(best_pt_drt_fleet, by = "objective") |>
+  left_join(
+    best_by_pt_drt |> select(objective, best_solution_id),
+    by = "objective"
+  ) |>
+  mutate(
+    objective_clean = objective_labels_short[objective]
+  ) |>
+  select(
+    objective_clean,
+    best_solution_id,
+    `pt+drt_share_delta`,
+    car_share_delta,
+    `pt+drt_delta_km`,
+    `car+taxi_delta_km`,
+    drt_fleet_by_interval
+  ) |>
+  rename(
+    Objective = objective_clean,
+    `Solution ID` = best_solution_id,
+    `PT+DRT Share Δ (pp)` = `pt+drt_share_delta`,
+    `Car Share Δ (pp)` = car_share_delta,
+    `PT+DRT VKM Δ (km)` = `pt+drt_delta_km`,
+    `Car+Taxi VKM Δ (km)` = `car+taxi_delta_km`,
+    `DRT Fleet by Interval (NE | NW)` = drt_fleet_by_interval # Updated name
+  )
+
+write_csv(
+  table_4_2b_scenario_comparison,
+  file.path(plot_dir, "tables/table_4_2b_scenario_comparison_best_pt_drt.csv")
+)
+
+
+message("✓ Table 4.2b saved (best solutions by PT+DRT mode share)")
+
 
 # -------------------------
 # Plot: Trade-off between PT+DRT gain and Car reduction
@@ -1510,7 +1718,7 @@ ggplot(
     linetype = "dotted",
     color = "gray30"
   ) +
-  facet_wrap(~objective_clean, scales = "fixed", ncol = 4) +
+  facet_wrap(~objective_clean, scales = "fixed", ncol = 3) +
   labs(
     title = "PT+DRT Gain vs. Car Loss Trade-off",
     subtitle = paste("Filter:", main_filter_label),
@@ -1533,7 +1741,7 @@ ggplot(
   )
 
 ggsave(
-  "R/plots/transit_opt_paper/fig_4_2a_pt_car_tradeoff.png",
+  file.path(plot_dir, "fig_4_2a_pt_car_tradeoff.png"),
   width = 16,
   height = 10,
   dpi = 300
@@ -1582,7 +1790,7 @@ ggplot(
   geom_point(size = 2.5, alpha = 0.8) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
   geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
-  facet_wrap(~objective_clean, scales = "fixed", ncol = 4) +
+  facet_wrap(~objective_clean, scales = "fixed", ncol = 3) +
   labs(
     title = "PT Service Investment vs. Ridership Gain",
     subtitle = paste("Filter:", main_filter_label),
@@ -1605,7 +1813,7 @@ ggplot(
   )
 
 ggsave(
-  "R/plots/transit_opt_paper/fig_4_2b_vkm_vs_mode_share.png",
+  file.path(plot_dir, "fig_4_2b_vkm_vs_mode_share.png"),
   width = 16,
   height = 10,
   dpi = 300
@@ -1644,7 +1852,7 @@ table_4_3_catchment <- catchment_sensitivity_summary |>
 
 write_csv(
   table_4_3_catchment,
-  "R/plots/transit_opt_paper/tables/table_4_3_catchment_sensitivity.csv"
+  file.path(plot_dir, "tables/table_4_3_catchment_sensitivity.csv")
 )
 
 # -------------------------
@@ -1676,7 +1884,7 @@ ggplot(
 ) +
   geom_col(position = "dodge") +
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
-  facet_wrap(~objective_clean, scales = "fixed", ncol = 4) +
+  facet_wrap(~objective_clean, scales = "fixed", ncol = 3) +
   labs(
     title = "PT+DRT Mode Share Change by Catchment Definition",
     subtitle = "Best solutions (rank 0) only",
@@ -1694,7 +1902,7 @@ ggplot(
   )
 
 ggsave(
-  "R/plots/transit_opt_paper/fig_4_3_catchment_comparison_bar.png",
+  file.path(plot_dir, "fig_4_3_catchment_comparison_bar.png"),
   width = 16,
   height = 10,
   dpi = 300
@@ -1716,7 +1924,10 @@ message("  - table_4_1_topk_recall.csv (top-k recall data)")
 message("  - table_4_1_solution_rankings_all.csv (all solutions with ranks)")
 message("  - table_4_1_top_solutions_summary.csv (top N per metric)")
 message("  - table_4_1_top_solutions_comparison.csv (overlap analysis)")
-message("  - table_4_2_scenario_comparison.csv")
+message("  - table_4_2a_scenario_comparison_best_rank.csv (best by PSO rank)")
+message(
+  "  - table_4_2b_scenario_comparison_best_pt_drt.csv (best by PT+DRT share)"
+)
 message("  - table_4_3_catchment_sensitivity.csv")
 
 message("\nPlots saved to: R/plots/transit_opt_paper/")
