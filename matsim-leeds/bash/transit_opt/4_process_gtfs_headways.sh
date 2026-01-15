@@ -20,17 +20,37 @@
 #   # First run (setup env + install extra packages)
 #   bash bash/transit_opt/4_process_gtfs_headways.sh --cluster --update-env
 
-# Parse arguments
+# Default values
 RUN_ON_CLUSTER=false
 UPDATE_ENV=false
+ITERATION="iteration_01"
 
-if [ "$1" == "--cluster" ]; then
-    RUN_ON_CLUSTER=true
-fi
+# Parse arguments using a loop
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --cluster)
+            RUN_ON_CLUSTER=true
+            shift # Remove --cluster from processing
+            ;;
+        --update-env)
+            UPDATE_ENV=true
+            shift # Remove --update-env from processing
+            ;;
+        --iteration)
+            ITERATION="$2"
+            shift 2 # Remove --iteration and its value
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
 
-if [ "$2" == "--update-env" ]; then
-    UPDATE_ENV=true
-fi
+echo "Configuration:"
+echo "  Cluster:   $RUN_ON_CLUSTER"
+echo "  Iteration: $ITERATION"
+echo "  Update Env: $UPDATE_ENV"
 
 # Get the current working directory (matsim-leeds root)
 MATSIM_DIR="$(pwd)"
@@ -49,7 +69,7 @@ fi
 
 if [ "$RUN_ON_CLUSTER" = true ]; then
     echo "========================================="
-    echo "Submitting GTFS headway processing to cluster"
+    echo "Submitting GTFS headway processing to cluster ($ITERATION)"
     echo "========================================="
     
     # Check if conda environment file exists
@@ -104,8 +124,8 @@ if [ "$RUN_ON_CLUSTER" = true ]; then
     sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK \
         --time=$MAX_RUNTIME \
         --mem-per-cpu=$MEM_PER_CPU \
-        --job-name="gtfs_headway_processing" \
-        --output="${LOG_DIR}/gtfs_headway-%j.out" \
+        --job-name="gtfs_headway_${ITERATION}" \
+        --output="${LOG_DIR}/gtfs_headway_${ITERATION}-%j.out" \
         --wrap="module load miniforge/24.7.1 && \
                 source activate $CONDA_ENV_NAME && \
                 cd $MATSIM_DIR && \
@@ -114,7 +134,7 @@ if [ "$RUN_ON_CLUSTER" = true ]; then
     echo "Job submitted. Check logs in $LOG_DIR"
 else
     echo "========================================="
-    echo "Running GTFS headway processing locally"
+    echo "Running GTFS headway processing locally ($ITERATION)"
     echo "========================================="
     
     if [ "$UPDATE_ENV" = true ]; then
@@ -123,7 +143,7 @@ else
     
     # Run locally (assumes R is available in PATH)
     cd "$MATSIM_DIR"
-    Rscript "$R_SCRIPT"
+    Rscript "$R_SCRIPT" "$ITERATION"
     
     echo ""
     echo "========================================="
