@@ -14,9 +14,9 @@ echo "Current Local Directory: $LOCAL_DIR"
 
 # Declare an associative array to map local paths to their corresponding remote paths
 declare -A FILES_AND_DIRS=(
-    ["data/supply/transit_opt_paper"]="data/supply/transit_opt_paper"
+    ["data/supply/transit_opt_paper/drt_fleet_templates"]="data/supply/transit_opt_paper/drt_fleet_templates"
     #["src/main/resources"]="src/main/resources"
-    ["target"]="target"
+    #["target"]="target"
 )
 
 # Loop through each item in the array and run rsync
