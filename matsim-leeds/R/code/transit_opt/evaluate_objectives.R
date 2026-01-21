@@ -1,27 +1,26 @@
 library(tidyverse)
+library(glue)
 
 
 ##########
-# SECTION 0a: Configuration - Filter objectives
+# SECTION 0a: Configuration - Data Loading
 ##########
 
 # ===== USER CONFIGURATION =====
 
-ITERATION_ID <- "iteration_01"
+ITERATION_ID <- "iteration_02"
 message(glue::glue("\nRunning evaluation for: {ITERATION_ID}"))
 
 # Update Paths to read from the iteration folder
 input_dir <- file.path("R/output", ITERATION_ID)
-
-# Update Plot Output Directory to save to an iteration subfolder
 plot_dir <- file.path("R/plots/transit_opt_paper", ITERATION_ID)
+
 dir.create(plot_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(
   file.path(plot_dir, "tables"),
   showWarnings = FALSE,
   recursive = TRUE
 )
-
 
 message("\n==========================================")
 message("LOADING DATA")
@@ -31,42 +30,39 @@ message("==========================================\n")
 obj_base <- read_csv("../../transit_opt/output/base_objective_values.csv") |>
   rename(baseline_objective_value_pen = penalized_objective_value)
 
-# Read from input_dir
 obj_pso <- read_csv(file.path(input_dir, "pso_objective_values.csv"))
-
-## MATSim results
 res_mode_share <- read_csv(file.path(input_dir, "mode_share_by_objective.csv"))
 res_vkm <- read_csv(file.path(input_dir, "vkm_by_objective.csv"))
-
-## DRT fleet deployments
 all_drt_deployments <- read_csv(file.path(
   input_dir,
   "drt_fleet_deployments.csv"
 ))
-
 
 # Replace 0 fleet size with 25
 all_drt_deployments <- all_drt_deployments |>
   mutate(fleet_size = if_else(fleet_size == 0, 25, fleet_size))
 
 ##########
-# SECTION 0b: Filter objectives
+# SECTION 0b: Filters & Analysis Settings
 ##########
 
-# Objective filtering
+# 1. Objective filtering
 OBJECTIVES_TO_INCLUDE <- NULL
 OBJECTIVES_TO_EXCLUDE <- "^sc_|_var$|_sum_"
 
-# Correlation analysis: Maximum solution rank to include (NULL = use all)
-# Solutions with rank > this value will be excluded from correlation analysis
-# Motivation: High-rank solutions (e.g., 1023, 2047) are essentially random
-MAX_SOLUTION_RANK_FOR_CORRELATION <- NULL # Only use top 127 solutions (or set to NULL for all)
+# 2. Catchment Filtering (NEW)
+# Regex to exclude specific definitions from PLOTS (Heatmaps + Sensitivity Bars)
+# Matches " | O | " which corresponds to "Access: Origin" (Trip | O | PT)
+CATCHMENT_PLOT_EXCLUDE_REGEX <- "\\| O \\|"
 
-# Top-k Recall configuration
+# 3. Correlation Settings
+MAX_SOLUTION_RANK_FOR_CORRELATION <- NULL # NULL = use all
+
+# 4. Top-k Settings
 TOPK_HEATMAP_K_CONFIG <- 5
 TOPK_LINE_PLOT_MAX_K_CONFIG <- 5
-# ==============================
 
+# Apply Objective Filters
 if (!is.null(OBJECTIVES_TO_INCLUDE)) {
   message(glue::glue(
     "Filtering to include only: {paste(OBJECTIVES_TO_INCLUDE, collapse = ', ')}"
@@ -143,14 +139,20 @@ pt_drt_combined <- res_mode_share |>
     share_base = sum(share_base, na.rm = TRUE),
     n_pct_change = ((n_solution - n_base) / n_base) * 100,
     share_pct_change = ((share_solution - share_base) / share_base) * 100,
-    rank = first(rank),
-    swarm_id = first(swarm_id),
-    objective_sol = first(objective_sol),
-    generation_found = first(generation_found),
-    violations = first(violations),
-    baseline_objective_value_pen = first(baseline_objective_value_pen),
-    pso_pct_change_vs_base = first(pso_pct_change_vs_base),
-    pso_frac_of_base = first(pso_frac_of_base),
+    # Keep metadata from first row
+    across(
+      c(
+        rank,
+        swarm_id,
+        objective_sol,
+        generation_found,
+        violations,
+        baseline_objective_value_pen,
+        pso_pct_change_vs_base,
+        pso_frac_of_base
+      ),
+      first
+    ),
     .groups = "drop"
   ) |>
   mutate(mode = "pt+drt")
@@ -165,14 +167,19 @@ pt_drt_vkm_combined <- res_vkm |>
   summarise(
     total_distance_km_solution = sum(total_distance_km_solution, na.rm = TRUE),
     total_distance_km_base = sum(total_distance_km_base, na.rm = TRUE),
-    rank = first(rank),
-    swarm_id = first(swarm_id),
-    objective_sol = first(objective_sol),
-    generation_found = first(generation_found),
-    violations = first(violations),
-    baseline_objective_value_pen = first(baseline_objective_value_pen),
-    pso_pct_change_vs_base = first(pso_pct_change_vs_base),
-    pso_frac_of_base = first(pso_frac_of_base),
+    across(
+      c(
+        rank,
+        swarm_id,
+        objective_sol,
+        generation_found,
+        violations,
+        baseline_objective_value_pen,
+        pso_pct_change_vs_base,
+        pso_frac_of_base
+      ),
+      first
+    ),
     .groups = "drop"
   ) |>
   mutate(
@@ -187,14 +194,19 @@ car_taxi_combined <- res_vkm |>
   summarise(
     total_distance_km_solution = sum(total_distance_km_solution, na.rm = TRUE),
     total_distance_km_base = sum(total_distance_km_base, na.rm = TRUE),
-    rank = first(rank),
-    swarm_id = first(swarm_id),
-    objective_sol = first(objective_sol),
-    generation_found = first(generation_found),
-    violations = first(violations),
-    baseline_objective_value_pen = first(baseline_objective_value_pen),
-    pso_pct_change_vs_base = first(pso_pct_change_vs_base),
-    pso_frac_of_base = first(pso_frac_of_base),
+    across(
+      c(
+        rank,
+        swarm_id,
+        objective_sol,
+        generation_found,
+        violations,
+        baseline_objective_value_pen,
+        pso_pct_change_vs_base,
+        pso_frac_of_base
+      ),
+      first
+    ),
     .groups = "drop"
   ) |>
   mutate(
@@ -252,73 +264,53 @@ objective_labels_short <- c(
   "wt_peak_atk" = "WT-Peak-Atk"
 )
 
+# Apply filters to labels
 if (!is.null(OBJECTIVES_TO_INCLUDE)) {
-  objective_labels <- objective_labels[
-    names(objective_labels) %in% OBJECTIVES_TO_INCLUDE
-  ]
-  objective_labels_short <- objective_labels_short[
-    names(objective_labels_short) %in% OBJECTIVES_TO_INCLUDE
-  ]
+  keep_idx <- names(objective_labels) %in% OBJECTIVES_TO_INCLUDE
+  objective_labels <- objective_labels[keep_idx]
+  objective_labels_short <- objective_labels_short[keep_idx]
 } else if (!is.null(OBJECTIVES_TO_EXCLUDE)) {
-  objective_labels <- objective_labels[
-    !str_detect(names(objective_labels), OBJECTIVES_TO_EXCLUDE)
-  ]
-  objective_labels_short <- objective_labels_short[
-    !str_detect(names(objective_labels_short), OBJECTIVES_TO_EXCLUDE)
-  ]
+  keep_idx <- !str_detect(names(objective_labels), OBJECTIVES_TO_EXCLUDE)
+  objective_labels <- objective_labels[keep_idx]
+  objective_labels_short <- objective_labels_short[keep_idx]
 }
 
 level_labels <- c("trip" = "Trip", "person" = "Person", "all" = "All")
 access_labels <- c("origin" = "O", "origin+destination" = "O+D", "all" = "All")
 zones_labels <- c("pt" = "PT", "pt+drt" = "PT+DRT", "all" = "All")
 
-main_modes <- c("pt+drt", "car", "walk", "bike", "taxi")
 
 ##########################################################################
-# SECTION 4.1: VALIDATION - Correlation Analysis (with Filter Sensitivity)
+# SECTION 4.1: VALIDATION - Correlation Analysis
 ##########################################################################
 
 message("\n==========================================")
 message("SECTION 4.1: VALIDATION - Correlation Analysis")
 message("==========================================\n")
 
-# Apply solution rank filter for correlation analysis
+# Apply solution rank filter
 if (!is.null(MAX_SOLUTION_RANK_FOR_CORRELATION)) {
   message(glue::glue(
-    "Filtering to solutions with rank ≤ {MAX_SOLUTION_RANK_FOR_CORRELATION} for correlation analysis"
+    "Filtering to solutions with rank <= {MAX_SOLUTION_RANK_FOR_CORRELATION}"
   ))
-
   res_mode_share_corr <- res_mode_share |>
     filter(solution_id <= MAX_SOLUTION_RANK_FOR_CORRELATION)
-
   res_vkm_extended_corr <- res_vkm_extended |>
     filter(solution_id <= MAX_SOLUTION_RANK_FOR_CORRELATION)
-
-  n_solutions_used <- n_distinct(res_mode_share_corr$solution_id)
-  message(glue::glue(
-    "Using {n_solutions_used} solutions for correlation analysis"
-  ))
 } else {
   message("Using all solutions for correlation analysis")
   res_mode_share_corr <- res_mode_share
   res_vkm_extended_corr <- res_vkm_extended
 }
 
-# Define all filter combinations
-# Note: "all" only appears as "All | All | All" (not mixed with other filters)
+# Define all filter combinations for iteration
 filter_combinations <- bind_rows(
-  # All combinations of trip/person × origin/origin+destination × pt/pt+drt
   expand_grid(
     level = c("trip", "person"),
     access = c("origin", "origin+destination"),
     zones = c("pt", "pt+drt")
   ),
-  # Add the single "all" combination
-  tibble(
-    level = "all",
-    access = "all",
-    zones = "all"
-  )
+  tibble(level = "all", access = "all", zones = "all")
 ) |>
   mutate(
     filter_label = paste(
@@ -329,66 +321,59 @@ filter_combinations <- bind_rows(
     )
   )
 
-# Function to calculate correlation with proper Spearman p-value
+# --- APPLY CATCHMENT FILTER HERE FOR HEATMAPS ---
+if (!is.null(CATCHMENT_PLOT_EXCLUDE_REGEX)) {
+  message(glue::glue(
+    "Filtering catchment combinations using regex: '{CATCHMENT_PLOT_EXCLUDE_REGEX}'"
+  ))
+  filter_combinations <- filter_combinations |>
+    filter(!str_detect(filter_label, CATCHMENT_PLOT_EXCLUDE_REGEX))
+}
+# ------------------------------------------------
+
+# Helper Function
 calc_correlation <- function(data, x_var, y_var) {
   x <- data[[x_var]]
   y <- data[[y_var]]
-
-  # Remove NAs
   complete_idx <- !is.na(x) & !is.na(y)
   x <- x[complete_idx]
   y <- y[complete_idx]
 
-  n <- length(x)
-
-  if (n < 3) {
+  if (length(x) < 3) {
     return(tibble(
-      n_solutions = n,
-      cor_spearman = NA_real_,
-      cor_pearson = NA_real_,
-      p_value_spearman = NA_real_,
-      p_value_pearson = NA_real_
+      n_solutions = length(x),
+      cor_spearman = NA,
+      cor_pearson = NA,
+      p_value_spearman = NA,
+      p_value_pearson = NA
     ))
   }
 
-  # Spearman correlation and p-value
   spearman_test <- tryCatch(
     cor.test(x, y, method = "spearman", exact = FALSE),
     error = function(e) NULL
   )
-
-  # Pearson correlation and p-value
   pearson_test <- tryCatch(
     cor.test(x, y, method = "pearson"),
     error = function(e) NULL
   )
 
   tibble(
-    n_solutions = n,
-    cor_spearman = if (!is.null(spearman_test)) {
-      spearman_test$estimate
-    } else {
-      NA_real_
-    },
-    cor_pearson = if (!is.null(pearson_test)) {
-      pearson_test$estimate
-    } else {
-      NA_real_
-    },
+    n_solutions = length(x),
+    cor_spearman = if (!is.null(spearman_test)) spearman_test$estimate else NA,
+    cor_pearson = if (!is.null(pearson_test)) pearson_test$estimate else NA,
     p_value_spearman = if (!is.null(spearman_test)) {
       spearman_test$p.value
     } else {
-      NA_real_
+      NA
     },
-    p_value_pearson = if (!is.null(pearson_test)) {
-      pearson_test$p.value
-    } else {
-      NA_real_
-    }
+    p_value_pearson = if (!is.null(pearson_test)) pearson_test$p.value else NA
   )
 }
 
-# Correlation: PSO objective vs PT+DRT mode share change (all combinations)
+# Run Correlations
+message("Calculating correlations...")
+
 correlation_mode_share <- filter_combinations |>
   pmap_dfr(function(level, access, zones, filter_label) {
     res_mode_share_corr |>
@@ -396,24 +381,18 @@ correlation_mode_share <- filter_combinations |>
         mode == "pt+drt",
         level == !!level,
         access == !!access,
-        zones == !!zones,
-        !is.na(pso_frac_of_base),
-        !is.na(share_delta)
+        zones == !!zones
       ) |>
       group_by(objective) |>
       group_modify(~ calc_correlation(.x, "pso_frac_of_base", "share_delta")) |>
       ungroup() |>
       mutate(
-        level = level,
-        access = access,
-        zones = zones,
         filter_label = filter_label,
         outcome = "PT+DRT Mode Share",
         objective_clean = objective_labels_short[objective]
       )
   })
 
-# Correlation: PSO objective vs Car mode share change (all combinations)
 correlation_car <- filter_combinations |>
   pmap_dfr(function(level, access, zones, filter_label) {
     res_mode_share_corr |>
@@ -421,24 +400,18 @@ correlation_car <- filter_combinations |>
         mode == "car",
         level == !!level,
         access == !!access,
-        zones == !!zones,
-        !is.na(pso_frac_of_base),
-        !is.na(share_delta)
+        zones == !!zones
       ) |>
       group_by(objective) |>
       group_modify(~ calc_correlation(.x, "pso_frac_of_base", "share_delta")) |>
       ungroup() |>
       mutate(
-        level = level,
-        access = access,
-        zones = zones,
         filter_label = filter_label,
         outcome = "Car Mode Share",
         objective_clean = objective_labels_short[objective]
       )
   })
 
-# Correlation: PSO objective vs Car+Taxi VKM change (all combinations)
 correlation_vkm <- filter_combinations |>
   pmap_dfr(function(level, access, zones, filter_label) {
     res_vkm_extended_corr |>
@@ -446,24 +419,19 @@ correlation_vkm <- filter_combinations |>
         mode == "car+taxi",
         level == !!level,
         access == !!access,
-        zones == !!zones,
-        !is.na(pso_frac_of_base),
-        !is.na(delta_km)
+        zones == !!zones
       ) |>
       group_by(objective) |>
       group_modify(~ calc_correlation(.x, "pso_frac_of_base", "delta_km")) |>
       ungroup() |>
       mutate(
-        level = level,
-        access = access,
-        zones = zones,
         filter_label = filter_label,
         outcome = "Car+Taxi VKM",
         objective_clean = objective_labels_short[objective]
       )
   })
 
-# Combine all correlations (no need to add "all" separately - it's already included)
+# Combine
 all_correlations <- bind_rows(
   correlation_mode_share,
   correlation_car,
@@ -478,37 +446,25 @@ all_correlations <- bind_rows(
     )
   )
 
-# Save full correlation table
 write_csv(
   all_correlations,
   file.path(plot_dir, "tables/table_4_1_correlations_all.csv")
 )
 
-# -------------------------
-# Table 1: Correlation Matrix (objectives x filter combinations)
-# -------------------------
-
+# Matrix Table
 correlation_table_wide <- all_correlations |>
   filter(outcome == "PT+DRT Mode Share") |>
-  select(objective_clean, filter_label, cor_spearman, significance) |>
-  mutate(
-    cor_display = paste0(round(cor_spearman, 2), significance)
-  ) |>
+  mutate(cor_display = paste0(round(cor_spearman, 2), significance)) |>
   select(objective_clean, filter_label, cor_display) |>
-  pivot_wider(
-    names_from = filter_label,
-    values_from = cor_display
-  )
+  pivot_wider(names_from = filter_label, values_from = cor_display)
 
 write_csv(
   correlation_table_wide,
   file.path(plot_dir, "tables/table_4_1_correlation_matrix.csv")
 )
 
-# -------------------------
-# Plot 1: Faceted Multi-outcome Heatmap (by filter combination)
-# -------------------------
-
+# Plot 1: Faceted Heatmap
+message("Generating heatmap plots...")
 faceted_heatmap_data <- all_correlations |>
   mutate(
     objective_clean = factor(objective_clean, levels = objective_labels_short),
@@ -519,7 +475,7 @@ faceted_heatmap_data <- all_correlations |>
     filter_label = factor(filter_label)
   )
 
-ggplot(
+plot_heatmap_faceted <- ggplot(
   faceted_heatmap_data,
   aes(x = outcome, y = objective_clean, fill = cor_spearman)
 ) +
@@ -540,30 +496,16 @@ ggplot(
   ) +
   labs(
     title = "Correlation: Proxy Objective vs. MATSim Outcomes",
-    subtitle = "By catchment definition (Aggregation | Access | Zones)",
-    x = "MATSim Outcome",
-    y = "Proxy Objective",
-    caption = paste(
-      "Expected correlations if proxy is effective:\n",
-      "• PT+DRT Mode Share: Negative (lower proxy → higher PT+DRT share)\n",
-      "• Car Mode Share: Positive (higher proxy → higher car share)\n",
-      "• Car+Taxi VKM: Positive (higher proxy → higher car VKM)\n",
-      "* p<0.05, ** p<0.01, *** p<0.001 (Spearman)"
-    )
+    subtitle = "By catchment definition",
+    x = "Outcome",
+    y = "Objective"
   ) +
   theme_bw(base_size = 10) +
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
-    axis.text.y = element_text(size = 8),
-    strip.text = element_text(face = "bold", size = 9),
-    plot.title = element_text(face = "bold", size = 14),
-    plot.caption = element_text(hjust = 0, size = 8, color = "gray30"),
-    legend.position = "right",
-    panel.grid = element_blank()
-  )
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 ggsave(
   file.path(plot_dir, "fig_4_1a_correlation_heatmap_faceted.png"),
+  plot_heatmap_faceted,
   width = 14,
   height = 14,
   dpi = 300
@@ -652,7 +594,7 @@ ggplot(
   geom_tile(color = "white") +
   geom_text(
     aes(label = paste0(round(cor_spearman, 2), significance)),
-    size = 3
+    size = 6
   ) +
   scale_fill_gradient2(
     low = "#d73027",
@@ -675,11 +617,11 @@ ggplot(
       "* p<0.05, ** p<0.01, *** p<0.001 (Spearman)"
     )
   ) +
-  theme_bw(base_size = 11) +
+  theme_bw(base_size = 14) +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
     plot.title = element_text(face = "bold", size = 14),
-    plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
+    plot.caption = element_text(hjust = 0, size = 10, color = "gray30")
   )
 
 ggsave(
@@ -1053,7 +995,7 @@ ggplot(
 ggsave(
   file.path(plot_dir, "fig_4_1e_topk_recall_by_k.png"),
   width = 12,
-  height = 14,
+  height = 10,
   dpi = 300
 )
 
@@ -1116,7 +1058,7 @@ ggplot(
 ggsave(
   file.path(plot_dir, "fig_4_1e_topk_recall_by_k_no_filter.png"),
   width = 12,
-  height = 14,
+  height = 10,
   dpi = 300
 )
 
@@ -1416,6 +1358,13 @@ write_csv(
 message("\n==========================================")
 message("SECTION 4.2: SYSTEM PERFORMANCE COMPARISON")
 message("==========================================\n")
+
+# Define labels for plot subtitles
+main_filter_label <- "Trip | O+D | PT+DRT"
+
+# -------------------------
+# Table 4.2a: Best Solutions by PSO Rank (Rank 0)
+# -------------------------
 
 # Get best solution (rank 0) for each objective
 best_solutions_summary <- res_mode_share |>
@@ -1819,6 +1768,20 @@ ggsave(
   dpi = 300
 )
 
+# -------------------------
+# Define Ids for later sections
+# -------------------------
+
+# 1. Best by Rank
+ids_rank0 <- res_mode_share |>
+  filter(solution_id == 0) |>
+  distinct(objective, solution_id)
+
+# 2. Best by Share (already calculated as best_by_pt_drt)
+ids_best_share <- best_by_pt_drt |>
+  select(objective, solution_id = best_solution_id)
+
+
 ##########################################################################
 # SECTION 4.3: CATCHMENT SENSITIVITY ANALYSIS
 ##########################################################################
@@ -1827,19 +1790,20 @@ message("\n==========================================")
 message("SECTION 4.3: CATCHMENT SENSITIVITY ANALYSIS")
 message("==========================================\n")
 
-# -------------------------
-# Helper Function to Generate 4.3 Plots and Tables
-# -------------------------
+# Prepare Data: Calculate Total VKM Delta (PT+DRT + Car+Taxi) Globally
+vkm_overall_delta <- res_vkm_extended |>
+  filter(mode %in% c("pt+drt", "car+taxi")) |>
+  group_by(objective, solution_id, level, access, zones) |>
+  summarise(total_delta_km = sum(delta_km, na.rm = TRUE), .groups = "drop")
 
+
+# Updated Function with Dynamic Filter
 generate_catchment_analysis <- function(target_solution_ids, suffix_label) {
-  
   message(glue::glue("Generating catchment analysis for: {suffix_label}"))
-  
-  # 1. Prepare Base Frame
+
+  # 1. Join Base Frame
   base_frame <- target_solution_ids |>
-    cross_join(
-      res_mode_share |> distinct(level, access, zones)
-    ) |>
+    cross_join(res_mode_share |> distinct(level, access, zones)) |>
     mutate(
       objective_clean = objective_labels_short[objective],
       filter_label = paste(
@@ -1850,84 +1814,85 @@ generate_catchment_analysis <- function(target_solution_ids, suffix_label) {
       )
     )
 
-  # 2. Get Car + Taxi Mode Share Delta (Calculate on the fly)
-  # We need to sum the base and solution counts for car and taxi to get the correct delta
+  # 2. Get Car+Taxi Share Delta
   car_taxi_share_data <- res_mode_share |>
     filter(mode %in% c("car", "taxi")) |>
     group_by(objective, solution_id, level, access, zones) |>
     summarise(
-      n_base_total = sum(n_base, na.rm = TRUE),
-      n_sol_total = sum(n_solution, na.rm = TRUE),
-      # Need total trips for the denominator to calculate share. 
-      # Assuming total trips are constant per level/access/zones filter, 
-      # we can infer the total from one of the shares, but it's safer to rely on the fact 
-      # that share_delta is additive if the denominator is the same.
-      # Delta(A+B) = (SolA+SolB)/Tot - (BaseA+BaseB)/Tot = DeltaA + DeltaB
       share_delta_combined = sum(share_delta, na.rm = TRUE),
       .groups = "drop"
     )
 
-  # 3. Join all Validation Metrics
+  # 3. Join Metrics
   catchment_metrics <- base_frame |>
     # PT+DRT Share
     left_join(
-      res_mode_share |> 
-        filter(mode == "pt+drt") |> 
+      res_mode_share |>
+        filter(mode == "pt+drt") |>
         select(objective, solution_id, level, access, zones, share_delta),
       by = c("objective", "solution_id", "level", "access", "zones")
     ) |>
     rename(pt_drt_share_change = share_delta) |>
-    
     # Car+Taxi Share
     left_join(
-      car_taxi_share_data |> 
-        select(objective, solution_id, level, access, zones, share_delta_combined),
+      car_taxi_share_data |>
+        select(
+          objective,
+          solution_id,
+          level,
+          access,
+          zones,
+          share_delta_combined
+        ),
       by = c("objective", "solution_id", "level", "access", "zones")
     ) |>
     rename(car_taxi_share_change = share_delta_combined) |>
-    
     # PT+DRT VKM
     left_join(
-      res_vkm_extended |> 
-        filter(mode == "pt+drt") |> 
+      res_vkm_extended |>
+        filter(mode == "pt+drt") |>
         select(objective, solution_id, level, access, zones, delta_km),
       by = c("objective", "solution_id", "level", "access", "zones")
     ) |>
     rename(pt_drt_vkm_change = delta_km) |>
-    
     # Car+Taxi VKM
     left_join(
-      res_vkm_extended |> 
-        filter(mode == "car+taxi") |> 
+      res_vkm_extended |>
+        filter(mode == "car+taxi") |>
         select(objective, solution_id, level, access, zones, delta_km),
       by = c("objective", "solution_id", "level", "access", "zones")
     ) |>
-    rename(car_taxi_vkm_change = delta_km) |>
-    
-    # Check if we still want Overall VKM for the table output
+    rename(car_taxi_vkm_change = delta_km)
+
+  # 4. Save Table (Full details)
+  table_data <- catchment_metrics |>
     left_join(
       vkm_overall_delta,
       by = c("objective", "solution_id", "level", "access", "zones")
     ) |>
-    rename(overall_vkm_change = total_delta_km)
-
-  # 4. Save Table (Full details)
-  table_data <- catchment_metrics |>
+    rename(overall_vkm_change = total_delta_km) |>
     select(objective_clean, filter_label, ends_with("change")) |>
-    pivot_longer(ends_with("change"), names_to = "Metric", values_to = "Value") |>
+    pivot_longer(
+      ends_with("change"),
+      names_to = "Metric",
+      values_to = "Value"
+    ) |>
     pivot_wider(names_from = filter_label, values_from = Value)
-    
+
   write_csv(
     table_data,
-    file.path(plot_dir, glue::glue("tables/table_4_3_{suffix_label}_catchment_sensitivity.csv"))
+    file.path(
+      plot_dir,
+      glue::glue("tables/table_4_3_{suffix_label}_catchment_sensitivity.csv")
+    )
   )
 
   # 5. Prepare Plot Data
   plot_data <- catchment_metrics |>
     select(
-      objective_clean, 
-      filter_label, 
-      pt_drt_share_change, 
+      objective_clean,
+      filter_label,
+      pt_drt_share_change,
       car_taxi_share_change,
       pt_drt_vkm_change,
       car_taxi_vkm_change
@@ -1936,24 +1901,26 @@ generate_catchment_analysis <- function(target_solution_ids, suffix_label) {
       cols = ends_with("change"),
       names_to = "raw_metric",
       values_to = "value"
-    ) |>
-    filter(
-      !str_detect(filter_label, "Access: O \\|"), 
-      !str_detect(filter_label, " \\| O \\| ") 
-    ) |>
+    )
+
+  # --- APPLY CATCHMENT FILTER HERE FOR PLOT ---
+  if (!is.null(CATCHMENT_PLOT_EXCLUDE_REGEX)) {
+    plot_data <- plot_data |>
+      filter(!str_detect(filter_label, CATCHMENT_PLOT_EXCLUDE_REGEX))
+  }
+  # ---------------------------------------------
+
+  plot_data <- plot_data |>
     mutate(
-      # Define Row Facets
       Metric_Category = if_else(
         str_detect(raw_metric, "share"),
         "Mode Share Change (pp)",
         "VKM Change ('000 km)"
       ),
-      # Define Fill Color Groups (Shared across rows)
       Mode_Group = case_when(
         str_detect(raw_metric, "pt_drt") ~ "PT + DRT",
         str_detect(raw_metric, "car_taxi") ~ "Car + Taxi"
       ),
-      # Scale VKM for display
       value_plot = if_else(
         Metric_Category == "VKM Change ('000 km)",
         value / 1000,
@@ -1961,90 +1928,711 @@ generate_catchment_analysis <- function(target_solution_ids, suffix_label) {
       )
     )
 
-  # 6. Plot
-  plot_grid <- ggplot(
-    plot_data,
-    aes(x = filter_label, y = value_plot, fill = Mode_Group)
-  ) +
-    # Use position "dodge" for Share (side-by-side) and "stack" for VKM?
-    # Actually, stacked bars for mode share change can be misleading if they aren't parts of a whole (like total trips).
-    # Since these are deltas, 'dodge' is cleaner for comparison, but 'stack' shows net effect.
-    # The prompt asked for "one row per PT+DRT mode share and one for overall vkm... stacked chart".
-    # But now we have TWO mode shares in row 1. Let's use 'dodge' for Share and 'stack' for VKM.
-    # We can control this by mapping 'position' in the geom, but ggplot doesn't allow variable positions easily.
-    # Instead, let's just use 'col' (stacked by default) because Car change is usually negative 
-    # and PT change is positive, so they will naturally extend From 0 in opposite directions 
-    # (visually creating a diverging chart), or stack if they are on same side.
-    geom_col(position = "stack", width = 0.7) +
-    
+  # 6. Calc Net Change
+  net_change_data <- plot_data |>
+    group_by(objective_clean, filter_label, Metric_Category) |>
+    summarise(net_value = sum(value_plot, na.rm = TRUE), .groups = "drop")
+
+  # 7. Plot
+  plot_grid <- ggplot() +
+    geom_col(
+      data = plot_data,
+      aes(x = filter_label, y = value_plot, fill = Mode_Group),
+      position = "stack",
+      width = 0.7
+    ) +
+    geom_errorbar(
+      data = net_change_data,
+      aes(
+        x = filter_label,
+        ymin = net_value,
+        ymax = net_value,
+        color = "Net Change"
+      ),
+      width = 0.7,
+      linewidth = 0.6
+    ) +
     geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
-    
     facet_grid(
-      Metric_Category ~ objective_clean, 
-      scales = "free_y", 
+      Metric_Category ~ objective_clean,
+      scales = "free_y",
       switch = "y"
     ) +
-    
     scale_fill_manual(
       values = c("PT + DRT" = "#7570b3", "Car + Taxi" = "#d95f02")
     ) +
-    
+    scale_color_manual(name = NULL, values = c("Net Change" = "black")) +
     labs(
-      title = "Catchment Sensitivity: Mode Share vs. VKM Balance",
-      subtitle = glue::glue("Analysis of {suffix_label} Solutions (Net impact on Mode Share and Total VKM)"),
+      title = "Effect of Catchment Definition on Mode Share and VKT Changes",
+      subtitle = glue::glue(
+        "Analysis of {suffix_label} Solutions"
+      ),
       x = "Catchment Definition",
       y = NULL,
-      fill = "Mode Category"
+      fill = "Mode Component"
     ) +
-    
-    theme_bw(base_size = 10) +
+    theme_bw(base_size = 14) +
     theme(
       legend.position = "bottom",
-      axis.text.x = element_text(angle = 45, hjust = 1, size = 6),
-      strip.text = element_text(face = "bold", size = 9),
-      strip.placement = "outside",
-      panel.grid.minor = element_blank()
+      axis.text.x = element_text(angle = 45, hjust = 1, size = 11),
+      strip.placement = "outside"
     )
 
   ggsave(
-    file.path(plot_dir, glue::glue("fig_4_3_{suffix_label}_catchment_comparison_grid.png")),
-    plot_grid, width = 16, height = 10, dpi = 300
+    file.path(
+      plot_dir,
+      glue::glue("fig_4_3_{suffix_label}_catchment_comparison_grid.png")
+    ),
+    plot_grid,
+    width = 16,
+    height = 10,
+    dpi = 300
   )
 }
+
+# Run 4.3 a & b
+generate_catchment_analysis(ids_rank0, "Best_PSO_Rank")
+generate_catchment_analysis(ids_best_share, "Best_Mode_Shift")
+
+
 # -------------------------
-# Prepare Data: Calculate Total VKM Delta (PT+DRT + Car+Taxi)
+# Combined Catchment Analysis (Rank vs Best Share)
 # -------------------------
 
-# Calculate overall delta globally first
-vkm_overall_delta <- res_vkm_extended |>
-  filter(mode %in% c("pt+drt", "car+taxi")) |>
-  group_by(objective, solution_id, level, access, zones) |>
-  summarise(
-    total_delta_km = sum(delta_km, na.rm = TRUE),
-    .groups = "drop"
+message("Generating combined comparative catchment analysis (Side-by-Side)...")
+
+# 1. Reuse logic to get data for both sets
+get_catchment_data <- function(target_ids, type_label) {
+  base_frame <- target_ids |>
+    cross_join(res_mode_share |> distinct(level, access, zones)) |>
+    mutate(
+      objective_clean = objective_labels_short[objective],
+      filter_label = paste(
+        level_labels[level],
+        access_labels[access],
+        zones_labels[zones],
+        sep = " | "
+      ),
+      Type = type_label
+    )
+
+  # Calculate Car+Taxi Share Delta
+  car_taxi_share <- res_mode_share |>
+    filter(mode %in% c("car", "taxi")) |>
+    group_by(objective, solution_id, level, access, zones) |>
+    summarise(
+      share_delta_combined = sum(share_delta, na.rm = TRUE),
+      .groups = "drop"
+    )
+
+  base_frame |>
+    # PT+DRT Share
+    left_join(
+      res_mode_share |>
+        filter(mode == "pt+drt") |>
+        select(objective, solution_id, level, access, zones, val = share_delta),
+      by = c("objective", "solution_id", "level", "access", "zones")
+    ) |>
+    mutate(
+      Metric_Category = "Mode Share Change (pp)",
+      Mode_Group = "PT + DRT"
+    ) |>
+    bind_rows(
+      # Car+Taxi Share
+      base_frame |>
+        left_join(
+          car_taxi_share |>
+            select(
+              objective,
+              solution_id,
+              level,
+              access,
+              zones,
+              val = share_delta_combined
+            ),
+          by = c("objective", "solution_id", "level", "access", "zones")
+        ) |>
+        mutate(
+          Metric_Category = "Mode Share Change (pp)",
+          Mode_Group = "Car + Taxi"
+        )
+    ) |>
+    bind_rows(
+      # PT+DRT VKM
+      base_frame |>
+        left_join(
+          res_vkm_extended |>
+            filter(mode == "pt+drt") |>
+            select(
+              objective,
+              solution_id,
+              level,
+              access,
+              zones,
+              val = delta_km
+            ),
+          by = c("objective", "solution_id", "level", "access", "zones")
+        ) |>
+        mutate(
+          Metric_Category = "VKM Change ('000 km)",
+          Mode_Group = "PT + DRT",
+          val = val / 1000
+        )
+    ) |>
+    bind_rows(
+      # Car+Taxi VKM
+      base_frame |>
+        left_join(
+          res_vkm_extended |>
+            filter(mode == "car+taxi") |>
+            select(
+              objective,
+              solution_id,
+              level,
+              access,
+              zones,
+              val = delta_km
+            ),
+          by = c("objective", "solution_id", "level", "access", "zones")
+        ) |>
+        mutate(
+          Metric_Category = "VKM Change ('000 km)",
+          Mode_Group = "Car + Taxi",
+          val = val / 1000
+        )
+    )
+}
+
+# 2. Bind Data (Using same labels as 4.3y for consistency)
+combined_catchment_data <- bind_rows(
+  get_catchment_data(ids_rank0, "Best PSO Rank"),
+  get_catchment_data(ids_best_share, "Best Real Share")
+) |>
+  filter(
+    !str_detect(filter_label, CATCHMENT_PLOT_EXCLUDE_REGEX)
+  ) |>
+  mutate(
+    # Create unified fill group for legend matching 4.3y
+    Fill_Group = paste(Mode_Group, Type, sep = " - ")
   )
 
+# --- MANUAL DODGING LOGIC FOR X-AXIS ---
+# This places the two bars side-by-side for each catchment definition
+
+# Define X-axis order
+catchment_labels_ordered <- sort(unique(combined_catchment_data$filter_label))
+
+bar_width <- 0.35
+offset <- 0.2
+
+combined_catchment_pos <- combined_catchment_data |>
+  mutate(
+    # Convert categorical X to numeric position
+    x_base = as.numeric(factor(
+      filter_label,
+      levels = catchment_labels_ordered
+    )),
+    # Shift position based on Type: "Best Share" right, "Rank" left
+    x_pos = if_else(Type == "Best Real Share", x_base + offset, x_base - offset)
+  )
+
+# Calculate Net Change for Error Bars (Positioned at x_pos)
+net_catchment_combined <- combined_catchment_pos |>
+  group_by(objective_clean, x_pos, Type, Metric_Category) |>
+  summarise(net_value = sum(val, na.rm = TRUE), .groups = "drop")
+
+# Define Colors (Matching 4.3y)
+catchment_colors <- c(
+  "PT + DRT - Best Real Share" = "#7570b3", # Solid Purple
+  "PT + DRT - Best PSO Rank" = "#bcbddc", # Light Purple
+  "Car + Taxi - Best Real Share" = "#d95f02", # Solid Orange
+  "Car + Taxi - Best PSO Rank" = "#fdbe85" # Light Orange
+)
+
+# 4. Plot
+plot_combined_catchment <- ggplot() +
+  # Stacked Bars (manually positioned on X)
+  geom_col(
+    data = combined_catchment_pos,
+    aes(x = x_pos, y = val, fill = Fill_Group),
+    width = bar_width,
+    position = "stack"
+  ) +
+
+  # Net Change Marker (VSegment) - Only for VKM
+  geom_segment(
+    data = net_catchment_combined |> filter(str_detect(Metric_Category, "VKM")),
+    aes(
+      x = x_pos - 0.22, # Slightly wider than bar
+      xend = x_pos + 0.22,
+      y = net_value,
+      yend = net_value,
+      color = "Net Change"
+    ),
+    linewidth = 1
+  ) +
+
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
+
+  # Facet Grid: Rows = Metric, Cols = Objective
+  facet_grid(
+    Metric_Category ~ objective_clean,
+    scales = "free_y",
+    switch = "y"
+  ) +
+
+  scale_fill_manual(
+    values = catchment_colors,
+    name = "",
+    labels = c(
+      "PT + DRT - Best Real Share" = "PT + DRT - Best Mode Shift",
+      "PT + DRT - Best PSO Rank" = "PT + DRT - Best PSO Rank",
+      "Car + Taxi - Best Real Share" = "Car + Taxi - Best Mode Shift",
+      "Car + Taxi - Best PSO Rank" = "Car + Taxi - Best PSO Rank"
+    )
+  ) +
+  scale_color_manual(name = NULL, values = c("Net Change" = "black")) +
+
+  # Custom X Axis: Map numeric positions back to labels
+  scale_x_continuous(
+    breaks = seq_along(catchment_labels_ordered),
+    labels = catchment_labels_ordered
+  ) +
+
+  labs(
+    title = "Effect of Catchment Definition on Mode Share and VKT changes",
+    subtitle = "Analysis of Best PSO Rank & Best Mode Shift Solutions",
+    x = "Catchment Definition",
+    y = NULL
+  ) +
+
+  theme_bw(base_size = 14) +
+  theme(
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+    strip.placement = "outside",
+    strip.text = element_text(face = "bold"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank() # Hide vertical grid lines to emphasize grouping
+  ) +
+  guides(fill = guide_legend(ncol = 2))
+
+plot_combined_catchment
+
+ggsave(
+  file.path(plot_dir, "fig_4_3_combined_catchment_comparison.png"),
+  plot_combined_catchment,
+  width = 16,
+  height = 12,
+  dpi = 300
+)
+
+message("✓ Figure 4.3 combined saved (Side-by-Side)")
+
+##########################################################################
+# SECTION 4.4: SUMMARY COMPARISON (Table 4.2c & Simple Global Plot)
+##########################################################################
+
+message("\n==========================================")
+message("SECTION 4.4: SUMMARY COMPARISON")
+message("==========================================\n")
+
 # -------------------------
-# RUN 4.3a: Best by PSO Rank (Rank 0)
+# Table 4.2c: Combined "Best Rank" vs "Best Share" (Expanded Metrics)
 # -------------------------
 
-# Get IDs for "Best Rank"
-ids_rank0 <- res_mode_share |>
-  filter(solution_id == 0) |>
-  distinct(objective, solution_id)
+# Helper to extract all 4 metrics for specific solution IDs
+get_solution_metrics_expanded <- function(ids_df, label_suffix) {
+  # 1. Get Car+Taxi Share Delta specific to this subset
+  car_taxi_share_data <- res_mode_share |>
+    filter(
+      mode %in% c("car", "taxi"),
+      level == "all",
+      access == "all",
+      zones == "all"
+    ) |>
+    group_by(objective, solution_id) |>
+    summarise(
+      share_delta_combined = sum(share_delta, na.rm = TRUE),
+      .groups = "drop"
+    )
 
-generate_catchment_analysis(ids_rank0, "best_rank")
+  ids_df |>
+    # Join PT+DRT Share
+    left_join(
+      res_mode_share |>
+        filter(
+          mode == "pt+drt",
+          level == "all",
+          access == "all",
+          zones == "all"
+        ) |>
+        select(objective, solution_id, share_delta),
+      by = c("objective", "solution_id")
+    ) |>
+    rename(pt_drt_share = share_delta) |>
+
+    # Join Car+Taxi Share
+    left_join(
+      car_taxi_share_data,
+      by = c("objective", "solution_id")
+    ) |>
+    rename(car_taxi_share = share_delta_combined) |>
+
+    # Join PT+DRT VKM
+    left_join(
+      res_vkm_extended |>
+        filter(
+          mode == "pt+drt",
+          level == "all",
+          access == "all",
+          zones == "all"
+        ) |>
+        select(objective, solution_id, delta_km),
+      by = c("objective", "solution_id")
+    ) |>
+    rename(pt_drt_vkm = delta_km) |>
+
+    # Join Car+Taxi VKM
+    left_join(
+      res_vkm_extended |>
+        filter(
+          mode == "car+taxi",
+          level == "all",
+          access == "all",
+          zones == "all"
+        ) |>
+        select(objective, solution_id, delta_km),
+      by = c("objective", "solution_id")
+    ) |>
+    rename(car_taxi_vkm = delta_km) |>
+
+    # Rename all value columns with suffix
+    rename_with(
+      ~ paste0(., "_", label_suffix),
+      c(pt_drt_share, car_taxi_share, pt_drt_vkm, car_taxi_vkm, solution_id)
+    )
+}
+
+# Create combined table
+table_4_2c <- distinct(res_mode_share, objective) |>
+  inner_join(
+    get_solution_metrics_expanded(ids_rank0, "rank0"),
+    by = "objective"
+  ) |>
+  inner_join(
+    get_solution_metrics_expanded(ids_best_share, "best"),
+    by = "objective"
+  ) |>
+  mutate(objective_clean = objective_labels_short[objective]) |>
+  select(
+    objective_clean,
+    # Best Rank Columns
+    id_rank0 = solution_id_rank0,
+    pt_drt_share_rank0,
+    car_taxi_share_rank0,
+    pt_drt_vkm_rank0,
+    car_taxi_vkm_rank0,
+    # Best Share Columns
+    id_best = solution_id_best,
+    pt_drt_share_best,
+    car_taxi_share_best,
+    pt_drt_vkm_best,
+    car_taxi_vkm_best
+  ) |>
+  arrange(objective_clean)
+
+write_csv(
+  table_4_2c,
+  file.path(plot_dir, "tables/table_4_2c_combined_summary.csv")
+)
+
+message("✓ Table 4.2c saved (Expanded Metrics)")
+
 
 # -------------------------
-# RUN 4.3b: Best by PT+DRT Share
+# Figure 4.3x: Global Catchment Summary Plot (Stacked & Horizontal)
 # -------------------------
 
-# Get IDs for "Best Share" (Reuse ids from Table 4.2b calculation earlier)
-ids_best_share <- best_by_pt_drt |>
-  select(objective, solution_id = best_solution_id)
+# Prepare data in long format, mirroring the structure used in catchment plots
+plot_data_global <- bind_rows(
+  # --- Rank 0 Data ---
+  table_4_2c |>
+    select(objective_clean, val = pt_drt_share_rank0) |>
+    mutate(
+      Type = "Best PSO Rank",
+      Metric_Category = "Mode Share Change (pp)",
+      Mode_Group = "PT + DRT"
+    ),
+  table_4_2c |>
+    select(objective_clean, val = car_taxi_share_rank0) |>
+    mutate(
+      Type = "Best PSO Rank",
+      Metric_Category = "Mode Share Change (pp)",
+      Mode_Group = "Car + Taxi"
+    ),
+  table_4_2c |>
+    select(objective_clean, val = pt_drt_vkm_rank0) |>
+    mutate(
+      Type = "Best PSO Rank",
+      Metric_Category = "VKM Change ('000 km)",
+      Mode_Group = "PT + DRT",
+      val = val / 1000
+    ),
+  table_4_2c |>
+    select(objective_clean, val = car_taxi_vkm_rank0) |>
+    mutate(
+      Type = "Best PSO Rank",
+      Metric_Category = "VKM Change ('000 km)",
+      Mode_Group = "Car + Taxi",
+      val = val / 1000
+    ),
 
-generate_catchment_analysis(ids_best_share, "best_share")
+  # --- Best Share Data ---
+  table_4_2c |>
+    select(objective_clean, val = pt_drt_share_best) |>
+    mutate(
+      Type = "Best Real Share",
+      Metric_Category = "Mode Share Change (pp)",
+      Mode_Group = "PT + DRT"
+    ),
+  table_4_2c |>
+    select(objective_clean, val = car_taxi_share_best) |>
+    mutate(
+      Type = "Best Real Share",
+      Metric_Category = "Mode Share Change (pp)",
+      Mode_Group = "Car + Taxi"
+    ),
+  table_4_2c |>
+    select(objective_clean, val = pt_drt_vkm_best) |>
+    mutate(
+      Type = "Best Real Share",
+      Metric_Category = "VKM Change ('000 km)",
+      Mode_Group = "PT + DRT",
+      val = val / 1000
+    ),
+  table_4_2c |>
+    select(objective_clean, val = car_taxi_vkm_best) |>
+    mutate(
+      Type = "Best Real Share",
+      Metric_Category = "VKM Change ('000 km)",
+      Mode_Group = "Car + Taxi",
+      val = val / 1000
+    )
+)
 
+# Calculate Net Change for Error Bars
+net_change_global <- plot_data_global |>
+  group_by(objective_clean, Type, Metric_Category) |>
+  summarise(net_value = sum(val, na.rm = TRUE), .groups = "drop")
+
+# Plot
+plot_global <- ggplot() +
+  # Stacked bars
+  geom_col(
+    data = plot_data_global,
+    aes(x = val, y = fct_rev(objective_clean), fill = Mode_Group),
+    position = "stack",
+    width = 0.7
+  ) +
+  # Net Change Dash
+  geom_errorbar(
+    data = net_change_global,
+    aes(
+      xmin = net_value,
+      xmax = net_value,
+      y = fct_rev(objective_clean),
+      color = "Net Change"
+    ),
+    width = 0.7,
+    linewidth = 0.6
+  ) +
+
+  geom_vline(xintercept = 0, color = "black", linewidth = 0.3) +
+
+  # Facet Grid: Cols = Metric, Rows = Selection Type (Rank vs Best)
+  facet_grid(Type ~ Metric_Category, scales = "free_x") +
+
+  scale_fill_manual(
+    values = c("PT + DRT" = "#7570b3", "Car + Taxi" = "#d95f02")
+  ) +
+  scale_color_manual(name = NULL, values = c("Net Change" = "black")) +
+
+  labs(
+    title = "System-Wide Performance Summary (Global Catchment)",
+    subtitle = "Analysis of All | All | All Filter - Comparing Selection Methods",
+    x = "Change vs Baseline",
+    y = NULL,
+    fill = "Mode Component"
+  ) +
+
+  theme_bw(base_size = 11) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.major.y = element_blank(),
+    strip.text = element_text(face = "bold", size = 10),
+    plot.title = element_text(face = "bold", size = 14)
+  )
+
+plot_global
+
+ggsave(
+  file.path(plot_dir, "fig_4_3x_global_summary_horizontal.png"),
+  plot_global,
+  width = 12,
+  height = 10,
+  dpi = 300
+)
+
+message("✓ Figure 4.3x saved (Global horizontal summary with components)")
+
+
+# -------------------------
+# Figure 4.3y: Grouped Global Summary (Manual Layout)
+# -------------------------
+
+message("Generating manual grouped summary plot...")
+
+# 1. Prepare Data for Manual Geometry
+# We use geom_rect to avoid position_dodge/stack conflicts with continuous axes
+
+# Ensure objective factor levels are ordered correctly for the axis
+objectives_ordered <- levels(factor(plot_data_global$objective_clean))
+
+# Define geometry parameters
+bar_height <- 0.35
+offset <- 0.21 # Distance from center of objective tick
+
+plot_data_manual <- plot_data_global |>
+  mutate(
+    # Create combined grouping for Fill (4 colors)
+    Fill_Group = paste(Mode_Group, Type, sep = " - "),
+
+    # Convert Objective to numeric Y-center
+    obj_num = as.numeric(factor(objective_clean, levels = objectives_ordered)),
+
+    # Determine Y-center for this bar type
+    y_center = if_else(
+      Type == "Best Real Share",
+      obj_num + offset,
+      obj_num - offset
+    ),
+
+    # Calculate Rect coordinates
+    # (Since PT is + and Car is -, we stack from 0 outwards)
+    ymin = y_center - (bar_height / 2),
+    ymax = y_center + (bar_height / 2),
+    xmin = 0,
+    xmax = val
+  )
+
+net_change_manual <- net_change_global |>
+  mutate(
+    obj_num = as.numeric(factor(objective_clean, levels = objectives_ordered)),
+    y_center = if_else(
+      Type == "Best Real Share",
+      obj_num + offset,
+      obj_num - offset
+    ),
+    ymin = y_center - (bar_height / 2),
+    ymax = y_center + (bar_height / 2)
+  )
+
+# 2. Define 4-Color Palette (Solid vs Light)
+custom_fill_colors <- c(
+  "PT + DRT - Best Real Share" = "#7570b3", # Solid Purple
+  "PT + DRT - Best PSO Rank" = "#bcbddc", # Light Purple
+  "Car + Taxi - Best Real Share" = "#d95f02", # Solid Orange
+  "Car + Taxi - Best PSO Rank" = "#fdbe85" # Light Orange
+)
+
+# 3. Create Plot (Hybrid Approach)
+plot_global_grouped <- ggplot() +
+
+  # 1. BARS: Use geom_col for safe, automatic stacking
+  geom_col(
+    data = plot_data_grouped,
+    aes(
+      x = val,
+      y = y_pos,
+      fill = Fill_Group
+    ),
+    width = 0.35, # Controls bar thickness easily
+    position = "stack", # Ensures PT and Car stack, not overlap
+    orientation = "y" # Fixes the "vertical vs horizontal" confusion
+  ) +
+
+  # 2. NET CHANGE: Use geom_segment (Your manual approach is prettier here)
+  # We use y_pos from the grouped data, but calculate the segment height manually
+  geom_segment(
+    data = net_change_grouped |> filter(str_detect(Metric_Category, "VKM")),
+    aes(
+      x = net_value,
+      xend = net_value,
+      y = y_pos - 0.22, # (0.35 width / 2) + small padding
+      yend = y_pos + 0.22,
+      color = "Net Change"
+    ),
+    linewidth = 1
+  ) +
+
+  geom_vline(xintercept = 0, color = "black", linewidth = 0.3) +
+  facet_wrap(~Metric_Category, scales = "free_x") +
+
+  # SCALES
+  scale_fill_manual(
+    values = custom_fill_colors,
+    name = "",
+    labels = c(
+      "PT + DRT - Best Real Share" = "PT + DRT - Best Mode Shift",
+      "PT + DRT - Best PSO Rank" = "PT + DRT - Best PSO Rank",
+      "Car + Taxi - Best Real Share" = "Car + Taxi - Best Mode Shift",
+      "Car + Taxi - Best PSO Rank" = "Car + Taxi - Best PSO Rank"
+    )
+  ) +
+  scale_color_manual(name = NULL, values = c("Net Change" = "black")) +
+
+  # Y AXIS (Map numeric positions back to labels)
+  scale_y_continuous(
+    breaks = seq_along(objectives_ordered),
+    labels = objectives_ordered,
+    expand = expansion(mult = 0.05)
+  ) +
+
+  labs(
+    title = "Mode Share and VKM Change Per Objective",
+    subtitle = "Comparing Best Ranked PSO Solution (Light) vs PSO Solution with Highest PT+DRT Mode Shift (Dark)",
+    x = "Change vs Baseline",
+    y = NULL
+  ) +
+
+  theme_bw(base_size = 11) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.x = element_line(color = "gray90"),
+    axis.text.y = element_text(size = 10, face = "bold", color = "black"),
+    strip.text = element_text(face = "bold", size = 11),
+    plot.title = element_text(face = "bold", size = 14)
+  ) +
+  guides(fill = guide_legend(ncol = 2, reverse = TRUE))
+
+plot_global_grouped
+
+
+ggsave(
+  file.path(plot_dir, "fig_4_3y_global_summary_grouped.png"),
+  plot_global_grouped,
+  width = 12,
+  height = 8,
+  dpi = 300
+)
+
+message("✓ Figure 4.3y saved (Grouped summary)")
+
+
+message("\nAnalysis Complete.")
 
 ##########################################################################
 # SUMMARY OUTPUT
@@ -2080,5 +2668,7 @@ message("  - fig_4_1f_topk_recall_simple_no_filter.png")
 message("  - fig_4_2a_pt_car_tradeoff.png")
 message("  - fig_4_2b_vkm_vs_mode_share.png")
 message("  - fig_4_3_catchment_comparison_bar.png")
+message("  - fig_4_3x_global_summary_horizontal.png")
+message("  - fig_4_3x_global_summary_grouped.png")
 
 message("\nNote: Spatial/temporal plots are in plot_maps.R")

@@ -83,9 +83,9 @@ Scripts for analyzing transit optimization results from PSO-based network redesi
 **On cluster:**
 ```bash
 # First time setup
-bash bash/transit_opt/3_post_run_analysis_r.sh --cluster --update-env
-bash bash/transit_opt/4_process_gtfs_headways.sh --cluster --update-env
+bash bash/transit_opt/3_post_run_analysis_r.sh --cluster --iteration iteration_02 --update-env
+bash bash/transit_opt/4_process_gtfs_headways.sh --cluster --iteration iteration_02 --update-env
 
 # Subsequent runs
-bash bash/transit_opt/3_post_run_analysis_r.sh --cluster
-bash bash/transit_opt/4_process_gtfs_headways.sh --cluster
+bash bash/transit_opt/3_post_run_analysis_r.sh --cluster --iteration iteration_02
+bash bash/transit_opt/4_process_gtfs_headways.sh --cluster --iteration iteration_02

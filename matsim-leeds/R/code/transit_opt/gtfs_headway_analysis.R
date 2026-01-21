@@ -189,7 +189,7 @@ process_all_gtfs_solutions <- function(
   solutions_parent_dir = "../../transit_opt/output",
   objective_names = NULL,
   interval_hours = 4,
-  iteration_folder = "iteration_01"
+  iteration_folder = "iteration_0"
 ) {
   # Calculate base headways
   message("========================================")
