@@ -25,6 +25,7 @@ import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsPtUti
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsWalkUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsDrtUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsTaxiUtilityEstimator;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsFeederDrtUtilityEstimator;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsPersonPredictor;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsSpatialPredictor;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsTaxiPredictor;
@@ -61,7 +62,7 @@ public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 	public static final String PT_ESTIMATOR_NAME = "LeedsPtUtilityEstimator";
 	// Add DRT
 	public static final String DRT_ESTIMATOR_NAME = "LeedsDrtUtilityEstimator";
-	public static final String FEEDER_DRT_ESTIMATOR_NAME = "DefaultFeederDrtUtilityEstimator";
+	public static final String FEEDER_DRT_ESTIMATOR_NAME = "LeedsFeederDrtUtilityEstimator";
 	public static final String TAXI_ESTIMATOR_NAME = "LeedsTaxiUtilityEstimator";
 
 	public static final String ISOLATED_OUTSIDE_TOUR_FINDER_NAME = "IsolatedOutsideTrips";
@@ -88,13 +89,21 @@ public class LeedsModeChoiceModule extends AbstractEqasimExtension {
 		bindUtilityEstimator(PT_ESTIMATOR_NAME).to(LeedsPtUtilityEstimator.class);
 		// Add DRT
 		bindUtilityEstimator(DRT_ESTIMATOR_NAME).to(LeedsDrtUtilityEstimator.class);
-		bindUtilityEstimator(FEEDER_DRT_ESTIMATOR_NAME).to(DefaultFeederDrtUtilityEstimator.class);
+		bindUtilityEstimator(FEEDER_DRT_ESTIMATOR_NAME).to(LeedsFeederDrtUtilityEstimator.class);
 
 
 		bindUtilityEstimator(TAXI_ESTIMATOR_NAME).to(LeedsTaxiUtilityEstimator.class);
 		bind(LeedsSpatialPredictor.class);
 		bind(LeedsPtPredictor.class);
 		bind(LeedsTaxiPredictor.class);
+
+		// ADD THESE EXPLICIT BINDINGS for LeedsFeederDrtUtilityEstimator's dependencies
+        bind(LeedsPtUtilityEstimator.class);
+        bind(LeedsDrtUtilityEstimator.class);
+        
+        bind(LeedsSpatialPredictor.class);
+        bind(LeedsPtPredictor.class);
+        bind(LeedsTaxiPredictor.class);
 
 		bind(ModeParameters.class).to(LeedsModeParameters.class);
 
