@@ -375,7 +375,7 @@
 			<!-- Whether full simulation drt is employed -->
 			<param name="simulationType" value="fullSimulation" />
 			<!-- Minimum vehicle stop duration. Must be positive. -->
-			<param name="stopDuration" value="15.0" />
+			<param name="stopDuration" value="21.0" />
 			<!-- Store planned unshared drt route as a link sequence -->
 			<param name="storeUnsharedPath" value="false" />
 			<!-- Stop locations file (transit schedule format, but without lines) for DRT stops. Used only for the stopbased mode -->
@@ -560,7 +560,7 @@
 			<!-- subpopulation to which the strategy applies. "null" refers to the default population, that is, the set of persons for which no explicit subpopulation is defined (ie no subpopulation attribute) -->
 			<param name="subpopulation" value="null" />
 			<!-- weight of a strategy: for each agent, a strategy will be selected with a probability proportional to its weight -->
-			<param name="weight" value="0.05" />
+			<param name="weight" value="0.10" />
 		</parameterset>
 		<parameterset type="strategysettings" >
 			<param name="disableAfterIteration" value="-1" />
