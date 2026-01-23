@@ -128,9 +128,7 @@ public class LeedsDrtCostModel extends AbstractCostModel {
         return cost + 0.1;
     }
 
-
-
-    // Old simpe LeedsDrtCostModel logic (commented out for reference). No distinguisheing between
+    // Old simple LeedsDrtCostModel logic (commented out for reference). No distinguisheing between
     // standalone and feeder:
 
 
