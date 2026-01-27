@@ -56,6 +56,8 @@ public class LeedsModeParameters extends ModeParameters {
 
 	public class LeedsDrtParameters {
 		public double betaRejectionPenalty_u; // Default penalty weight (see drt.rejections.DrtPenaltyController)
+		public double betaAmPmPeak;  // Peak shift for DRT (matches Bus structure)
+
 	}
 
 
@@ -147,6 +149,8 @@ public class LeedsModeParameters extends ModeParameters {
 		parameters.drt.betaWaitingTime_u_min = -1.1484;
 		parameters.drt.betaAccessEgressTime_u_min = -1.1484;
 		// parameters.drt.betaOutofVehicleTime_u_min = -1.1484;
+        parameters.leedsDrt.betaAmPmPeak = -0.0998;  // Same as Bus peak effect
+
 
 		parameters.leedsDrt.betaRejectionPenalty_u = 1.0;  // Needs to be positive! This value is multiplied by the penalty (which is always negative) and added to utility
 

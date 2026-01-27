@@ -20,82 +20,73 @@ import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsPtPre
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.predictors.LeedsSpatialPredictor;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.LeedsPersonVariables;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.LeedsPtVariables;
-import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.variables.LeedsSpatialVariables;
 
 /**
- * Feeder DRT utility estimator that delegates to existing PT and DRT estimators,
- * then corrects for double-counted components.
+ * Feeder DRT utility estimator that delegates to PT and DRT estimators, then applies
+ * corrections to ensure components are counted correctly for composite trips.
  * 
- * ============================================================================
- * HOW THE REDUNDANCY CORRECTION WORKS:
- * ============================================================================
+ * ====================================================================================
+ * UTILITY EQUATION
+ * ====================================================================================
  * 
- * When we delegate to LeedsPtUtilityEstimator and LeedsDrtUtilityEstimator,
- * each call to estimateUtility() adds:
- *   - A mode constant (ASC)
- *   - Person-specific effects (income, age, etc.)
- *   - Time-of-day effects (AM/PM peak)
- *   - Travel time utilities (these SHOULD be summed - no correction needed)
- *   - Cost utilities (these need correction due to log transformation)
+ * U_feeder = ASC_pt                                            (single constant, Bus or Rail)
+ *          + β_inc>50k * 1(Income > 50k)                       (single income effect, if bus-dominant)
+ *          + Σ [PT segment time utilities]                     (additive across segments)
+ *          + Σ [DRT segment time utilities]                    (additive across segments)
+ *          + β_cost * ln(Cost_PT + Cost_DRT)                   (log of TOTAL cost)
  * 
- * For a feeder trip with 1 PT segment + 1 DRT segment, we get:
- *   - 1x PT constant + 1x DRT constant  → We want only 1 constant total
- *   - 1x PT income effect               → We want only 1 income effect total
- *   - 1x PT peak effect                 → We want only 1 peak effect total
- *   - β*log(PT_cost) + β*log(DRT_cost)  → We want β*log(PT_cost + DRT_cost)
+ * Where PT segment utility includes:
+ *   (β_IVT + β_peak * 1(Peak)) * f(IVT, λ_time) + β_OVT * f(OVT, λ_OVT)
  * 
- * The correction subtracts the "extras" so only one instance remains.
+ * And DRT segment utility includes:
+ *   (β_IVT_drt + β_peak * 1(Peak)) * f(IVT, λ_time) + β_OVT_drt * f(OVT, λ_OVT)
  * 
- * ============================================================================
- * HOW TO EXTEND FOR NEW PARAMETERS:
- * ============================================================================
+ * ====================================================================================
+ * HOW IT WORKS
+ * ====================================================================================
  * 
- * If you add a new person-specific or time-of-day parameter to an estimator,
- * you need to add corresponding correction logic here. Follow this pattern:
+ * 1. SEGMENT ITERATION:
+ *    The trip is split into segments (PT legs and DRT legs) using the same logic as
+ *    DefaultFeederDrtUtilityEstimator. Each segment is identified by "interaction"
+ *    activities that mark boundaries between PT and DRT legs.
  * 
- * 1. Identify WHERE the parameter is applied:
- *    - In LeedsPtUtilityEstimator only? → Correct based on ptSegmentCount
- *    - In LeedsDrtUtilityEstimator only? → Correct based on drtSegmentCount
- *    - In both? → Correct based on totalSegments
- * 
- * 2. Identify the CONDITION for the parameter:
- *    - Is it always applied? (like ASC)
- *    - Is it conditional? (like income > 50k, or isPeak)
- * 
- * 3. Add correction in calculateRedundantUtility():
+ * 2. DELEGATION:
+ *    Each segment's utility is calculated by delegating to:
+ *    - LeedsPtUtilityEstimator for PT segments (bus/rail legs)
+ *    - LeedsDrtUtilityEstimator for DRT segments
  *    
- *    // TEMPLATE for PT-only parameter:
- *    if (ptSegmentCount > 1 && <condition>) {
- *        redundant += (ptSegmentCount - 1) * parameters.<parameter_value>;
- *    }
+ *    This ensures travel time utilities are calculated correctly with all transformations.
+ * 
+ * 3. REDUNDANCY CORRECTION:
+ *    The delegated estimators each add their own ASC and person-specific effects.
+ *    For a composite trip, we want these counted only ONCE. The correction:
+ *    - Tracks which ASC (Bus or Rail) was added by each PT segment
+ *    - Keeps exactly 1 PT ASC (the first one encountered)
+ *    - Subtracts ALL DRT ASCs
+ *    - Subtracts extra income effects (if multiple bus-dominant PT segments)
+ * 
+ * 4. COST CORRECTION:
+ *    Because cost uses log transformation, we cannot simply sum utilities:
+ *      β*log(cost_PT) + β*log(cost_DRT) ≠ β*log(cost_PT + cost_DRT)
  *    
- *    // TEMPLATE for DRT-only parameter:
- *    if (drtSegmentCount > 1 && <condition>) {
- *        redundant += (drtSegmentCount - 1) * parameters.<parameter_value>;
- *    }
- *    
- *    // TEMPLATE for parameter in BOTH estimators (want exactly 1 total):
- *    int totalWithParameter = 0;
- *    if (<PT applies parameter>) totalWithParameter += ptSegmentCount;
- *    if (<DRT applies parameter>) totalWithParameter += drtSegmentCount;
- *    if (totalWithParameter > 1 && <condition>) {
- *        redundant += (totalWithParameter - 1) * parameters.<parameter_value>;
- *    }
+ *    The correction:
+ *    - Tracks raw costs from each segment via predictors
+ *    - Subtracts the "wrong" sum-of-logs that was added by delegated estimators
+ *    - Adds the "correct" log-of-sum for total trip cost
  * 
- * ============================================================================
- * COST CORRECTION:
- * ============================================================================
+ * ====================================================================================
+ * IMPORTANT NOTES
+ * ====================================================================================
  * 
- * Because we use log(cost) transformation:
- *   β*log(cost_PT) + β*log(cost_DRT) ≠ β*log(cost_PT + cost_DRT)
+ * - Peak effects are INSIDE the time utility (multiplied by transformed time).
+ *   Since Box-Cox transformed times are additive across segments, no peak correction
+ *   is needed here.
  * 
- * We correct by:
- *   1. Tracking the raw costs from each segment via predictors
- *   2. Subtracting the "wrong" delegated cost utilities
- *   3. Adding the "correct" total cost utility
+ * - The feeder mode uses the ASC of the FIRST PT segment (Bus or Rail, depending on
+ *   which mode dominates that segment).
  * 
- * This ensures the feeder trip has a single cost utility based on TOTAL cost.
- * 
+ * - Income effects are only applied for bus-dominant PT segments (following the
+ *   original Tsoleridis specification where income effect is bus-specific).
  */
 public class LeedsFeederDrtUtilityEstimator implements UtilityEstimator {
 
@@ -103,12 +94,9 @@ public class LeedsFeederDrtUtilityEstimator implements UtilityEstimator {
     private final LeedsPtUtilityEstimator ptEstimator;
     private final LeedsDrtUtilityEstimator drtEstimator;
     
-    // Predictors needed to access raw costs for correction
     private final LeedsPtPredictor ptPredictor;
     private final LeedsDrtPredictor drtPredictor;
-    
     private final LeedsPersonPredictor personPredictor;
-    private final LeedsSpatialPredictor spatialPredictor;
 
     @Inject
     public LeedsFeederDrtUtilityEstimator(
@@ -117,31 +105,34 @@ public class LeedsFeederDrtUtilityEstimator implements UtilityEstimator {
             LeedsDrtUtilityEstimator drtEstimator,
             LeedsPtPredictor ptPredictor,
             LeedsDrtPredictor drtPredictor,
-            LeedsPersonPredictor personPredictor,
-            LeedsSpatialPredictor spatialPredictor) {
+            LeedsPersonPredictor personPredictor) {
         this.parameters = parameters;
         this.ptEstimator = ptEstimator;
         this.drtEstimator = drtEstimator;
         this.ptPredictor = ptPredictor;
         this.drtPredictor = drtPredictor;
         this.personPredictor = personPredictor;
-        this.spatialPredictor = spatialPredictor;
     }
 
     @Override
-    public double estimateUtility(Person person, DiscreteModeChoiceTrip trip, List<? extends PlanElement> elements) {
+    public double estimateUtility(Person person, DiscreteModeChoiceTrip trip, 
+            List<? extends PlanElement> elements) {
         
         double totalUtility = 0.0;
         
         // Counters for redundancy correction
-        int ptSegmentCount = 0;
         int drtSegmentCount = 0;
+        int busAscCount = 0;      // Track how many times Bus ASC was added
+        int railAscCount = 0;     // Track how many times Rail ASC was added
+        int busIncomeCount = 0;   // Track how many times income effect was added (bus-dominant segments)
         
         // Accumulators for cost correction
         double totalPtCost_MU = 0.0;
         double totalDrtCost_MU = 0.0;
 
-        // --- Iterate through segments (same logic as DefaultFeederDrtUtilityEstimator) ---
+        // ========================================================================
+        // SEGMENT ITERATION
+        // ========================================================================
         List<PlanElement> currentSegment = new LinkedList<>();
         String stageActivityType = null;
         FeederDrtTripSegmentType previousSegmentType = null;
@@ -149,28 +140,39 @@ public class LeedsFeederDrtUtilityEstimator implements UtilityEstimator {
         for (PlanElement element : elements) {
             if (element instanceof Activity) {
                 Activity stageActivity = (Activity) element;
+                
+                // Check if this is an interaction activity marking segment boundary
                 if (stageActivityType != null && stageActivity.getType().equals(stageActivityType)) {
                     
                     if (previousSegmentType == null) {
-                        throw new IllegalStateException("Encountered Feeder interaction activity before any leg");
+                        throw new IllegalStateException(
+                            "Encountered Feeder interaction activity before any leg");
                     }
 
-                    // Process completed segment
+                    // Process the completed segment
                     if (previousSegmentType.equals(FeederDrtTripSegmentType.MAIN)) {
-                        // 1. Delegate utility calculation to PT estimator
+                        // PT segment
                         totalUtility += ptEstimator.estimateUtility(person, trip, currentSegment);
-                        ptSegmentCount++;
                         
-                        // 2. Track raw cost for correction (predictors are cached - efficient)
+                        // Track which ASC was added and whether income effect applied
                         LeedsPtVariables ptVars = ptPredictor.predictVariables(person, trip, currentSegment);
+                        if (ptVars.railTravelTime_min > ptVars.busTravelTime_min) {
+                            railAscCount++;
+                        } else {
+                            busAscCount++;
+                            // Income effect only applies to bus-dominant segments
+                            LeedsPersonVariables personVars = personPredictor.predictVariables(person, trip, elements);
+                            if (personVars.indIncomeSPC > 50000) {
+                                busIncomeCount++;
+                            }
+                        }
                         totalPtCost_MU += ptVars.cost_MU;
                         
                     } else if (previousSegmentType.equals(FeederDrtTripSegmentType.DRT)) {
-                        // 1. Delegate utility calculation to DRT estimator
+                        // DRT segment
                         totalUtility += drtEstimator.estimateUtility(person, trip, currentSegment);
                         drtSegmentCount++;
                         
-                        // 2. Track raw cost for correction
                         DrtVariables drtVars = drtPredictor.predictVariables(person, trip, currentSegment);
                         totalDrtCost_MU += drtVars.cost_MU;
                     }
@@ -180,15 +182,20 @@ public class LeedsFeederDrtUtilityEstimator implements UtilityEstimator {
                 }
             }
 
+            // Add element to current segment
             currentSegment.add(element);
 
+            // Detect segment type from leg attributes
             if (element instanceof Leg) {
                 Leg leg = (Leg) element;
+                
+                // Set stage activity type on first leg
                 if (stageActivityType == null) {
                     String routingMode = leg.getRoutingMode();
                     stageActivityType = routingMode + " interaction";
                 }
 
+                // Get segment type from leg attribute
                 Object segmentTypeAttr = leg.getAttributes().getAttribute("currentSegmentType");
                 if (segmentTypeAttr != null) {
                     if (segmentTypeAttr instanceof FeederDrtTripSegmentType) {
@@ -204,21 +211,36 @@ public class LeedsFeederDrtUtilityEstimator implements UtilityEstimator {
         if (!currentSegment.isEmpty() && previousSegmentType != null) {
             if (previousSegmentType.equals(FeederDrtTripSegmentType.MAIN)) {
                 totalUtility += ptEstimator.estimateUtility(person, trip, currentSegment);
-                ptSegmentCount++;
+                
                 LeedsPtVariables ptVars = ptPredictor.predictVariables(person, trip, currentSegment);
+                if (ptVars.railTravelTime_min > ptVars.busTravelTime_min) {
+                    railAscCount++;
+                } else {
+                    busAscCount++;
+                    LeedsPersonVariables personVars = personPredictor.predictVariables(person, trip, elements);
+                    if (personVars.indIncomeSPC > 50000) {
+                        busIncomeCount++;
+                    }
+                }
                 totalPtCost_MU += ptVars.cost_MU;
+                
             } else if (previousSegmentType.equals(FeederDrtTripSegmentType.DRT)) {
                 totalUtility += drtEstimator.estimateUtility(person, trip, currentSegment);
                 drtSegmentCount++;
+                
                 DrtVariables drtVars = drtPredictor.predictVariables(person, trip, currentSegment);
                 totalDrtCost_MU += drtVars.cost_MU;
             }
         }
 
-        // --- CORRECTION 1: ASC and Person/Time effects ---
-        totalUtility -= calculateRedundantUtility(person, trip, elements, ptSegmentCount, drtSegmentCount);
+        // ========================================================================
+        // CORRECTIONS
+        // ========================================================================
         
-        // --- CORRECTION 2: Cost (convert sum-of-logs to log-of-sum) ---
+        // Correction 1: Remove redundant ASCs and person-specific effects
+        totalUtility -= calculateRedundantUtility(busAscCount, railAscCount, drtSegmentCount, busIncomeCount);
+        
+        // Correction 2: Fix cost utility (sum-of-logs → log-of-sum)
         totalUtility += calculateCostCorrection(totalPtCost_MU, totalDrtCost_MU);
 
         return totalUtility;
@@ -226,25 +248,16 @@ public class LeedsFeederDrtUtilityEstimator implements UtilityEstimator {
 
     /**
      * Corrects cost utility from sum-of-logs to log-of-sum.
-     * 
-     * Problem:  Delegated estimators calculate β*log(PT_cost) + β*log(DRT_cost)
-     * Solution: We want β*log(PT_cost + DRT_cost)
-     * 
-     * This method returns: [what we want] - [what we have]
-     *                    = β*log(total) - β*log(PT) - β*log(DRT)
      */
     private double calculateCostCorrection(double ptCost, double drtCost) {
         double betaCost = parameters.betaCost_u_MU;
         double correction = 0.0;
 
-        // 1. Add what we WANT: utility of TOTAL cost
         double totalCost = ptCost + drtCost;
         if (totalCost > 0) {
             correction += betaCost * Math.log(totalCost);
         }
 
-        // 2. Subtract what delegated estimators already added
-        // (These were added inside ptEstimator.estimateUtility() and drtEstimator.estimateUtility())
         if (ptCost > 0) {
             correction -= betaCost * Math.log(ptCost);
         }
@@ -256,56 +269,52 @@ public class LeedsFeederDrtUtilityEstimator implements UtilityEstimator {
     }
 
     /**
-     * Calculate the utility that was double-counted and needs to be subtracted.
+     * Calculates utility components that were double-counted and need to be subtracted.
      * 
-     * Components that should only be counted ONCE per trip:
-     * - Alternative Specific Constants (ASCs)
-     * - Person-specific effects (income)
-     * - Time-of-day effects (AM/PM peak)
+     * Strategy:
+     * - Keep exactly 1 PT ASC (first encountered: prioritize Bus if any, else Rail)
+     * - Subtract ALL DRT ASCs
+     * - Subtract extra income effects (keep at most 1)
+     * 
+     * @param busAscCount Number of bus-dominant PT segments (each added Bus ASC)
+     * @param railAscCount Number of rail-dominant PT segments (each added Rail ASC)
+     * @param drtSegmentCount Number of DRT segments (each added DRT ASC)
+     * @param busIncomeCount Number of times income effect was added (bus-dominant high-income)
      */
-    private double calculateRedundantUtility(Person person, DiscreteModeChoiceTrip trip, 
-            List<? extends PlanElement> elements, int ptSegmentCount, int drtSegmentCount) {
+    private double calculateRedundantUtility(int busAscCount, int railAscCount, 
+            int drtSegmentCount, int busIncomeCount) {
         
         double redundant = 0.0;
         
         // =====================================================================
         // ALTERNATIVE SPECIFIC CONSTANTS (ASCs)
         // =====================================================================
-        // Currently: ptSegmentCount * PT_ASC + drtSegmentCount * DRT_ASC
-        // Desired:   1 * PT_ASC (we choose PT as the "base" for feeder mode)
-        // 
-        // Strategy: Keep 1 PT constant, subtract all DRT constants and extra PT constants
+        // We want exactly 1 PT ASC for the whole feeder trip.
+        // Strategy: Keep the first Bus ASC if any; otherwise keep the first Rail ASC.
         // =====================================================================
         
-        // Subtract extra PT constants (keep 1)
-        if (ptSegmentCount > 1) {
-            redundant += (ptSegmentCount - 1) * parameters.leedsPT.alpha_u_Bus;
+        if (busAscCount > 0) {
+            // Keep 1 Bus ASC, subtract extras
+            redundant += (busAscCount - 1) * parameters.leedsPT.alpha_u_Bus;
+            // Subtract ALL Rail ASCs (Bus ASC is the "main" one)
+            redundant += railAscCount * parameters.leedsPT.alpha_u_Rail;
+        } else if (railAscCount > 0) {
+            // No Bus segments, keep 1 Rail ASC, subtract extras
+            redundant += (railAscCount - 1) * parameters.leedsPT.alpha_u_Rail;
         }
         
-        // Subtract ALL DRT constants (PT constant serves as the single ASC)
+        // Subtract ALL DRT ASCs
         redundant += drtSegmentCount * parameters.drt.alpha_u;
         
         // =====================================================================
-        // PERSON-SPECIFIC EFFECTS
+        // PERSON-SPECIFIC EFFECTS (Income > 50k)
         // =====================================================================
-        LeedsPersonVariables personVars = personPredictor.predictVariables(person, trip, elements);
-        LeedsSpatialVariables spatialVars = spatialPredictor.predictVariables(person, trip, elements);
-        
-        // ---------------------------------------------------------------------
-        // Income effect (currently only in LeedsPtUtilityEstimator for bus)
-        // Applied when: busTravelTime > railTravelTime AND income > 50k
-        // ---------------------------------------------------------------------
-        if (ptSegmentCount > 1 && personVars.indIncomeSPC > 50000) {
-            redundant += (ptSegmentCount - 1) * parameters.leedsPT.betaIncome50k;
-        }
-        
-        // =====================================================================
-        // TIME-OF-DAY EFFECTS
+        // Income effect only applies to bus-dominant segments.
+        // Keep at most 1 income effect.
         // =====================================================================
         
-        // AM/PM Peak effect (currently only in LeedsPtUtilityEstimator)
-        if (ptSegmentCount > 1 && (spatialVars.isAMPeak || spatialVars.isPMPeak)) {
-            redundant += (ptSegmentCount - 1) * parameters.leedsPT.betaAmPmPeakBus;
+        if (busIncomeCount > 1) {
+            redundant += (busIncomeCount - 1) * parameters.leedsPT.betaIncome50k;
         }
         
         return redundant;
