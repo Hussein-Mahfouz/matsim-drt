@@ -1,202 +1,358 @@
 library(tidyverse)
+library(stringr)
 
-# This script looks at change in overall vkm. We compare all trip modes before and after
-# the simulation for sum of: CAR, PT, TAXI, DRT
+# This script looks at change in VKM. We compare VKM before and after simulation.
+# Outputs:
+# - One combined CSV with all filter types identified by a 'filter_type' column
+# - Comparison plots across filter types
 
-
-# We get VKM for the following modes: CAR, TAXI, DRT (PT does not change)
-
-# Sources
-# CAR + TAXI: eqasim_legs (tracks routed vehicle distance (this works as vehicles are not shared))
-# DRT: eqasim_drt_vehicle_movements (the vehicles are shared so we can't use eqasim_legs as it may double count)
-
-
-
-# Set up a list of scenarios and fleet sizes to read in (file directories should exist)
-scenarios <- c("zones",
-               "all",
-               "innerBUA")
+# Setup
+scenarios <- c("zones", "all", "innerBUA")
 fleet_sizes <- c(100, 200, 500, 1000)
 
-
-
-# Define scenario names for plot subtitles
 scenario_labels <- c(
   "zones" = "Zone-based DRT",
   "all" = "Citywide DRT",
   "innerBUA" = "Zone-based DRT (inner)"
 )
 
+modes <- c("car", "taxi")
 
-# ---------- STEP 1: READ IN ALL THE DATA
+# Filter type definitions
+filter_definitions <- list(
+  global = list(
+    name = "Global",
+    filter_fn = function(df, scenario) rep(TRUE, nrow(df))
+  ),
+  trip_touch = list(
+    name = "Trip touches zone",
+    filter_fn = function(df, scenario) {
+      case_when(
+        scenario == "zones" ~ df$filter_zones,
+        scenario == "innerBUA" ~ df$filter_innerBUA,
+        scenario == "all" ~ df$filter_all,
+        TRUE ~ FALSE
+      )
+    }
+  ),
+  resident = list(
+    name = "Resident",
+    filter_fn = function(df, scenario) {
+      case_when(
+        scenario == "zones" ~ df$resident_zones,
+        scenario == "innerBUA" ~ df$resident_innerBUA,
+        scenario == "all" ~ df$resident_all,
+        TRUE ~ FALSE
+      )
+    }
+  )
+)
 
-# ----- STEP 1a: Original VKM (before introduction of DRT)
+# Load Spatial Lookup
+lookup_path <- "../data/interim/trips_spatial_lookup.rds"
+if (file.exists(lookup_path)) {
+  spatial_lookup <- readRDS(lookup_path)
+} else {
+  stop(
+    "Spatial lookup file not found. Please run code/prep_spatial_lookup.R first."
+  )
+}
 
+# Read baseline
+demand_original <- read_delim(
+  "../scenarios/basic/sample_1.00/eqasim_trips.csv",
+  delim = ";",
+  show_col_types = FALSE
+)
 
-# vehicular modes
-modes = c("car","taxi")
+demand_original <- demand_original |>
+  left_join(spatial_lookup, by = c("person_id", "person_trip_id"))
 
-demand_original = read_delim("../scenarios/basic/sample_1.00/eqasim_trips.csv", delim =";")
-
-
-
-# ----- STEP 1b: VKM for different scenarios (after introduction of DRT)
-
-
-# Function to read and process a file and add identifier column
+# Read scenario data
 read_and_process <- function(scenario, fleet_size, file_name) {
-  # Read the data
-  file_path <- paste0("../scenarios/fleet_sizing/", scenario, "/", fleet_size, "/sample_1.00/", file_name, ".csv")
-  # Check if file exists
+  file_path <- paste0(
+    "../scenarios/fleet_sizing/",
+    scenario,
+    "/",
+    fleet_size,
+    "/sample_1.00/",
+    file_name,
+    ".csv"
+  )
   if (!file.exists(file_path)) {
     warning(paste("File not found:", file_path))
-    return(NULL)  # Safe fail
+    return(NULL)
   }
-  # Print status
   print(paste("Reading file:", file_path))
-  # Read
-  data <- read_delim(file_path, delim = ";")
-
-  # Add the scenario and fleet size columns
-  data <- data %>%
-    mutate(scenario = scenario, fleet_size = fleet_size)
-
+  data <- read_delim(file_path, delim = ";", show_col_types = FALSE)
+  data <- data |> mutate(scenario = scenario, fleet_size = fleet_size)
   return(data)
 }
 
-
-# Create a data frame of all combinations of scenarios and fleet sizes to read in
 combinations <- expand.grid(scenario = scenarios, fleet_size = fleet_sizes)
 
-
-# Use purrr::pmap_dfr to read and process each combination. All dfs are binded together
 demand_matsim <- purrr::pmap_dfr(combinations, function(scenario, fleet_size) {
   read_and_process(scenario, fleet_size, "eqasim_trips")
 })
 
+demand_matsim <- demand_matsim |>
+  left_join(spatial_lookup, by = c("person_id", "person_trip_id"))
 
-##### ------- DEBUG (Calculate number of people in each scenario (THEY SHOULD BE THE SAME!!!))
-# This is to (a) diagnose and (b) use as a temporary workaround for https://github.com/Hussein-Mahfouz/matsim-drt/issues/49
+# # Filter to common people
+# n_groups <- demand_matsim |> distinct(scenario, fleet_size) |> nrow()
+# person_group_counts <- demand_matsim |>
+#   distinct(person_id, scenario, fleet_size) |>
+#   count(person_id, name = "n_groups_present") |>
+#   filter(n_groups_present == n_groups)
 
-# --- no. of unique agents in original scenario (NO DRT)
-people_orignal = n_distinct(demand_original$person_id)
+# demand_matsim <- demand_matsim |>
+#   filter(person_id %in% person_group_counts$person_id)
+# demand_original <- demand_original |>
+#   filter(person_id %in% person_group_counts$person_id)
 
-# no of unique agents in drt scenarios
-people_scenario = demand_matsim %>%
-  group_by(scenario, fleet_size) %>% summarise(unique_persons = n_distinct(person_id),
-                                               unique_proportion = round((unique_persons / people_orignal) * 100, 2))
+# ---------- Filter to common trips across all scenarios + baseline
 
+# Create unique trip ID
+demand_original <- demand_original |>
+  mutate(trip_id = paste(person_id, person_trip_id, sep = "_"))
 
-# FIX (TEMP): KEEP ONLY PEOPLE THAT EXIST IN ALL SCENARIOS!!!
+demand_matsim <- demand_matsim |>
+  mutate(trip_id = paste(person_id, person_trip_id, sep = "_"))
 
-# Step 1: Count how many unique groups there are
-n_groups <- demand_matsim %>%
-  distinct(scenario, fleet_size) %>%
-  nrow()
+# Find trips that exist in ALL scenario-fleet combinations
+n_combos <- demand_matsim |> distinct(scenario, fleet_size) |> nrow()
 
-# Step 2: Count how many groups each person appears in
-person_group_counts <- demand_matsim %>%
-  distinct(person_id, scenario, fleet_size) %>%
-  count(person_id, name = "n_groups_present") %>%
-  filter(n_groups_present == n_groups)
+trips_in_all_scenarios <- demand_matsim |>
+  distinct(trip_id, scenario, fleet_size) |>
+  count(trip_id, name = "n_combos_present") |>
+  filter(n_combos_present == n_combos) |>
+  pull(trip_id)
 
-# Step 3: Filter df to keep only person_ids that exist across ALL SCENARIOS
-demand_matsim <- demand_matsim %>%
-  filter(person_id %in% person_group_counts$person_id)
+# Also must exist in baseline
+trips_in_baseline <- demand_original |> pull(trip_id) |> unique()
 
-demand_original <- demand_original %>%
-  filter(person_id %in% person_group_counts$person_id)
+# Intersection: trips that exist in baseline AND all scenarios
+common_trips <- intersect(trips_in_all_scenarios, trips_in_baseline)
 
-##### ------- DEBUG (END)
+message(sprintf(
+  "Filtering to %s common trips (of %s baseline, %s across all scenarios)",
+  scales::comma(length(common_trips)),
+  scales::comma(length(trips_in_baseline)),
+  scales::comma(length(trips_in_all_scenarios))
+))
 
+# Apply filter
+demand_original <- demand_original |> filter(trip_id %in% common_trips)
+demand_matsim <- demand_matsim |> filter(trip_id %in% common_trips)
 
-
-
-# ----- STEP 2: Join input and output trips and calculate % change in VKM
-
-# Get total distance per mode - ORIGINAL SCENARIO
-demand_original_dist = demand_original %>%
-  rename(pid = person_id) %>%
-  select(pid, person_trip_id, mode, routed_distance) %>%
-  group_by(mode) %>%
-  summarise(total_distance_km_orig = sum(routed_distance) / 1000) %>%
-  ungroup()
-
-# Get total distance per mode - ALL SCENARIOS
-demand_matsim_dist = demand_matsim %>%
-  rename(pid = person_id) %>%
-  select(pid, person_trip_id, mode, scenario, fleet_size, routed_distance) %>%
-  group_by(mode, scenario, fleet_size) %>%
-  summarise(total_distance_km = sum(routed_distance) / 1000) %>%
-  ungroup()
-
-# join
-demand_compare = demand_original_dist %>%
-  full_join(demand_matsim_dist, by = c("mode"))
+# Verify
+message("Trips per scenario after filtering:")
+demand_matsim |>
+  group_by(scenario, fleet_size) |>
+  summarise(unique_trips = n_distinct(trip_id), .groups = "drop") |>
+  print()
 
 
-# Keep only the modes that we want (CAR, TAXI)
-demand_compare = demand_compare %>%
-  filter(str_detect(mode, str_c(modes, collapse = "|"))) %>%
-  filter(mode != "car_passenger")
+# DRT VKM (same for all filter types - vehicle-based, not trip-based)
+demand_matsim_drt <- purrr::pmap_dfr(
+  combinations,
+  function(scenario, fleet_size) {
+    read_and_process(scenario, fleet_size, "eqasim_drt_vehicle_movements")
+  }
+)
 
-# Calculate % change
-demand_compare <- demand_compare %>%
+drt_vkm <- demand_matsim_drt |>
+  group_by(fleet_size, scenario) |>
+  summarise(
+    total_distance_km = round(sum(distance) / 1000),
+    .groups = "drop"
+  ) |>
   mutate(
-    delta_km = round(total_distance_km - total_distance_km_orig),
-    # No DRT in original scenario
-    pct_change = round(100 * (delta_km / total_distance_km_orig)))
-
-
-# ----- STEP 3: Get DRT VKM
-
-# load in data
-demand_matsim_drt <- purrr::pmap_dfr(combinations, function(scenario, fleet_size) {
-  read_and_process(scenario, fleet_size, "eqasim_drt_vehicle_movements")
-})
-
-# get vkm per scenario (drtNE and drtNW are summed together, as they are the same scenario)
-demand_matsim_drt_vkm = demand_matsim_drt %>%
-  group_by(fleet_size, scenario) %>%
-  summarise(total_distance_km = round(sum(distance) / 1000)) %>%
-  ungroup() %>%
-  mutate(mode = "drt",
-         total_distance_km_orig = 0,
-         delta_km = total_distance_km,
-         pct_change = NA_real_)
-
-# ----- STEP 4: COMBINE DRT VKM WITH CAR and TAXI VKM
-
-demand_all_vkm = demand_compare %>%
-  bind_rows(demand_matsim_drt_vkm)
-
-
-# ----- Add a TOTAL row
-demand_all_vkm_with_totals <- demand_all_vkm %>%
-  bind_rows(
-    demand_all_vkm %>%
-      group_by(scenario, fleet_size) %>%
-      summarise(
-        mode = "TOTAL",
-        total_distance_km_orig = sum(total_distance_km_orig, na.rm = TRUE),
-        total_distance_km = sum(total_distance_km, na.rm = TRUE),
-        delta_km = total_distance_km - total_distance_km_orig,
-        pct_change = 100 * delta_km / total_distance_km_orig,
-        .groups = "drop"
-      )
+    mode = "drt",
+    total_distance_km_orig = 0,
+    delta_km = total_distance_km,
+    pct_change = NA_real_
   )
 
-# Add a column with change in km and % change
-demand_all_vkm_with_totals <- demand_all_vkm_with_totals %>%
+# ---------- Calculate VKM for all filter types
+
+calculate_vkm <- function(orig_data, matsim_data, filter_type_name, filter_fn) {
+  results_list <- list()
+
+  for (scen in scenarios) {
+    for (fs in fleet_sizes) {
+      # Filter baseline data for this scenario's filter
+      keep_orig <- filter_fn(orig_data, scen)
+      orig_filtered <- orig_data[keep_orig, ]
+
+      # Filter scenario data
+      matsim_subset <- matsim_data |> filter(scenario == scen, fleet_size == fs)
+      keep_matsim <- filter_fn(matsim_subset, scen)
+      matsim_filtered <- matsim_subset[keep_matsim, ]
+
+      # Calculate baseline VKM
+      base_vkm <- orig_filtered |>
+        filter(mode %in% modes, mode != "car_passenger") |>
+        group_by(mode) |>
+        summarise(
+          total_distance_km_orig = sum(routed_distance, na.rm = TRUE) / 1000,
+          .groups = "drop"
+        )
+
+      # Calculate scenario VKM
+      scenario_vkm <- matsim_filtered |>
+        filter(mode %in% modes, mode != "car_passenger") |>
+        group_by(mode) |>
+        summarise(
+          total_distance_km = sum(routed_distance, na.rm = TRUE) / 1000,
+          .groups = "drop"
+        )
+
+      # Combine
+      combined <- base_vkm |>
+        full_join(scenario_vkm, by = "mode") |>
+        mutate(
+          scenario = scen,
+          fleet_size = fs,
+          filter_type = filter_type_name,
+          delta_km = round(total_distance_km - total_distance_km_orig),
+          pct_change = round(100 * delta_km / total_distance_km_orig)
+        )
+
+      # Add DRT (not filtered - vehicle movements)
+      drt_row <- drt_vkm |>
+        filter(scenario == scen, fleet_size == fs) |>
+        mutate(filter_type = filter_type_name)
+
+      combined <- bind_rows(combined, drt_row)
+
+      # Add total
+      total_row <- combined |>
+        summarise(
+          mode = "TOTAL",
+          total_distance_km_orig = sum(total_distance_km_orig, na.rm = TRUE),
+          total_distance_km = sum(total_distance_km, na.rm = TRUE),
+          scenario = scen,
+          fleet_size = fs,
+          filter_type = filter_type_name,
+          delta_km = total_distance_km - total_distance_km_orig,
+          pct_change = round(100 * delta_km / total_distance_km_orig)
+        )
+
+      results_list[[length(results_list) + 1]] <- bind_rows(combined, total_row)
+    }
+  }
+
+  bind_rows(results_list)
+}
+
+# Calculate for all filter types
+all_vkm_results <- map2_dfr(
+  names(filter_definitions),
+  filter_definitions,
+  ~ calculate_vkm(demand_original, demand_matsim, .x, .y$filter_fn)
+)
+
+# Add formatted delta column
+all_vkm_results <- all_vkm_results |>
   mutate(
     `Delta (Thousands of km)` = ifelse(
       is.na(pct_change),
-      sprintf("%.0f (NA)", delta_km/1000),
-      sprintf("%.0f (%.0f%%)", delta_km/1000, pct_change)
+      sprintf("%.0f (NA)", delta_km / 1000),
+      sprintf("%.0f (%.0f%%)", delta_km / 1000, pct_change)
     )
   )
 
+# Save combined results
+write_csv(all_vkm_results, "plots/global_vkm/global_vkm_change.csv")
 
-write_csv(demand_all_vkm_with_totals, "plots/global_vkm/global_vkm_change.csv")
+# ---------- Comparison Plots
 
+# Plot 1: Total VKM change by filter type
+total_vkm_comparison <- all_vkm_results |>
+  filter(mode == "TOTAL")
 
+ggplot(
+  total_vkm_comparison,
+  aes(x = factor(fleet_size), y = delta_km / 1000, fill = filter_type)
+) +
+  geom_col(position = "dodge") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~scenario, labeller = labeller(scenario = scenario_labels)) +
+  labs(
+    title = "Total VKM Change by Filter Type",
+    subtitle = "Change in vehicle kilometers traveled (Car + Taxi + DRT)",
+    x = "Fleet Size",
+    y = "Change in VKM (Thousands)",
+    fill = "Filter Type"
+  ) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+ggsave(
+  "plots/global_vkm/comparison_total_vkm_by_filter.png",
+  width = 10,
+  height = 6
+)
+
+# Plot 2: Car VKM change by filter type
+car_vkm_comparison <- all_vkm_results |>
+  filter(mode == "car")
+
+ggplot(
+  car_vkm_comparison,
+  aes(
+    x = factor(fleet_size),
+    y = pct_change,
+    color = filter_type,
+    group = filter_type
+  )
+) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~scenario, labeller = labeller(scenario = scenario_labels)) +
+  labs(
+    title = "Car VKM Change by Filter Type",
+    subtitle = "Percentage change in car vehicle kilometers",
+    x = "Fleet Size",
+    y = "% Change in Car VKM",
+    color = "Filter Type"
+  ) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+ggsave(
+  "plots/global_vkm/comparison_car_vkm_by_filter.png",
+  width = 10,
+  height = 6
+)
+
+# Plot 3: Stacked comparison of VKM by mode and filter
+vkm_by_mode <- all_vkm_results |>
+  filter(mode != "TOTAL") |>
+  mutate(mode = factor(mode, levels = c("drt", "taxi", "car")))
+
+ggplot(
+  vkm_by_mode |> filter(fleet_size == 500),
+  aes(x = filter_type, y = total_distance_km / 1000, fill = mode)
+) +
+  geom_col(position = "stack") +
+  facet_wrap(~scenario, labeller = labeller(scenario = scenario_labels)) +
+  labs(
+    title = "VKM Composition by Filter Type (Fleet Size = 500)",
+    x = "Filter Type",
+    y = "Total VKM (Thousands)",
+    fill = "Mode"
+  ) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "bottom"
+  )
+
+ggsave(
+  "plots/global_vkm/comparison_vkm_composition_by_filter.png",
+  width = 10,
+  height = 6
+)
