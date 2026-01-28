@@ -196,8 +196,29 @@ feeder_drt_table_ltx %>% as_latex()
 
 # ----------------- Mode shift -----------------
 
-# Add feeder and Service area (scenario) columns
-mode_shift_drt <- mode_shift_drt %>%
+# HYBRID: Global Counts + Local %
+
+# 1. Get ABSOLUTE COUNTS from Global filter
+mode_shift_counts <- mode_shift_drt_raw %>%
+  filter(filter_type == "global") %>%
+  select(input_mode, output_mode, fleet_size, scenario, trips)
+
+# 2. Get LOCAL PERCENTAGES from trip_touch filter
+mode_shift_local_pct <- mode_shift_drt_raw %>%
+  filter(filter_type == "trip_touch") %>%
+  select(input_mode, output_mode, fleet_size, scenario, trips_moved_drt_frac)
+
+# 3. Join them together
+mode_shift_hybrid <- mode_shift_counts %>%
+  left_join(
+    mode_shift_local_pct,
+    by = c("input_mode", "output_mode", "fleet_size", "scenario")
+  ) %>%
+  # Round the percentage
+  mutate(trips_moved_drt_frac = round(trips_moved_drt_frac, 1))
+
+# 4. Add Service Area and Feeder columns (same logic as before)
+mode_shift_hybrid <- mode_shift_hybrid %>%
   mutate(
     `Service Area` = case_when(
       str_starts(output_mode, "drtNE") ~ "drtNE",
@@ -212,24 +233,24 @@ mode_shift_drt <- mode_shift_drt %>%
     )
   )
 
-# Reshape
-mode_shift_drt_table <- mode_shift_drt %>%
-  select(c(
+# 5. Reshape for the table
+mode_shift_hybrid_table <- mode_shift_hybrid %>%
+  select(
     input_mode,
     trips,
     Feeder,
     trips_moved_drt_frac,
     fleet_size,
     `Service Area`
-  )) %>%
+  ) %>%
   pivot_wider(
     names_from = c(Feeder, input_mode),
     values_from = c(trips, trips_moved_drt_frac),
     values_fill = 0
   )
 
-# Add totals
-mode_shift_drt_table <- mode_shift_drt_table %>%
+# 6. Add totals for standalone and feeder
+mode_shift_hybrid_table <- mode_shift_hybrid_table %>%
   mutate(
     trips_standalone_all = rowSums(
       select(., starts_with("trips_standalone_")),
@@ -241,29 +262,10 @@ mode_shift_drt_table <- mode_shift_drt_table %>%
     )
   )
 
-# Calculate the percentage of trips moved to DRT
-# Use local_input_trips (the correct column name from mode_shift_all)
-trips_total <- mode_shift_all %>%
-  distinct(input_mode, .keep_all = TRUE)
-trips_total_sum <- sum(trips_total$local_input_trips)
-
-# Add column to mode_shift_drt_table
-mode_shift_drt_table <- mode_shift_drt_table %>%
+# 7. Create formatting columns (N (Local %))
+mode_shift_hybrid_table <- mode_shift_hybrid_table %>%
   mutate(
-    trips_moved_drt_frac_standalone_all = round(
-      (trips_standalone_all / trips_total_sum) * 100,
-      1
-    ),
-    trips_moved_drt_frac_feeder_all = round(
-      (trips_feeder_all / trips_total_sum) * 100,
-      1
-    )
-  )
-
-# Create formatting columns
-mode_shift_drt_table <- mode_shift_drt_table %>%
-  mutate(
-    # car
+    # Car
     trips_car_standalone = paste0(
       trips_standalone_car,
       " (",
@@ -276,7 +278,7 @@ mode_shift_drt_table <- mode_shift_drt_table %>%
       trips_moved_drt_frac_feeder_car,
       ")"
     ),
-    # pt
+    # PT
     trips_pt_standalone = paste0(
       trips_standalone_pt,
       " (",
@@ -289,7 +291,7 @@ mode_shift_drt_table <- mode_shift_drt_table %>%
       trips_moved_drt_frac_feeder_pt,
       ")"
     ),
-    # bike
+    # Bike
     trips_bike_standalone = paste0(
       trips_standalone_bike,
       " (",
@@ -302,7 +304,7 @@ mode_shift_drt_table <- mode_shift_drt_table %>%
       trips_moved_drt_frac_feeder_bike,
       ")"
     ),
-    # walk
+    # Walk
     trips_walk_standalone = paste0(
       trips_standalone_walk,
       " (",
@@ -315,7 +317,7 @@ mode_shift_drt_table <- mode_shift_drt_table %>%
       trips_moved_drt_frac_feeder_walk,
       ")"
     ),
-    # taxi
+    # Taxi
     trips_taxi_standalone = paste0(
       trips_standalone_taxi,
       " (",
@@ -327,61 +329,52 @@ mode_shift_drt_table <- mode_shift_drt_table %>%
       " (",
       trips_moved_drt_frac_feeder_taxi,
       ")"
-    ),
-    # all
-    trips_all_standalone = paste0(
-      trips_standalone_all,
-      " (",
-      trips_moved_drt_frac_standalone_all,
-      ")"
-    ),
-    trips_all_feeder = paste0(
-      trips_feeder_all,
-      " (",
-      trips_moved_drt_frac_feeder_all,
-      ")"
     )
   ) %>%
   select(
     fleet_size,
     `Service Area`,
-    ends_with("_standalone"),
-    ends_with("_feeder")
+    trips_car_standalone,
+    trips_car_feeder,
+    trips_pt_standalone,
+    trips_pt_feeder,
+    trips_bike_standalone,
+    trips_bike_feeder,
+    trips_walk_standalone,
+    trips_walk_feeder,
+    trips_taxi_standalone,
+    trips_taxi_feeder
   )
 
-# Generate GT Table
-mode_shift_drt_table |>
-  group_by(fleet_size) |>
-  gt() |>
-  tab_options(row_group.as_column = TRUE) |>
+# 8. Generate GT Table
+mode_shift_hybrid_table_ltx <- mode_shift_hybrid_table %>%
+  group_by(fleet_size) %>%
+  gt() %>%
+  tab_options(row_group.as_column = TRUE) %>%
   tab_header(
-    title = paste0("Mode Shift Sources (", str_to_title(SELECTED_FILTER), ")"),
-    subtitle = "Number of Trips shifted to DRT (% of mode total)"
-  ) |>
+    title = "Mode Shift to DRT",
+    subtitle = "Number of Trips (% of Local Demand Shifted)"
+  ) %>%
   tab_spanner(
     label = "Car",
     columns = c(trips_car_standalone, trips_car_feeder)
-  ) |>
+  ) %>%
   tab_spanner(
     label = "Public Transport",
     columns = c(trips_pt_standalone, trips_pt_feeder)
-  ) |>
+  ) %>%
   tab_spanner(
     label = "Bike",
     columns = c(trips_bike_standalone, trips_bike_feeder)
-  ) |>
+  ) %>%
   tab_spanner(
     label = "Walk",
     columns = c(trips_walk_standalone, trips_walk_feeder)
-  ) |>
+  ) %>%
   tab_spanner(
     label = "Taxi",
     columns = c(trips_taxi_standalone, trips_taxi_feeder)
-  ) |>
-  tab_spanner(
-    label = "Total",
-    columns = c(trips_all_standalone, trips_all_feeder)
-  ) |>
+  ) %>%
   cols_label(
     trips_car_standalone = "Standalone",
     trips_car_feeder = "Feeder",
@@ -392,73 +385,78 @@ mode_shift_drt_table |>
     trips_walk_standalone = "Standalone",
     trips_walk_feeder = "Feeder",
     trips_taxi_standalone = "Standalone",
-    trips_taxi_feeder = "Feeder",
-    trips_all_standalone = "Standalone",
-    trips_all_feeder = "Feeder"
-  ) |>
+    trips_taxi_feeder = "Feeder"
+  ) %>%
   tab_source_note(
-    source_note = "How to read: 918 (0.2) = 918 trips shifted to DRT (0.2% of origin mode total shifted to DRT)"
-  ) -> mode_shift_drt_table_ltx
+    source_note = "How to read: 11,707 (2.8) = 11,707 trips shifted to DRT (2.8% of local demand for that mode shifted)"
+  )
 
-print(mode_shift_drt_table_ltx)
-mode_shift_drt_table_ltx %>% as_latex()
+print(mode_shift_hybrid_table_ltx)
+mode_shift_hybrid_table_ltx %>% as_latex()
 
 # ----------------- VKM change -----------------
 
-vkm_change_table <- vkm_change %>%
+# 1. Get Absolute Delta & DRT VKM from GLOBAL
+vkm_abs <- vkm_change_raw %>%
+  filter(filter_type == "global") %>%
+  select(scenario, fleet_size, mode, delta_km, total_distance_km)
+
+# 2. Extract DRT VKM specifically (it's the 'total_distance_km' when mode is 'drt')
+drt_vkm_lookup <- vkm_abs %>%
+  filter(mode == "drt") %>%
+  select(scenario, fleet_size, drt_vkm = total_distance_km)
+
+# 3. Get Percent Change from LOCAL (trip_touch)
+vkm_pct <- vkm_change_raw %>%
+  filter(filter_type == "trip_touch") %>%
+  select(scenario, fleet_size, mode, pct_change)
+
+# 4. Join and Format
+vkm_hybrid <- vkm_abs %>%
+  filter(mode != "drt") %>% # We only want Car/Taxi/Total rows for the table body
+  left_join(vkm_pct, by = c("scenario", "fleet_size", "mode")) %>%
+  left_join(drt_vkm_lookup, by = c("scenario", "fleet_size")) %>% # Attach DRT VKM
+  mutate(
+    # Create the label: "Abs (Pct%)" -> e.g. "-121 (-8%)"
+    # Convert delta_km to Thousands for readability
+    label = sprintf("%.0f (%.0f%%)", delta_km / 1000, pct_change),
+    # Handle NAs (e.g. infinite percent change or no local change)
+    label = ifelse(is.na(pct_change), sprintf("%.0f", delta_km / 1000), label)
+  )
+
+# 5. Pivot for GT Table
+vkm_hybrid_wide <- vkm_hybrid %>%
+  select(scenario, fleet_size, mode, label, drt_vkm) %>%
   pivot_wider(
-    id_cols = c(scenario, fleet_size),
     names_from = mode,
-    values_from = c(
-      total_distance_km_orig,
-      total_distance_km,
-      delta_km,
-      pct_change,
-      `Delta (Thousands of km)`
-    ),
-    names_sep = "_"
+    values_from = label
   ) %>%
-  select(
-    fleet_size,
-    scenario,
-    total_distance_km_orig_car,
-    total_distance_km_orig_taxi,
-    total_distance_km_orig_TOTAL,
-    total_distance_km_drt,
-    `Delta (Thousands of km)_car`,
-    `Delta (Thousands of km)_taxi`,
-    `Delta (Thousands of km)_TOTAL`
-  ) %>%
-  mutate(across(contains("total_distance_km"), ~ round(.x / 1000)))
+  mutate(drt_vkm = round(drt_vkm / 1000)) # Clean up DRT column to thousands
 
-vkm_change_table <- vkm_change_table %>%
-  relocate("total_distance_km_drt", .after = scenario)
-
-vkm_change_table |>
-  group_by(fleet_size) |>
-  gt() |>
-  cols_hide(
-    columns = c(
-      total_distance_km_orig_car,
-      total_distance_km_orig_taxi,
-      total_distance_km_orig_TOTAL
-    )
-  ) |>
-  tab_options(row_group.as_column = TRUE) |>
+# 6. Generate GT Table
+vkm_hybrid_ltx <- vkm_hybrid_wide %>%
+  group_by(fleet_size) %>%
+  gt() %>%
+  #cols_hide(columns = c(scenario)) %>%
+  tab_options(row_group.as_column = TRUE) %>%
   tab_header(
-    title = paste0("VKM Change per mode (", str_to_title(SELECTED_FILTER), ")"),
-    subtitle = "Values are in Thousands of KM"
-  ) |>
-  tab_spanner(label = "DRT", columns = c(total_distance_km_drt)) |>
-  tab_spanner(label = "Car", columns = c(`Delta (Thousands of km)_car`)) |>
-  tab_spanner(label = "Taxi", columns = c(`Delta (Thousands of km)_taxi`)) |>
-  tab_spanner(label = "Total", columns = c(`Delta (Thousands of km)_TOTAL`)) |>
+    title = "VKM Change per mode",
+    subtitle = "Global Absolute Change (Thousands of km) | Local % Change"
+  ) %>%
+  tab_spanner(
+    label = "Change in VKM",
+    columns = c(car, taxi, TOTAL)
+  ) %>%
   cols_label(
-    total_distance_km_drt = "Km travelled",
-    `Delta (Thousands of km)_car` = "Change (%)",
-    `Delta (Thousands of km)_taxi` = "Change (%)",
-    `Delta (Thousands of km)_TOTAL` = "Change (%)"
-  ) -> vkm_global_table_ltx
+    drt_vkm = "DRT VKM (k)",
+    car = "Car",
+    taxi = "Taxi",
+    TOTAL = "Total"
+  ) %>%
+  cols_align(align = "center", columns = everything()) %>%
+  tab_source_note(
+    source_note = "Note: Absolute values represent system-wide impact (thousands of km). Percentages represent impact within the service zone (local efficiency)."
+  )
 
-print(vkm_global_table_ltx)
-vkm_global_table_ltx %>% as_latex()
+print(vkm_hybrid_ltx)
+vkm_hybrid_ltx %>% as_latex()
