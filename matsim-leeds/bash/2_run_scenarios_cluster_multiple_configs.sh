@@ -55,7 +55,7 @@ SAMPLE_SIZE="1.00" # 0.50, 0.20, 0.10, 0.05, 0.01
 # If applied, it checks how many times a person has been rejected in previous iterations, 
 # and probabilistically determines whether to make DRT mode available to person depending on rejection rate
 USE_REJECTION_CONSTRAINT="true"
-PRIOR_REQUESTS="10"        # Virtual prior attempts (default: 10)
+PRIOR_REQUESTS="5"        # Virtual prior attempts (default: 10)
 PRIOR_REJECTIONS="1"       # Virtual prior rejections (default: 1, gives 10% base rate)
 MIN_ATTEMPTS="3"           # Grace period attempts (default: 3)
 
