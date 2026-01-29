@@ -62,7 +62,8 @@ mode_shift_drt <- mode_shift_drt %>%
 drt_table |>
   group_by(fleet_size) |>
   gt() |>
-  cols_hide(columns = c(scenario)) |>
+  # Hide l_det, average_load_factor
+  cols_hide(columns = c(scenario, average_load_factor, l_det)) |>
   tab_options(row_group.as_column = TRUE) |>
   tab_header(
     title = "Vehicle and passenger distance travelled"
@@ -73,7 +74,7 @@ drt_table |>
       vkm,
       vehicle_distance_per_trip,
       vkm_per_vehicle,
-      average_load_factor
+      fleet_efficiency # <--- NEW METRIC
     )
   ) |>
   tab_spanner(
@@ -88,7 +89,7 @@ drt_table |>
     vkm = "Km travelled",
     vehicle_distance_per_trip = "Avg distance per trip (km)",
     vkm_per_vehicle = "Avg distance per vehicle (km)",
-    average_load_factor = "pkm / vkm"
+    fleet_efficiency = "Fleet Efficiency"
   ) -> distance_drt_table_latex
 
 print(distance_drt_table_latex)
@@ -419,9 +420,9 @@ vkm_hybrid <- vkm_abs %>%
   mutate(
     # Create the label: "Abs (Pct%)" -> e.g. "-121 (-8%)"
     # Convert delta_km to Thousands for readability
-    label = sprintf("%.0f (%.0f%%)", delta_km / 1000, pct_change),
+    label = sprintf("%.0f (%.1f%%)", delta_km / 1000, pct_change),
     # Handle NAs (e.g. infinite percent change or no local change)
-    label = ifelse(is.na(pct_change), sprintf("%.0f", delta_km / 1000), label)
+    label = ifelse(is.na(pct_change), sprintf("%.1f", delta_km / 1000), label)
   )
 
 # 5. Pivot for GT Table

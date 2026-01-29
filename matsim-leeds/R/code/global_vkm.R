@@ -252,7 +252,7 @@ calculate_vkm <- function(orig_data, matsim_data, filter_type_name, filter_fn) {
           fleet_size = fs,
           filter_type = filter_type_name,
           delta_km = round(total_distance_km - total_distance_km_orig),
-          pct_change = round(100 * delta_km / total_distance_km_orig)
+          pct_change = round(100 * delta_km / total_distance_km_orig, 2)
         )
 
       # 6. Add DRT VKM (Only added to Total, not replacing anything)
@@ -276,7 +276,7 @@ calculate_vkm <- function(orig_data, matsim_data, filter_type_name, filter_fn) {
           filter_type = filter_type_name,
           # Recalculate delta/pct for the total sum
           delta_km = total_distance_km - total_distance_km_orig,
-          pct_change = round(100 * delta_km / total_distance_km_orig)
+          pct_change = round(100 * delta_km / total_distance_km_orig, 2)
         )
 
       results_list[[length(results_list) + 1]] <- bind_rows(combined, total_row)
