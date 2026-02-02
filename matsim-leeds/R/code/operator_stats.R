@@ -407,7 +407,7 @@ ggplot(
     filter(arrival_time_h > 3, arrival_time_h < 24),
   aes(x = arrival_time_h, y = load_factor, fill = load_factor)
 ) +
-  geom_col(position = "dodge") +
+  geom_col(position = "dodge", color = "grey30", size = 0.15) +
   labs(
     title = "Ratio of occupied km throughout the day",
     subtitle = "passenger km / vehicle km",
@@ -434,7 +434,7 @@ ggplot(
     #trans = "log10",
     labels = scales::comma
   ) +
-  scale_fill_distiller(palette = "RdYlGn", direction = 1)
+  scale_fill_viridis_c(option = "plasma", direction = -1)
 
 ggsave(
   paste0(plots_dir, "load_factor_bar_facet_scenario_and_fleet_size.png"),
