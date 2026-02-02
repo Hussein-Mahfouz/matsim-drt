@@ -14,7 +14,7 @@ echo "Current Local Directory: $LOCAL_DIR"
 
 # Declare an associative array to map local paths to their corresponding remote paths
 declare -A FILES_AND_DIRS=(
-    ["data"]="data"
+    #["data"]="data"
     ["src/main/resources"]="src/main/resources"
     ["target"]="target"
 )
