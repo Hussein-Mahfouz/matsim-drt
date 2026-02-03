@@ -47,11 +47,11 @@ ASC_WALK=3.0294
 ASC_TAXI=-1.8075
 
 # Define convergence thresholds for each mode
-THRESHOLD_CAR=0.01
-THRESHOLD_PT=0.01
-THRESHOLD_BIKE=0.01
-THRESHOLD_WALK=0.01
-THRESHOLD_TAXI=0.01
+THRESHOLD_CAR=0.005
+THRESHOLD_PT=0.005
+THRESHOLD_BIKE=0.005
+THRESHOLD_WALK=0.005
+THRESHOLD_TAXI=0.005
 
 # Get the current working directory (assuming you run this script from the matsim-leeds directory)
 MATSIM_DIR="$(pwd)"   # This automatically sets the current directory to MATSIM_DIR
