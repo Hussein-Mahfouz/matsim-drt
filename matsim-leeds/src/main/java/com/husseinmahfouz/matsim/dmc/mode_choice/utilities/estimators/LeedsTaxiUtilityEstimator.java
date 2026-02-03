@@ -45,7 +45,10 @@ public class LeedsTaxiUtilityEstimator implements UtilityEstimator {
             LeedsSpatialVariables spatialVariables) {
         
         double lambda = parameters.leedsTaxi.lambdaTravelTime;
-        double travelTime = taxiVariables.travelTime_min;
+		//Sum all components (IVT + Access/Egress + Wait) for Total Travel Time
+        double travelTime = taxiVariables.travelTime_min 
+                          + taxiVariables.accessEgressTime_min 
+                          + taxiVariables.waitingTime_min;
         
         // Start with base travel time coefficient
         double combinedCoeff = parameters.leedsTaxi.betaTravelTime_u_min;
