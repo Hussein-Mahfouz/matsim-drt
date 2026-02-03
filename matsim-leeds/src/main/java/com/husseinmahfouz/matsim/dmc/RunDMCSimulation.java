@@ -3,7 +3,7 @@ package com.husseinmahfouz.matsim.dmc;
 import org.eqasim.core.simulation.analysis.EqasimAnalysisModule;
 import org.eqasim.core.simulation.mode_choice.EqasimModeChoiceModule;
 import org.eqasim.core.components.config.EqasimConfigGroup;
-import com.husseinmahfouz.matsim.dmc.mode_choice.LeedsModeChoiceModuleBasic;
+import com.husseinmahfouz.matsim.dmc.mode_choice.LeedsModeChoiceModule;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.core.config.CommandLine;
 import org.matsim.core.config.CommandLine.ConfigurationException;
@@ -89,7 +89,7 @@ public class RunDMCSimulation {
         configurator.configureController(controller);
         controller.addOverridingModule(new EqasimAnalysisModule());
         controller.addOverridingModule(new EqasimModeChoiceModule());
-        controller.addOverridingModule(new LeedsModeChoiceModuleBasic(cmd));
+        controller.addOverridingModule(new LeedsModeChoiceModule(cmd));
         controller.run();
     }
 }

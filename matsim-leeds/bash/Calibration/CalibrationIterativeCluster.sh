@@ -1,35 +1,4 @@
 #!/bin/bash
-
-# Run this file from the following directory: matsim-leeds
-# If file is in matsim-leeds/bash, run "sbatch bash/Calibration/CalibrationIterative.sh"
-
-# This script is used to iteratively calibrate the MATSim simulation for Leeds using the DMC extension.
-# --- Step 1: 
-# Define the (a) reference mode shares (REF_<MODE>) and the (b) initial ASC values (ASC_<MODE>). 
-# Th ASC values are from the existing choice model in LeedsModeParameters.
-# --- Step 2:
-# Define the convergence thresholds for each mode (THRESHOLD_<MODE>). If actual mode share is 
-# within the threshold of the reference mode share, we consider it converged.
-# --- Step 3:
-# Define the adjustment step for the ASCs at each iteration (STEP). 
-# This is the amount by which we adjust the ASC of each mode if the mode share is outside the threshold.
-# --- Step 4:
-# Define the maximum number of iterations (MAX_ITER). Each iteration is a full simulation run (with its own number of iterations).
-# Between each simulation run, the ASCs are adjusted based on the mode shares. Mode shares are extracted from the modestats.csv file.
-# Note: The modestats.csv file is expected to have the following columns:
-# car, pt, bike, walk, taxi
-# The process can finish early if convergence is achieved before reaching the maximum number of iterations.
-# --- Other parmeters to define:
-# Number of iterations WITHIN each simulation run (ITERATIONS),
-# Sample size (SAMPLE_SIZE), (You need to have the input plans file and vehicles file for the sample size)
-# Input plans file (INPUT_PLANS_FILE) and vehicles file (VEHICLES_FILE) for the sample size
-# parent directory for all scenarios (PARENT_DIRECTORY),
-# --- Output
-# The script will create a centralized CSV file for storing mode shares (MODE_SHARE_CSV) and
-# a centralized CSV file for storing ASCs (ASC_CSV) in the parent directory for all scenarios (PARENT_DIRECTORY).
-
-
-#!/bin/bash
 #SBATCH --job-name=calibration        # Name of the job
 #SBATCH --output=slurm-%j.out         # Standard output log (%j = Job ID)
 #SBATCH --error=slurm-%j.err          # Standard error log
@@ -37,6 +6,37 @@
 #SBATCH --ntasks=1                    # Number of tasks (one process)
 #SBATCH --cpus-per-task=16            # Number of CPU cores per task
 #SBATCH --mem-per-cpu=8192            # Memory per CPU core in MB (8192 MB = 8 GB)
+
+
+# Run this file from the following directory: matsim-leeds
+# If file is in matsim-leeds/bash, run "sbatch bash/Calibration/CalibrationIterative.sh"
+
+# This script is used to iteratively calibrate the MATSim simulation for Leeds using the DMC extension.
+# --- Step 1: 
+# Define the (a) reference mode shares (REF_<MODE>) and the (b) initial ASC values (ASC_<MODE>). 
+# The ASC values are from the existing choice model in LeedsModeParameters.
+# --- Step 2:
+# Define the convergence thresholds for each mode (THRESHOLD_<MODE>). In this log-ratio 
+# approach, thresholds serve as the exit criteria for the loop; however, mathematical 
+# adjustments continue for all modes until the entire system converges.
+# --- Step 3:
+# Define the adjustment 'learning rate' (STEP). 
+# We use a log-ratio update: ASC_new = ASC_old + STEP * ln(Reference_Share / Simulated_Share).
+# This provides a proportional adjustment where large errors result in larger shifts, 
+# and small errors result in fine-tuned "nudges" for higher stability.
+# --- Step 4:
+# Define the maximum number of iterations (MAX_ITER). Each iteration is a full simulation run.
+# Between each simulation run, the ASCs are adjusted based on the mode shares extracted 
+# from the modestats.csv file.
+# The process can finish early if convergence is achieved before reaching the maximum number of iterations.
+# --- Other parameters to define:
+# Number of iterations WITHIN each simulation run (ITERATIONS),
+# Sample size (SAMPLE_SIZE),
+# Input plans file (INPUT_PLANS_FILE) and vehicles file (VEHICLES_FILE) for the sample size,
+# parent directory for all scenarios (PARENT_DIRECTORY).
+# --- Output
+# The script will create a centralized CSV file for storing mode shares (MODE_SHARE_CSV) and
+# a centralized CSV file for storing ASCs (ASC_CSV) in the parent directory for all scenarios (PARENT_DIRECTORY).
 
 # ================================
 # Load necessary modules
@@ -115,8 +115,9 @@ THRESHOLD_WALK=0.01
 THRESHOLD_TAXI=0.01
 
 
-# Define the adjustment step for the ASCs at each iteration
-STEP=0.05 #0.05
+# Define a damping factor (STEP). For ASC adjustment (Logit-based adjustment)
+# 1.0 = Full log adjustment. 0.5 to 0.8 is usually safer to prevent oscillation.
+STEP=0.5
 
 # Define maximum iterations. Each iterations is a full simulation run (with it's own number of iterations). 
 # Between each simulation run, the ASCs are adjusted based on the mode shares.
@@ -197,42 +198,45 @@ for ((i=1; i<=MAX_ITER; i++)); do
 
         # Extract the value for the specified column index
         echo "$row" | awk -v idx="$column_index" -F';' '{print $idx}'
-}
+    }
+
+    # Function to sanitize mode share values
+    # Prevents division by zero in log calculation by setting a floor value (epsilon)
+    sanitize_share() {
+        local val=$1
+        # Check if value is empty, non-numeric, or essentially zero
+        # We use 0.0001 as the floor.
+        # Logic: if val < 0.0001, return 0.0001, else return val
+        awk -v v="$val" 'BEGIN {print (v < 0.0001 ? 0.0001 : v)}'
+    }
 
     # Extract mode shares by matching column names
-    MODE_SHARE_CAR=$(get_column_value "car" "$HEADER" "$LAST_ROW")
-    MODE_SHARE_PT=$(get_column_value "pt" "$HEADER" "$LAST_ROW")
-    MODE_SHARE_BIKE=$(get_column_value "bike" "$HEADER" "$LAST_ROW")
-    MODE_SHARE_WALK=$(get_column_value "walk" "$HEADER" "$LAST_ROW")
-    MODE_SHARE_TAXI=$(get_column_value "taxi" "$HEADER" "$LAST_ROW")
+    # We sanitize them immediately to ensure no 0.0 values enter the log calculation
+    MODE_SHARE_CAR=$(sanitize_share "$(get_column_value "car" "$HEADER" "$LAST_ROW")")
+    MODE_SHARE_PT=$(sanitize_share "$(get_column_value "pt" "$HEADER" "$LAST_ROW")")
+    MODE_SHARE_BIKE=$(sanitize_share "$(get_column_value "bike" "$HEADER" "$LAST_ROW")")
+    MODE_SHARE_WALK=$(sanitize_share "$(get_column_value "walk" "$HEADER" "$LAST_ROW")")
+    MODE_SHARE_TAXI=$(sanitize_share "$(get_column_value "taxi" "$HEADER" "$LAST_ROW")")
 
     # Append mode shares to the centralized CSV file
     echo "$i,$MODE_SHARE_CAR,$MODE_SHARE_PT,$MODE_SHARE_BIKE,$MODE_SHARE_WALK,$MODE_SHARE_TAXI" >> "$MODE_SHARE_CSV"
 
-    # Adjust ASCs based on comparison to reference (car ASC is fixed)
-    if [ "$(echo "$MODE_SHARE_PT > $REF_PT + $THRESHOLD_PT" | bc -l)" -eq 1 ]; then
-        ASC_BUS=$(echo "$ASC_BUS - $STEP" | bc)
-    elif [ "$(echo "$MODE_SHARE_PT < $REF_PT - $THRESHOLD_PT" | bc -l)" -eq 1 ]; then
-        ASC_BUS=$(echo "$ASC_BUS + $STEP" | bc)
-    fi
+    # --- LOG-BASED ADJUSTMENT LOGIC ---
+    # Formula: ASC_new = ASC_old + (STEP * ln(Target_Share / Simulated_Share))
+    # 'l()' is the natural log function in the 'bc -l' library.
+    # We use scale=10 to ensure the log function l() doesn't round to 0
 
-    if [ "$(echo "$MODE_SHARE_BIKE > $REF_BIKE + $THRESHOLD_BIKE" | bc -l)" -eq 1 ]; then
-        ASC_BIKE=$(echo "$ASC_BIKE - $STEP" | bc)
-    elif [ "$(echo "$MODE_SHARE_BIKE < $REF_BIKE - $THRESHOLD_BIKE" | bc -l)" -eq 1 ]; then
-        ASC_BIKE=$(echo "$ASC_BIKE + $STEP" | bc)
-    fi
+    # Adjust PT (Updating BUS based on PT share, keeping RAIL fixed as per original)
+    ASC_BUS=$(echo "scale=7; $ASC_BUS + ($STEP * l($REF_PT / $MODE_SHARE_PT))" | bc -l)
 
-    if [ "$(echo "$MODE_SHARE_WALK > $REF_WALK + $THRESHOLD_WALK" | bc -l)" -eq 1 ]; then
-        ASC_WALK=$(echo "$ASC_WALK - $STEP" | bc)
-    elif [ "$(echo "$MODE_SHARE_WALK < $REF_WALK - $THRESHOLD_WALK" | bc -l)" -eq 1 ]; then
-        ASC_WALK=$(echo "$ASC_WALK + $STEP" | bc)
-    fi
+    # Adjust Bike
+    ASC_BIKE=$(echo "scale=7; $ASC_BIKE + ($STEP * l($REF_BIKE / $MODE_SHARE_BIKE))" | bc -l)
 
-    if [ "$(echo "$MODE_SHARE_TAXI > $REF_TAXI + $THRESHOLD_TAXI" | bc -l)" -eq 1 ]; then
-        ASC_TAXI=$(echo "$ASC_TAXI - $STEP" | bc)
-    elif [ "$(echo "$MODE_SHARE_TAXI < $REF_TAXI - $THRESHOLD_TAXI" | bc -l)" -eq 1 ]; then
-        ASC_TAXI=$(echo "$ASC_TAXI + $STEP" | bc)
-    fi
+    # Adjust Walk
+    ASC_WALK=$(echo "scale=7; $ASC_WALK + ($STEP * l($REF_WALK / $MODE_SHARE_WALK))" | bc -l)
+
+    # Adjust Taxi
+    ASC_TAXI=$(echo "scale=7; $ASC_TAXI + ($STEP * l($REF_TAXI / $MODE_SHARE_TAXI))" | bc -l)
 
     # Check for convergence
     CONVERGED=true
