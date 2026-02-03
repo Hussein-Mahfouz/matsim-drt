@@ -152,12 +152,23 @@ for ((i=1; i<=MAX_ITER; i++)); do
         echo "$row" | awk -v idx="$column_index" -F';' '{print $idx}'
 }
 
+    # Function to sanitize mode share values
+    # Prevents division by zero in log calculation by setting a floor value (epsilon)
+    sanitize_share() {
+        local val=$1
+        # Check if value is empty, non-numeric, or essentially zero
+        # We use 0.0001 as the floor.
+        # Logic: if val < 0.0001, return 0.0001, else return val
+        awk -v v="$val" 'BEGIN {print (v < 0.0001 ? 0.0001 : v)}'
+    }
+
     # Extract mode shares by matching column names
-    MODE_SHARE_CAR=$(get_column_value "car" "$HEADER" "$LAST_ROW")
-    MODE_SHARE_PT=$(get_column_value "pt" "$HEADER" "$LAST_ROW")
-    MODE_SHARE_BIKE=$(get_column_value "bike" "$HEADER" "$LAST_ROW")
-    MODE_SHARE_WALK=$(get_column_value "walk" "$HEADER" "$LAST_ROW")
-    MODE_SHARE_TAXI=$(get_column_value "taxi" "$HEADER" "$LAST_ROW")
+    # We sanitize them immediately to ensure no 0.0 values enter the log calculation
+    MODE_SHARE_CAR=$(sanitize_share "$(get_column_value "car" "$HEADER" "$LAST_ROW")")
+    MODE_SHARE_PT=$(sanitize_share "$(get_column_value "pt" "$HEADER" "$LAST_ROW")")
+    MODE_SHARE_BIKE=$(sanitize_share "$(get_column_value "bike" "$HEADER" "$LAST_ROW")")
+    MODE_SHARE_WALK=$(sanitize_share "$(get_column_value "walk" "$HEADER" "$LAST_ROW")")
+    MODE_SHARE_TAXI=$(sanitize_share "$(get_column_value "taxi" "$HEADER" "$LAST_ROW")")
 
     # Append mode shares to the centralized CSV file
     echo "$i,$MODE_SHARE_CAR,$MODE_SHARE_PT,$MODE_SHARE_BIKE,$MODE_SHARE_WALK,$MODE_SHARE_TAXI" >> "$MODE_SHARE_CSV"
