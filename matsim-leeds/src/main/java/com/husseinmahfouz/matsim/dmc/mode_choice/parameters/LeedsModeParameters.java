@@ -98,7 +98,7 @@ public class LeedsModeParameters extends ModeParameters {
 		// parameters.pt.betaWaitingTime_u_min = -0.0484;
 		// parameters.pt.betaAccessEgressTime_u_min = -0.0804;
 
-		parameters.leedsPT.alpha_u_Bus = -0.4429; // -0.0929;
+		parameters.leedsPT.alpha_u_Bus = -0.3185; // -0.0929; // (uncalibrated) 
 		parameters.leedsPT.alpha_u_Rail = 2.4421;
 		parameters.leedsPT.betaInVehicleTimeBus_u_min = -0.1281;
 		parameters.leedsPT.betaInVehicleTimeRail_u_min = -0.0080;
@@ -111,7 +111,7 @@ public class LeedsModeParameters extends ModeParameters {
 		parameters.leedsPT.lambdaOutofVehicleTime = 0.1452; // Box-cox lambda parameter for OVT
 
 		// Bike
-		parameters.bike.alpha_u = -4.0728;
+		parameters.bike.alpha_u = -2.6106; // -4.0728; // (uncalibrated) 
 		parameters.bike.betaTravelTime_u_min = -0.3343;
 		// parameters.bike.betaAgeOver18_u_a = -0.0496;
 
@@ -124,7 +124,7 @@ public class LeedsModeParameters extends ModeParameters {
 
 
 		// Walk
-		parameters.walk.alpha_u = 5.6294; //3.0294;
+		parameters.walk.alpha_u = 5.6231; //3.0294; // (uncalibrated) 
 		parameters.walk.betaTravelTime_u_min = -0.6774;
 
 		parameters.leedsWalk.betaStudent = 0.6964;
@@ -132,7 +132,7 @@ public class LeedsModeParameters extends ModeParameters {
 		parameters.leedsWalk.betaAge18to29 = 0.6964;
 
 		// Taxi
-		parameters.leedsTaxi.alpha_u = -1.8075;
+		parameters.leedsTaxi.alpha_u = -2.3096; // -1.8075; // (uncalibrated) 
 		parameters.leedsTaxi.betaTravelTime_u_min = -0.4525;
 		parameters.leedsTaxi.betaAmPeak = -0.1709;
 		parameters.leedsTaxi.betaPmPeak = -0.1423;
@@ -144,7 +144,7 @@ public class LeedsModeParameters extends ModeParameters {
 
 
 		// DRT (taken from bus for now)
-		parameters.drt.alpha_u = -0.4429; // -0.0929;
+		parameters.drt.alpha_u = -0.3185; // -0.0929; // (bus uncalibrated)
 		parameters.drt.betaTravelTime_u_min = -0.1281;
 		parameters.drt.betaWaitingTime_u_min = -1.1484;
 		parameters.drt.betaAccessEgressTime_u_min = -1.1484;
