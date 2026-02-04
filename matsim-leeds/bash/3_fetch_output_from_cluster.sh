@@ -23,6 +23,7 @@ declare -A DIR_PAIRS=(
     # ["$REMOTE_DIR/scenarios/fleet_sizing_minCostFlow/zones"]="$MATSIM_DIR/scenarios/fleet_sizing/zones"
     # ["$REMOTE_DIR/scenarios/fleet_sizing_minCostFlow/inner"]="$MATSIM_DIR/scenarios/fleet_sizing/inner"
     # ["$REMOTE_DIR/scenarios/fleet_sizing_minCostFlow/innerBUA"]="$MATSIM_DIR/scenarios/fleet_sizing/innerBUA"
+    ["$REMOTE_DIR/scenarios/fleet_sizing_rejection"]="$MATSIM_DIR/scenarios/fleet_sizing"
     # ["$REMOTE_DIR/scenarios/basic/sample_1.00"]="$MATSIM_DIR/scenarios/basic/sample_1.00"
     # ["$REMOTE_DIR/data/external/gtfs_optimisation"]="$MATSIM_DIR/data/external/gtfs_optimisation"
     ["$REMOTE_DIR/output"]="$MATSIM_DIR/R/output"

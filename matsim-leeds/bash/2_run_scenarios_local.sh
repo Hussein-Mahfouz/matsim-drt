@@ -18,7 +18,7 @@ MAIN_CLASS="com.husseinmahfouz.matsim.RunDMCSimulationDRT"
 
 # Define the population sample size being used
 SAMPLE_SIZE="0.02" 
-ITERATIONS=5
+ITERATIONS=25
 GLOBAL_THREADS=8
 QSIM_THREADS=8
 

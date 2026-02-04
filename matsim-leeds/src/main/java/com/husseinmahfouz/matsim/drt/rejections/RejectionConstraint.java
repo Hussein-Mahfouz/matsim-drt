@@ -1,7 +1,9 @@
 package com.husseinmahfouz.matsim.drt.rejections;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 import org.matsim.api.core.v01.population.Person;
@@ -16,18 +18,21 @@ import org.apache.logging.log4j.Logger;
 public class RejectionConstraint extends AbstractTripConstraint {
 	public final static String NAME = "RejectionConstraint";
 
-	private final boolean rejected;
+	// Map of mode -> whether that mode is blocked for this person
+	private final Map<String, Boolean> rejectedByMode;
 	private final Collection<String> modes;
 
-	private RejectionConstraint(boolean rejected, Collection<String> modes) {
+	private RejectionConstraint(Map<String, Boolean> rejectedByMode, Collection<String> modes) {
 		this.modes = modes;
-		this.rejected = rejected; 
+		this.rejectedByMode = rejectedByMode; 
 	}
 
 	@Override
 	public boolean validateBeforeEstimation(DiscreteModeChoiceTrip trip, String mode, List<String> previousModes) {
 		if (modes.contains(mode)) {
-			return !rejected; // Block DRT if person was "rejected"
+			// Check if THIS specific mode is blocked
+			Boolean rejected = rejectedByMode.getOrDefault(mode, false);
+			return !rejected; // Block DRT if person was "rejected" for this mode
 		}
 
 		return true; // Allow all other modes
@@ -53,25 +58,33 @@ public class RejectionConstraint extends AbstractTripConstraint {
 		@Override
 		public TripConstraint createConstraint(Person person, List<DiscreteModeChoiceTrip> planTrips,
 				Collection<String> availableModes) {
-			int attempts = tracker.getNumberOfRequests(person.getId());
+			
+			// Evaluate rejection probability SEPARATELY for each DRT mode
+			Map<String, Boolean> rejectedByMode = new HashMap<>();
+			
+			for (String mode : modes) {
+				int attempts = tracker.getNumberOfRequests(person.getId(), mode);
+				
+				// Grace period: allow DRT until person has minimum attempts FOR THIS MODE
+				if (attempts < minAttempts) {
+					rejectedByMode.put(mode, false);  // Not rejected
+					continue;
+				}
+				
+				// Apply Bayesian-smoothed rejection probability FOR THIS MODE
+				double rejectionProb = tracker.getRejectionProbability(person.getId(), mode);
+				boolean rejected = random.nextDouble() < rejectionProb;
+				rejectedByMode.put(mode, rejected);
+				
+				// Log occasionally for debugging (first few times constraint applies for this mode)
+				if (attempts >= minAttempts && attempts <= minAttempts + 2) {
+					log.info("Person {} mode {}: {} attempts, rejection prob={}%, rejected={}", 
+							 person.getId(), mode, attempts, 
+							 String.format("%.1f", rejectionProb * 100), rejected);
+				}
+			}
             
-            // Grace period: allow DRT until person has minimum attempts
-            if (attempts < minAttempts) {
-                return new RejectionConstraint(false, modes);  // Not rejected
-            }
-            
-            // Apply Bayesian-smoothed rejection probability
-            double rejectionProb = tracker.getRejectionProbability(person.getId());
-            boolean rejected = random.nextDouble() < rejectionProb;
-            
-            // Log occasionally for debugging (first few times constraint applies)
-            if (attempts >= minAttempts && attempts <= minAttempts + 2) {
-                log.info("Person {} has {} cumulative attempts, rejection prob={}%, rejected={}", 
-                         person.getId(), attempts, 
-                         String.format("%.1f", rejectionProb * 100), rejected);
-            }
-            
-            return new RejectionConstraint(rejected, modes);
+            return new RejectionConstraint(rejectedByMode, modes);
         }
     }
 }

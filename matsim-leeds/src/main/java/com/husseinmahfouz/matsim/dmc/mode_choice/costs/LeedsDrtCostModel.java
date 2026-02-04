@@ -15,9 +15,14 @@ import org.matsim.contribs.discrete_mode_choice.model.DiscreteModeChoiceTrip;
 import com.google.inject.Inject;
 
 /**
- * This DRTCostModel is an alternative to the basic one. It incentivises using DRT as a feeder by
- * making feeder trips free (0r cheaper) (similar to TfL hopper fare)
- **/
+ * DRT cost model with distance-based pricing.
+ * 
+ * Pricing structure:
+ * - Base fare covers first N km (drtFreeDistance_km)
+ * - Additional km charged at drtFarePerKm
+ * - Feeder trips have same logic but separate parameters. We make 
+ *   feeder cheaper through a 'hopper fare'
+ */
 
 public class LeedsDrtCostModel extends AbstractCostModel {
     // private static final Logger logger = LogManager.getLogger(LeedsDrtCostModelFeeder.class);
@@ -58,14 +63,9 @@ public class LeedsDrtCostModel extends AbstractCostModel {
         // Calculate the cost based on the trip type
         double tripDistance_km = getInVehicleDistance_km(elements);
         if (isFeederDrt) {
-            // Feeder DRT trip
-            // It is much cheaper (same as TfL hopper fare). Add 0.1 to avoid downstream issues
-            return (costParameters.drtFareBaseFeeder
-                    + costParameters.drtFarePerKmFeeder * tripDistance_km) + 0.1;
+            return calculateFeederCost(tripDistance_km);
         } else if (isDrtOnly) {
-            // DRT-only trip
-            return (costParameters.drtFareBase + costParameters.drtFarePerKm * tripDistance_km)
-                    + 0.1;
+            return calculateStandaloneCost(tripDistance_km);
         } else {
             // If a trip has no DRT leg, the cost is set to a very high value
             // TODO: figure out why these trips exist. I think it is because
@@ -84,7 +84,51 @@ public class LeedsDrtCostModel extends AbstractCostModel {
 
     }
 
-    // Old simpe LeedsDrtCostModel logic (commented out for reference). No distinguisheing between
+    /**
+     * Calculate cost for standalone DRT trip.
+     * 
+     * Structure: Base fare + (distance beyond free threshold) * perKm rate
+     * Example with base=£2, freeDistance=3km, perKm=£0.50:
+     *   - 2 km trip: £2.00 (within free distance)
+     *   - 5 km trip: £2.00 + (5-3) * £0.50 = £3.00
+     */
+    private double calculateStandaloneCost(double tripDistance_km) {
+        double baseFare = costParameters.drtFareBase;
+        double perKmRate = costParameters.drtFarePerKm;
+        double freeDistance = costParameters.drtFreeDistance_km;
+        
+        // Calculate chargeable distance (distance beyond free threshold)
+        double chargeableDistance_km = Math.max(0, tripDistance_km - freeDistance);
+        
+        // Total cost = base + chargeable distance * rate
+        double cost = baseFare + (chargeableDistance_km * perKmRate);
+        
+        // Add small epsilon to avoid log(0) in utility estimator
+        return cost + 0.1;
+    }
+
+    /**
+     * Calculate cost for feeder DRT trip.
+     * 
+     * Typically cheaper than standalone (like TfL hopper fare).
+     * Same structure but with feeder-specific parameters.
+     */
+    private double calculateFeederCost(double tripDistance_km) {
+        double baseFare = costParameters.drtFareBaseFeeder;
+        double perKmRate = costParameters.drtFarePerKmFeeder;
+        double freeDistance = costParameters.drtFreeDistanceFeeder_km;
+        
+        // Calculate chargeable distance
+        double chargeableDistance_km = Math.max(0, tripDistance_km - freeDistance);
+        
+        // Total cost = base + chargeable distance * rate
+        double cost = baseFare + (chargeableDistance_km * perKmRate);
+        
+        // Add small epsilon to avoid log(0) in utility estimator
+        return cost + 0.1;
+    }
+
+    // Old simple LeedsDrtCostModel logic (commented out for reference). No distinguisheing between
     // standalone and feeder:
 
 
