@@ -38,7 +38,7 @@ mode_share_catchment <- function(
 
   # Early exit for "all" scenario
   if (level == "all" && access == "all") {
-    message("Using all trips (no filtering)...")
+    # message("Using all trips (no filtering)...")
     return(
       trips |>
         count(mode) |>
@@ -111,7 +111,7 @@ mode_share_catchment <- function(
   }
 
   if (level == "person") {
-    message("Filtering by person (all trips inside)...")
+    # message("Filtering by person (all trips inside)...")
     total_trips_per_person <- trips |> count(person_id, name = "total_trips")
     filtered_trips_per_person <- trips_access |>
       count(person_id, name = "filtered_trips")
@@ -122,7 +122,7 @@ mode_share_catchment <- function(
     trips_access <- trips_access |> filter(person_id %in% persons_all_in)
   }
 
-  message("Counting mode share...")
+  # message("Counting mode share...")
   trips_access |>
     count(mode) |>
     mutate(share = n / sum(n) * 100)
@@ -240,26 +240,26 @@ mode_share_all_combinations <- function(
     trips <- trips_file
   }
 
-  # Pre-compute spatial flags ONCE
-  message("Pre-computing spatial flags...")
-  trips_enriched <- enrich_trips_spatially(
-    trips,
-    stops,
-    drt_zones,
-    catchment_radius
-  )
+  # Check if flags already exist (optimization)
+  flag_cols <- c("pt_origin_ok", "pt_dest_ok", "drt_origin_ok", "drt_dest_ok")
+  is_enriched <- all(flag_cols %in% names(trips))
+
+  if (is_enriched) {
+    # message("Using pre-computed spatial flags")
+    trips_enriched <- trips
+  } else {
+    message("Computing spatial flags (on-the-fly)...")
+    trips_enriched <- enrich_trips_spatially(
+      trips,
+      stops,
+      drt_zones,
+      catchment_radius
+    )
+  }
 
   # Iterate over parameter combinations using pre-enriched data
   results <- expand_grid(level = levels, access = accesses, zone = zones) |>
     pmap_df(function(level, access, zone) {
-      message("\n")
-      message("#####")
-      message(glue::glue(
-        "Computing level={level}, access={access}, zones={zone}"
-      ))
-      message("#####")
-      message("\n")
-
       mode_share_catchment(
         trips = trips_enriched,
         stops = stops,
@@ -279,13 +279,9 @@ mode_share_all_combinations <- function(
     })
 
   if (include_all) {
-    message("\n")
-    message("#####")
-    message(glue::glue("Computing level=all, access=all, zones=all"))
-    message("#####")
-    message("\n")
+    # message("Computing level=all, access=all, zones=all")
     all_result <- mode_share_catchment(
-      trips = trips, # Use original trips, not enriched (doesn't need flags)
+      trips = trips, # Use original trips, not enriched
       stops = stops,
       catchment_radius = catchment_radius,
       level = "all",
@@ -308,7 +304,7 @@ mode_share_all_combinations <- function(
 }
 
 
-#' Impute stuck trips using baseline data (Person Consistency Check)
+#' Impute stuck trips using baseline data
 #'
 #' @param solution_trips Dataframe of trips from the simulation
 #' @param base_trips Dataframe of trips from the baseline
@@ -322,7 +318,7 @@ impute_stuck_trips <- function(solution_trips, base_trips) {
   # 2. Simulation counts
   sim_counts <- solution_trips |> count(person_id, name = "n_actual")
 
-  # 3. Valid people (completed full plans)
+  # 3. Valid people
   valid_people <- sim_counts |>
     inner_join(baseline_counts, by = "person_id") |>
     filter(n_actual == n_expected) |>
@@ -332,22 +328,17 @@ impute_stuck_trips <- function(solution_trips, base_trips) {
   solution_valid <- solution_trips |> filter(person_id %in% valid_people)
 
   # 5. Get reverted trips for stuck agents
-  # calculate how many people we are reverting
   n_stuck <- nrow(baseline_counts) - length(valid_people)
 
   if (n_stuck > 0) {
-    # Extract baseline records for invalid people
     reverted_trips <- base_trips |>
       filter(!person_id %in% valid_people)
 
-    # Combine
     final_trips <- bind_rows(solution_valid, reverted_trips)
 
-    # Message stats
-    total_after <- nrow(final_trips)
-    message(glue::glue(
-      "  Person Consistency: Imputed {n_stuck} stuck agents. Trips: {nrow(solution_trips)} -> {total_after}"
-    ))
+    # message(glue::glue(
+    #   "  Person Consistency: Imputed {n_stuck} stuck agents."
+    # ))
     return(final_trips)
   } else {
     return(solution_trips)
@@ -363,6 +354,7 @@ impute_stuck_trips <- function(solution_trips, base_trips) {
 #' @param levels Vector of level values
 #' @param accesses Vector of access values
 #' @param include_all Whether to include "all" scenario with no filtering
+#' @param spatial_lookup Optional dataframe with pre-computed spatial flags
 #'
 #' @return Tibble with solution, level, access, mode, n, and share columns
 #'
@@ -375,7 +367,8 @@ mode_share_by_solution <- function(
   include_all = TRUE,
   zones = c("pt"),
   drt_zones = NULL,
-  base_trips_df = NULL
+  base_trips_df = NULL,
+  spatial_lookup = NULL
 ) {
   solution_dirs <- list.dirs(
     solutions_dir,
@@ -394,21 +387,26 @@ mode_share_by_solution <- function(
       message(glue::glue("No eqasim_trips.csv found in {sol_dir}"))
       return(NULL)
     }
-    message("\n")
-    message("###############")
-    message(glue::glue("Processing {basename(sol_dir)}..."))
-    message("###############")
-    message("\n")
+    
+    sol_name <- basename(sol_dir)
+    message(glue::glue("Processing {sol_name}..."))
 
     # Wrap in tryCatch to skip corrupted files
     tryCatch(
       {
-        # Handle imputation if base frame provided
+        trips_current <- arrow::read_delim_arrow(trips_file, delim = ";")
+
+        # 1. Handle imputation
         if (!is.null(base_trips_df)) {
-          trips_current <- arrow::read_delim_arrow(trips_file, delim = ";")
           trips_input <- impute_stuck_trips(trips_current, base_trips_df)
         } else {
-          trips_input <- trips_file
+          trips_input <- trips_current
+        }
+
+        # 2. Join Spatial Lookup if provided (fast path)
+        if (!is.null(spatial_lookup)) {
+          trips_input <- trips_input |>
+            left_join(spatial_lookup, by = c("person_id", "person_trip_id"))
         }
 
         mode_share_all_combinations(
@@ -421,7 +419,7 @@ mode_share_by_solution <- function(
           zones = zones,
           drt_zones = drt_zones
         ) |>
-          mutate(solution = basename(sol_dir), .before = everything())
+          mutate(solution = sol_name, .before = everything())
       },
       error = function(e) {
         message(glue::glue("⚠️  SKIPPING {basename(sol_dir)}: {e$message}"))
@@ -430,3 +428,4 @@ mode_share_by_solution <- function(
     )
   })
 }
+

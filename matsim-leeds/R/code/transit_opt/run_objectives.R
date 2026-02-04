@@ -139,10 +139,33 @@ message("\n")
 message("Loading baseline trips needed for consistency checks...")
 base_trips_df <- arrow::read_delim_arrow(base_trips_file, delim = ";")
 
+# -------------------------
+# OPTIMIZATION: Pre-compute spatial flags
+# -------------------------
+message("Pre-computing spatial lookup for all trips (OPTIMIZATION)...")
+base_trips_enriched <- enrich_trips_spatially(
+  trips = base_trips_df,
+  stops = stops,
+  drt_zones = drt_zones,
+  catchment_radius = catchment_radius
+)
+
+# Create lightweight lookup table
+spatial_lookup <- base_trips_enriched |>
+  select(
+    person_id,
+    person_trip_id,
+    pt_origin_ok,
+    pt_dest_ok,
+    drt_origin_ok,
+    drt_dest_ok
+  )
+message("✓ Spatial lookup created")
+
 # prepare base results once
 message("Processing BASELINE for mode-share analysis...")
 base_modes <- mode_share_all_combinations(
-  trips_file = base_trips_df,
+  trips_file = base_trips_enriched, # Use enriched data directly
   stops = stops,
   catchment_radius = catchment_radius,
   levels = levels_vec,
@@ -175,7 +198,8 @@ all_mode_list <- map(objective_dirs, function(obj_dir) {
     include_all = include_all,
     zones = zones_vec,
     drt_zones = drt_zones,
-    base_trips_df = base_trips_df
+    base_trips_df = base_trips_df,
+    spatial_lookup = spatial_lookup
   ) |>
     mutate(objective = objective_name, .before = everything())
 
@@ -254,7 +278,7 @@ message("\n")
 # prepare base results once
 message("Processing BASELINE for VKM analysis...")
 base_vkm <- vkm_all_combinations(
-  trips_file = base_trips_df,
+  trips_file = base_trips_enriched, # Use enriched data
   solution_dir = base_solution_dir,
   stops = stops,
   boundary_sf = boundary_sf,
@@ -289,7 +313,8 @@ all_vkm_list <- map(objective_dirs, function(obj_dir) {
     include_all = include_all,
     zones = zones_vec,
     drt_zones = drt_zones,
-    base_trips_df = base_trips_df
+    base_trips_df = base_trips_df,
+    spatial_lookup = spatial_lookup
   ) |>
     mutate(objective = objective_name, .before = everything())
 
