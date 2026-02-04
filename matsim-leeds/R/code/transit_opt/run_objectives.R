@@ -135,10 +135,14 @@ message("## MODE-SHARE ANALYSIS")
 message("##########################################")
 message("\n")
 
+# Load baseline trips DF once for imputation use downstream
+message("Loading baseline trips needed for consistency checks...")
+base_trips_df <- arrow::read_delim_arrow(base_trips_file, delim = ";")
+
 # prepare base results once
 message("Processing BASELINE for mode-share analysis...")
 base_modes <- mode_share_all_combinations(
-  trips_file = base_trips_file,
+  trips_file = base_trips_df,
   stops = stops,
   catchment_radius = catchment_radius,
   levels = levels_vec,
@@ -170,7 +174,8 @@ all_mode_list <- map(objective_dirs, function(obj_dir) {
     accesses = accesses_vec,
     include_all = include_all,
     zones = zones_vec,
-    drt_zones = drt_zones
+    drt_zones = drt_zones,
+    base_trips_df = base_trips_df
   ) |>
     mutate(objective = objective_name, .before = everything())
 
@@ -249,7 +254,7 @@ message("\n")
 # prepare base results once
 message("Processing BASELINE for VKM analysis...")
 base_vkm <- vkm_all_combinations(
-  trips_file = base_trips_file,
+  trips_file = base_trips_df,
   solution_dir = base_solution_dir,
   stops = stops,
   boundary_sf = boundary_sf,
@@ -283,7 +288,8 @@ all_vkm_list <- map(objective_dirs, function(obj_dir) {
     modes = c("^car$", "taxi", "pt", "drt"), # Regex for car to avoid car_passenger
     include_all = include_all,
     zones = zones_vec,
-    drt_zones = drt_zones
+    drt_zones = drt_zones,
+    base_trips_df = base_trips_df
   ) |>
     mutate(objective = objective_name, .before = everything())
 

@@ -233,8 +233,12 @@ mode_share_all_combinations <- function(
   zones = c("pt"),
   drt_zones = NULL
 ) {
-  message("Reading trips file with arrow...")
-  trips <- arrow::read_delim_arrow(trips_file, delim = ";")
+  if (is.character(trips_file)) {
+    message("Reading trips file with arrow...")
+    trips <- arrow::read_delim_arrow(trips_file, delim = ";")
+  } else {
+    trips <- trips_file
+  }
 
   # Pre-compute spatial flags ONCE
   message("Pre-computing spatial flags...")
@@ -304,6 +308,53 @@ mode_share_all_combinations <- function(
 }
 
 
+#' Impute stuck trips using baseline data (Person Consistency Check)
+#'
+#' @param solution_trips Dataframe of trips from the simulation
+#' @param base_trips Dataframe of trips from the baseline
+#'
+#' @return Dataframe with stuck agents imputed from baseline
+#'
+impute_stuck_trips <- function(solution_trips, base_trips) {
+  # 1. Baseline counts
+  baseline_counts <- base_trips |> count(person_id, name = "n_expected")
+
+  # 2. Simulation counts
+  sim_counts <- solution_trips |> count(person_id, name = "n_actual")
+
+  # 3. Valid people (completed full plans)
+  valid_people <- sim_counts |>
+    inner_join(baseline_counts, by = "person_id") |>
+    filter(n_actual == n_expected) |>
+    pull(person_id)
+
+  # 4. Filter simulation data (keep only valid)
+  solution_valid <- solution_trips |> filter(person_id %in% valid_people)
+
+  # 5. Get reverted trips for stuck agents
+  # calculate how many people we are reverting
+  n_stuck <- nrow(baseline_counts) - length(valid_people)
+
+  if (n_stuck > 0) {
+    # Extract baseline records for invalid people
+    reverted_trips <- base_trips |>
+      filter(!person_id %in% valid_people)
+
+    # Combine
+    final_trips <- bind_rows(solution_valid, reverted_trips)
+
+    # Message stats
+    total_after <- nrow(final_trips)
+    message(glue::glue(
+      "  Person Consistency: Imputed {n_stuck} stuck agents. Trips: {nrow(solution_trips)} -> {total_after}"
+    ))
+    return(final_trips)
+  } else {
+    return(solution_trips)
+  }
+}
+
+
 #' Calculate mode share for all solutions in a directory
 #'
 #' @param solutions_dir Directory containing solution subdirectories
@@ -323,7 +374,8 @@ mode_share_by_solution <- function(
   accesses = c("origin", "origin+destination"),
   include_all = TRUE,
   zones = c("pt"),
-  drt_zones = NULL
+  drt_zones = NULL,
+  base_trips_df = NULL
 ) {
   solution_dirs <- list.dirs(
     solutions_dir,
@@ -349,21 +401,32 @@ mode_share_by_solution <- function(
     message("\n")
 
     # Wrap in tryCatch to skip corrupted files
-    tryCatch({
-      mode_share_all_combinations(
-        trips_file = trips_file,
-        stops = stops,
-        catchment_radius = catchment_radius,
-        levels = levels,
-        accesses = accesses,
-        include_all = include_all,
-        zones = zones,
-        drt_zones = drt_zones
-      ) |>
-        mutate(solution = basename(sol_dir), .before = everything())
-    }, error = function(e) {
-      message(glue::glue("⚠️  SKIPPING {basename(sol_dir)}: {e$message}"))
-      return(NULL)
-    })
+    tryCatch(
+      {
+        # Handle imputation if base frame provided
+        if (!is.null(base_trips_df)) {
+          trips_current <- arrow::read_delim_arrow(trips_file, delim = ";")
+          trips_input <- impute_stuck_trips(trips_current, base_trips_df)
+        } else {
+          trips_input <- trips_file
+        }
+
+        mode_share_all_combinations(
+          trips_file = trips_input,
+          stops = stops,
+          catchment_radius = catchment_radius,
+          levels = levels,
+          accesses = accesses,
+          include_all = include_all,
+          zones = zones,
+          drt_zones = drt_zones
+        ) |>
+          mutate(solution = basename(sol_dir), .before = everything())
+      },
+      error = function(e) {
+        message(glue::glue("⚠️  SKIPPING {basename(sol_dir)}: {e$message}"))
+        return(NULL)
+      }
+    )
   })
 }
