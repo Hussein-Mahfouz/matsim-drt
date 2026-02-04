@@ -36,7 +36,7 @@ MAIN_CLASS="com.husseinmahfouz.matsim.RunDMCSimulationDRTCluster"
 # Define the compute-related parameters
 CPUS_PER_TASK=12
 MEM_PER_CPU=8192
-MAX_RUNTIME="20:00:00"
+MAX_RUNTIME="47:00:00"
 # Should not be higher than CPUS_PER_TASK
 GLOBAL_THREADS=12
 # Should not be higher than CPUS_PER_TASK
@@ -55,7 +55,7 @@ SAMPLE_SIZE="1.00" # 0.50, 0.20, 0.10, 0.05, 0.01
 # If applied, it checks how many times a person has been rejected in previous iterations, 
 # and probabilistically determines whether to make DRT mode available to person depending on rejection rate
 USE_REJECTION_CONSTRAINT="true"
-PRIOR_REQUESTS="10"        # Virtual prior attempts (default: 10)
+PRIOR_REQUESTS="5"        # Virtual prior attempts (default: 10)
 PRIOR_REJECTIONS="1"       # Virtual prior rejections (default: 1, gives 10% base rate)
 MIN_ATTEMPTS="3"           # Grace period attempts (default: 3)
 
@@ -71,23 +71,23 @@ CONTROLLER_GAIN="1.0"         # Proportional gain
 config_files=(
     "config_simulation_dmc_drt_50_feeder.xml"
     "config_simulation_dmc_drt_all_50_feeder.xml"
-    "config_simulation_dmc_drt_inner_50_feeder.xml"
+    #"config_simulation_dmc_drt_inner_50_feeder.xml"
     "config_simulation_dmc_drt_innerBUA_50_feeder.xml"
     "config_simulation_dmc_drt_100_feeder.xml"
     "config_simulation_dmc_drt_all_100_feeder.xml"
-    "config_simulation_dmc_drt_inner_100_feeder.xml"
+    #"config_simulation_dmc_drt_inner_100_feeder.xml"
     "config_simulation_dmc_drt_innerBUA_100_feeder.xml"
     "config_simulation_dmc_drt_200_feeder.xml"
     "config_simulation_dmc_drt_all_200_feeder.xml"
-    "config_simulation_dmc_drt_inner_200_feeder.xml"
+    #"config_simulation_dmc_drt_inner_200_feeder.xml"
     "config_simulation_dmc_drt_innerBUA_200_feeder.xml"
     "config_simulation_dmc_drt_500_feeder.xml"
     "config_simulation_dmc_drt_all_500_feeder.xml"
-    "config_simulation_dmc_drt_inner_500_feeder.xml"
+    #"config_simulation_dmc_drt_inner_500_feeder.xml"
     "config_simulation_dmc_drt_innerBUA_500_feeder.xml"
     "config_simulation_dmc_drt_1000_feeder.xml"
     "config_simulation_dmc_drt_all_1000_feeder.xml"
-    "config_simulation_dmc_drt_inner_1000_feeder.xml"
+    #"config_simulation_dmc_drt_inner_1000_feeder.xml"
     "config_simulation_dmc_drt_innerBUA_1000_feeder.xml"
 )
 

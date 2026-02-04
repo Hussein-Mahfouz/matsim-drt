@@ -384,7 +384,7 @@
 			<!-- subpopulation to which the strategy applies. "null" refers to the default population, that is, the set of persons for which no explicit subpopulation is defined (ie no subpopulation attribute) -->
 			<param name="subpopulation" value="null" />
 			<!-- weight of a strategy: for each agent, a strategy will be selected with a probability proportional to its weight -->
-			<param name="weight" value="0.05" />
+			<param name="weight" value="0.10" />
 		</parameterset>
 		<parameterset type="strategysettings">
 			<param name="strategyName" value="KeepLastSelected" />

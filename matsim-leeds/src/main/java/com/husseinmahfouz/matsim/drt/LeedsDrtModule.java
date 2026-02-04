@@ -20,6 +20,7 @@ import com.husseinmahfouz.matsim.drt.waiting.DrtWaitingTimeProvider;
 import com.husseinmahfouz.matsim.drt.rejections.DrtPenaltyController;
 import com.husseinmahfouz.matsim.drt.rejections.DrtPenaltyConfig;
 import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsDrtUtilityEstimator;
+import com.husseinmahfouz.matsim.dmc.mode_choice.utilities.estimators.LeedsFeederDrtUtilityEstimator;
 import org.matsim.contrib.drt.estimator.DrtEstimator;
 import org.matsim.contrib.drt.optimizer.DrtOptimizer;
 import org.matsim.core.config.CommandLine;
@@ -55,7 +56,7 @@ public class LeedsDrtModule extends AbstractEqasimExtension {
         addControlerListenerBinding().to(DrtPenaltyController.class);
 
 
-		bindUtilityEstimator("feederDrt").to(DefaultFeederDrtUtilityEstimator.class);
+		bindUtilityEstimator("feederDrt").to(LeedsFeederDrtUtilityEstimator.class);
 
 
 		// Define filter for trip analysis

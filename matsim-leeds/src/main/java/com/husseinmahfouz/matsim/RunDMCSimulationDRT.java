@@ -1,6 +1,5 @@
 package com.husseinmahfouz.matsim;
 
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import org.eqasim.core.components.config.EqasimConfigGroup;
@@ -227,7 +226,7 @@ public class RunDMCSimulationDRT {
 
         { // Add overrides for Leeds + DRT
             controller.addOverridingModule(new LeedsDrtModule(cmd));
-            controller.addOverridingModule(new RejectionModule(Arrays.asList("drt"), cmd));
+            controller.addOverridingModule(new RejectionModule(cmd));
             controller.addOverridingModule(new DrtAnalysisModule());
         }
         controller.run();
