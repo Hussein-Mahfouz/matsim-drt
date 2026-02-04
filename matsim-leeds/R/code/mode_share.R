@@ -1,310 +1,729 @@
 library(tidyverse)
 library(arrow)
-library(ggalluvial) # sankey
+library(ggalluvial)
+library(ggh4x)
+library(data.table) # For fast fread
 
-# This script looks at transitions in mode share. We compare all trip modes before and after
-# the simulation, and plot a sankey diagram of the results
+# This script looks at transitions in mode share. We compare all trip modes
+# before and after the simulation.
+# Outputs:
+# - One combined CSV with all filter types identified by a 'filter_type' column
+# - Comparison plots across filter types
 
-# ---------- Read in the data
+# ---------- Setup
 
-# Input demand
-# demand_original = arrow::read_parquet("../data/demand/legs_with_locations.parquet")
-demand_original = read_delim("../scenarios/basic/sample_1.00/eqasim_trips.csv", delim =";")
-
-
-# Set up a list of scenarios and fleet sizes to read in (file directories should exist)
-scenarios <- c("zones",
-               "all",
-               "innerBUA")
+scenarios <- c("zones", "all", "innerBUA")
 fleet_sizes <- c(100, 200, 500, 1000)
 
-
-
-# Define scenario names for plot subtitles
 scenario_labels <- c(
-  "zones" = "Zone-based DRT",
+  "zones" = "Zone-based DRT (NE/NW)",
   "all" = "Citywide DRT",
   "innerBUA" = "Zone-based DRT (inner)"
 )
 
-# Function to read and process a file and add identifier column
-read_and_process <- function(scenario, fleet_size, file_name) {
-  # Read the data
-  file_path <- paste0("../scenarios/fleet_sizing/", scenario, "/", fleet_size, "/sample_1.00/", file_name, ".csv")
-  # Check if file exists
+# Load Spatial Lookup
+lookup_path <- "../data/interim/trips_spatial_lookup.rds"
+if (file.exists(lookup_path)) {
+  spatial_lookup <- readRDS(lookup_path)
+} else {
+  stop(
+    "Spatial lookup file not found. Please run code/prep_spatial_lookup.R first."
+  )
+}
+
+# Filter type definitions (using if/else for robustness)
+filter_definitions <- list(
+  global = list(
+    name = "Global",
+    description = "All trips in study area",
+    filter_fn = function(df, scenario) rep(TRUE, nrow(df))
+  ),
+  trip_touch = list(
+    name = "Trip touches zone",
+    description = "Origin OR destination in service zone",
+    filter_fn = function(df, scenario) {
+      if (scenario == "zones") {
+        return(df$filter_zones)
+      }
+      if (scenario == "innerBUA") {
+        return(df$filter_innerBUA)
+      }
+      if (scenario == "all") {
+        return(df$filter_all)
+      }
+      return(rep(FALSE, nrow(df)))
+    }
+  ),
+  resident = list(
+    name = "Resident",
+    description = "Person lives in service zone",
+    filter_fn = function(df, scenario) {
+      if (scenario == "zones") {
+        return(df$resident_zones)
+      }
+      if (scenario == "innerBUA") {
+        return(df$resident_innerBUA)
+      }
+      if (scenario == "all") {
+        return(df$resident_all)
+      }
+      return(rep(FALSE, nrow(df)))
+    }
+  )
+)
+
+# ==============================================================================
+# 1. DATA READING (Fast with fread, no mode hierarchy override)
+# ==============================================================================
+
+read_and_process <- function(scenario, fleet_size) {
+  file_path <- paste0(
+    "../scenarios/fleet_sizing/",
+    scenario,
+    "/",
+    fleet_size,
+    "/sample_1.00/eqasim_trips.csv"
+  )
+
   if (!file.exists(file_path)) {
     warning(paste("File not found:", file_path))
-    return(NULL)  # Safe fail
+    return(NULL)
   }
-  # Print status
-  print(paste("Reading file:", file_path))
-  # Read
-  data <- read_delim(file_path, delim = ";")
 
-  # Add the scenario and fleet size columns
-  data <- data %>%
-    mutate(scenario = scenario, fleet_size = fleet_size)
+  message(paste0(
+    "[",
+    format(Sys.time(), "%H:%M:%S"),
+    "] Reading: ",
+    scenario,
+    " (",
+    fleet_size,
+    ")"
+  ))
+
+  # Use fread for speed, keep original mode column as-is
+  data <- fread(file_path, sep = ";")
+
+  data <- data |>
+    as_tibble() |>
+    mutate(
+      scenario = scenario,
+      fleet_size = fleet_size
+    )
 
   return(data)
 }
 
-
-# Create a data frame of all combinations of scenarios and fleet sizes to read in
+# Read all scenario data
 combinations <- expand.grid(scenario = scenarios, fleet_size = fleet_sizes)
+demand_matsim <- purrr::pmap_dfr(combinations, read_and_process)
 
-# ----------  All DRT trips ---------- #
+# Read baseline
+demand_original <- read_delim(
+  "../scenarios/basic/sample_1.00/eqasim_trips.csv",
+  delim = ";",
+  show_col_types = FALSE
+)
 
-# Use purrr::pmap_dfr to read and process each combination. All dfs are binded together
-demand_matsim <- purrr::pmap_dfr(combinations, function(scenario, fleet_size) {
-  read_and_process(scenario, fleet_size, "eqasim_trips")
-})
+# # ==============================================================================
+# # 2. FILTER TO COMMON TRIPS (STUCK AGENT REMOVAL)
+# # ==============================================================================
 
-# Add Trip distance
-demand_matsim <- demand_matsim %>%
-  mutate(euclidean_distance_bucket = cut(euclidean_distance,
-                                         breaks = seq(0, ceiling(max(euclidean_distance, na.rm = TRUE) / 2500) * 2500, by = 2500),
-                                         include.lowest = TRUE, right = FALSE))
+# # Create unique trip ID
+# demand_original <- demand_original |>
+#   mutate(trip_id = paste(person_id, person_trip_id, sep = "_"))
 
-# ---------- Join input and output trips
+# demand_matsim <- demand_matsim |>
+#   mutate(trip_id = paste(person_id, person_trip_id, sep = "_"))
 
-# Prepare data for joining (we join on person id and the equivalent of the trip sequence)
-demand_original = demand_original %>%
-  # mutate(person_trip_id = seq - 1) %>%      # eqasim output is a person_trip_id which is seq starting from 0
-  rename(pid = person_id) %>%
-  select(pid, person_trip_id, mode) %>%
-  # rename_with(~ paste0("input_", .))
-  rename_with(~ paste0("input_", .), .cols = c("mode"))
+# # Find trips that exist in ALL scenario-fleet combinations
+# n_combos <- demand_matsim |> distinct(scenario, fleet_size) |> nrow()
 
-# Create columns for labels
-demand_original = demand_original %>%
-  group_by(input_mode) %>%
-  mutate(input_mode_trips = n()) %>% # total number of trips that started with mode = input_mode
-  ungroup() %>%
-  mutate(input_mode_trips_frac = round((input_mode_trips / n()) * 100, 1)) %>%  # initial mode share of input_mode (%)
-  mutate(input_mode_trips_with_frac = glue::glue("{input_mode} ({input_mode_trips_frac} {'%'})")) # initial mode + initial mode share (%)
+# trips_in_all_scenarios <- demand_matsim |>
+#   distinct(trip_id, scenario, fleet_size) |>
+#   count(trip_id, name = "n_combos_present") |>
+#   filter(n_combos_present == n_combos) |>
+#   pull(trip_id)
 
+# # Also must exist in baseline
+# trips_in_baseline <- demand_original |> pull(trip_id) |> unique()
 
+# # Intersection: trips that exist in baseline AND all scenarios
+# common_trips <- intersect(trips_in_all_scenarios, trips_in_baseline)
 
-demand_matsim = demand_matsim %>%
-  rename(pid = person_id) %>%
-  select(pid, person_trip_id, mode, scenario, fleet_size) %>%
+# message(sprintf(
+#   "Filtering to %s common trips (of %s baseline, %s across all scenarios)",
+#   scales::comma(length(common_trips)),
+#   scales::comma(length(trips_in_baseline)),
+#   scales::comma(length(trips_in_all_scenarios))
+# ))
+
+# # Apply filter
+# demand_original <- demand_original |> filter(trip_id %in% common_trips)
+# demand_matsim <- demand_matsim |> filter(trip_id %in% common_trips)
+
+# ==============================================================================
+# 2. PERSON CONSISTENCY CHECK & IMPUTATION
+# ==============================================================================
+# Logic: If a person has fewer trips in the simulation than in the baseline
+# (i.e. they got stuck), we assume their ENTIRE day reverts to the baseline behavior.
+# This ensures behavioral consistency and maintains constant denominators.
+
+message(
+  "Checking person consistency (Imputing baseline behavior for stuck agents)..."
+)
+
+# 1. Baseline Trip Counts per Person
+baseline_counts <- demand_original |>
+  count(person_id, name = "n_expected")
+
+# 2. Simulation Trip Counts per Person (Grouped by Scenario)
+sim_counts <- demand_matsim |>
+  count(scenario, fleet_size, person_id, name = "n_actual")
+
+# 3. Identify Valid People (Completed full plans in simulation)
+valid_people_lookup <- sim_counts |>
+  inner_join(baseline_counts, by = "person_id") |>
+  filter(n_actual == n_expected) |>
+  mutate(is_valid = TRUE) |>
+  select(scenario, fleet_size, person_id, is_valid)
+
+# 4. Filter Simulation Data (Keep only trips from valid people)
+demand_matsim_valid <- demand_matsim |>
+  inner_join(
+    valid_people_lookup,
+    by = c("scenario", "fleet_size", "person_id")
+  )
+
+# 5. Impute Reverted People
+# For agents who failed/stuck, we insert their BASELINE trips.
+# This effectively counts them as "Staying with Original Mode" (No Shift).
+
+scen_fleet_combos <- distinct(demand_matsim, scenario, fleet_size)
+
+# Helper function to generate fallback trips for a scenario
+get_reverted_trips <- function(scen, fs) {
+  # Who suceeded in this scenario?
+  valid_ids <- valid_people_lookup |>
+    filter(scenario == scen, fleet_size == fs) |>
+    pull(person_id)
+
+  # Create rows for everyone else (the failures), using their Baseline data
+  reverted_trips <- demand_original |>
+    filter(!person_id %in% valid_ids) |>
+    mutate(
+      scenario = scen,
+      fleet_size = fs,
+      # Important: The 'mode' here is the Baseline Input Mode.
+      # By adding it to the 'Output' dataset, it becomes the Output Mode.
+      # Result: Input=Car -> Output=Car (No Shift).
+    )
+
+  return(reverted_trips)
+}
+
+# Generate DataFrame of all reverted trips
+demand_matsim_reverted <- purrr::pmap_dfr(
+  scen_fleet_combos,
+  function(scenario, fleet_size) {
+    get_reverted_trips(scenario, fleet_size)
+  }
+)
+
+# 6. Combine Valid Sim + Reverted Baseline
+demand_matsim <- bind_rows(demand_matsim_valid, demand_matsim_reverted) %>%
+  mutate(trip_id = paste(person_id, person_trip_id, sep = "_")) # Ensure ID exists
+
+message(sprintf(
+  "Imputation Complete. Total Analyzed Trips: %s (across all scenarios).",
+  scales::comma(nrow(demand_matsim))
+))
+
+# 7. Prepare Baseline (Just add trip_id for joining)
+demand_original <- demand_original |>
+  mutate(trip_id = paste(person_id, person_trip_id, sep = "_"))
+
+# (We do NOT filter demand_original. We use the full universe.)
+
+# ==============================================================================
+# 3. DATA PREPARATION & JOINING
+# ==============================================================================
+
+demand_original_prep <- demand_original |>
+  rename(pid = person_id) |>
+  select(pid, person_trip_id, mode) |>
+  rename_with(~ paste0("input_", .), .cols = c("mode")) |>
+  group_by(input_mode) |>
+  mutate(input_mode_trips = n()) |>
+  ungroup() |>
+  mutate(
+    input_mode_trips_frac = round((input_mode_trips / n()) * 100, 1),
+    input_mode_trips_with_frac = glue::glue(
+      "{input_mode} ({input_mode_trips_frac}%)"
+    )
+  )
+
+demand_matsim_prep <- demand_matsim |>
+  rename(pid = person_id) |>
+  select(pid, person_trip_id, mode, scenario, fleet_size) |>
   rename_with(~ paste0("output_", .), .cols = c("mode"))
 
-# join
-demand_compare = demand_original %>%
-  left_join(demand_matsim, by = c("pid", "person_trip_id"))
+# Join all data
+demand_compare <- demand_original_prep |>
+  left_join(demand_matsim_prep, by = c("pid", "person_trip_id")) |>
+  left_join(
+    spatial_lookup |> rename(pid = person_id),
+    by = c("pid", "person_trip_id")
+  )
 
-# ---------- Calculate mode summary statistics
-demand_compare_summary = demand_compare %>%
-  group_by(input_mode, input_mode_trips, input_mode_trips_frac, input_mode_trips_with_frac, output_mode, scenario, fleet_size) %>%
-  summarise(trips = n()) %>%
-  ungroup()
+# ==============================================================================
+# 4. CALCULATE MODE SHIFT
+# ==============================================================================
 
-# save
-write_csv(demand_compare_summary, "plots/mode_share/mode_shift_all.csv")
+calculate_mode_shift <- function(data, filter_type_name, filter_fn) {
+  results_list <- list()
 
+  for (scen in scenarios) {
+    for (fs in fleet_sizes) {
+      df_subset <- data |> filter(scenario == scen, fleet_size == fs)
+      if (nrow(df_subset) == 0) {
+        next
+      }
 
+      keep_rows <- filter_fn(df_subset, scen)
+      df_filtered <- df_subset[keep_rows, ]
+      if (nrow(df_filtered) == 0) {
+        next
+      }
 
-# ---------- Plots
+      df_summary <- df_filtered |>
+        group_by(input_mode) |>
+        mutate(local_input_trips = n()) |>
+        ungroup() |>
+        mutate(local_input_frac = round((local_input_trips / n()) * 100, 1)) |>
+        group_by(
+          input_mode,
+          local_input_trips,
+          local_input_frac,
+          input_mode_trips_with_frac,
+          output_mode
+        ) |>
+        summarise(trips = n(), .groups = "drop") |>
+        mutate(
+          scenario = scen,
+          fleet_size = fs,
+          filter_type = filter_type_name
+        )
 
-# Loop over combinations and print + save each one
-for (scenario_plot in scenarios) {
-  for (fleet_size_plot in fleet_sizes) {
-
-    # Subset data
-    plot_data <- demand_compare_summary %>%
-      filter(fleet_size == fleet_size_plot, scenario == scenario_plot)
-
-    # Create plot
-    p <- ggplot(data = plot_data,
-                aes(axis1 = input_mode, axis2 = output_mode, y = trips)) +
-      geom_alluvium(aes(fill = input_mode_trips_with_frac)) +
-      geom_stratum() +
-      geom_text(stat = "stratum", aes(label = input_mode), size = 3) +
-      ggrepel::geom_text_repel(
-        aes(label = output_mode),
-        stat = "stratum", size = 3, direction = "y", nudge_x = .35
-      ) +
-      scale_x_discrete(limits = c("Before", "After"), expand = c(0.15, 0.15)) +
-      scale_y_continuous(labels = scales::label_comma()) +
-      scale_fill_brewer(type = "qual", palette = "Set1") +
-      theme_bw() +
-      theme(panel.border = element_blank()) +
-      labs(
-        title = "What modes did all trips transition from?",
-        subtitle = scenario_labels[[scenario_plot]],  # Custom subtitle
-        y = "Number of trips",
-        fill = "Initial mode \n(Initial mode share)",
-        caption = paste0("DRT fleet size = ", fleet_size_plot)
-      )
-
-    print(p)
-
-    ggsave(filename = paste0("plots/mode_share/sankey_", scenario_plot, "_", fleet_size_plot, ".png"),
-           plot = p)
+      results_list[[length(results_list) + 1]] <- df_summary
+    }
   }
+
+  bind_rows(results_list)
 }
 
-# ----- Same plot but combine all DRT (no distinction with feeder or specific fleets)
-demand_compare_summary_all <- demand_compare_summary %>%
-  mutate(output_mode_drt = if_else(str_detect(output_mode, regex("drt", ignore_case = TRUE)),
-                                   "drt",
-                                   output_mode)) %>%
-  # get total trips by DRT (we need one row per unique OD pair)
-  group_by(input_mode, output_mode_drt, input_mode_trips_with_frac, scenario, fleet_size) %>%
-  summarise(trips = sum(trips)) %>%
-  ungroup() %>%
-  filter(!is.na(output_mode_drt))
+# Run All Calculations
+all_mode_shifts <- map2_dfr(
+  names(filter_definitions),
+  filter_definitions,
+  ~ calculate_mode_shift(demand_compare, .x, .y$filter_fn)
+)
 
-
-for (scenario_plot in scenarios) {
-  for (fleet_size_plot in fleet_sizes) {
-
-    # Filter the data
-    plot_data <- demand_compare_summary_all %>%
-      filter(fleet_size == fleet_size_plot, scenario == scenario_plot)
-
-    # Generate the plot
-    p <- ggplot(data = plot_data,
-                aes(axis1 = input_mode, axis2 = output_mode_drt, y = trips)) +
-      geom_alluvium(aes(fill = input_mode_trips_with_frac)) +
-      geom_stratum() +
-      geom_text(stat = "stratum", aes(label = input_mode), size = 3) +
-      ggrepel::geom_text_repel(
-        aes(label = output_mode_drt),
-        stat = "stratum", size = 3, direction = "y", nudge_x = .35
-      ) +
-      scale_x_discrete(limits = c("Before", "After"), expand = c(0.15, 0.15)) +
-      scale_y_continuous(labels = scales::label_comma()) +
-      scale_fill_brewer(type = "qual", palette = "Set1") +
-      theme_bw() +
-      theme(panel.border = element_blank()) +
-      labs(
-        title = "What modes did all trips transition from?",
-        subtitle = scenario_labels[[scenario_plot]],
-        y = "Number of trips",
-        fill = "Initial mode \n(Initial mode share)",
-        caption = paste0("DRT fleet size = ", fleet_size_plot)
-      )
-
-    print(p)
-
-    ggsave(
-      filename = paste0("plots/mode_share/mode_share_sankey_", scenario_plot, "_", fleet_size_plot, "_sum_drt.png"),
-      plot = p)
-  }
-}
-
-
-
-# Let's focus only on trips that came out as DRT
-demand_compare_summary_drt = demand_compare_summary %>%
-  filter(str_detect(output_mode, "drt")) %>%
-  mutate(trips_moved_drt_frac = round((trips / input_mode_trips) * 100, 2)) %>% # % of Trips for a particular mode that shifted to DRT
-  group_by(input_mode, fleet_size, scenario) %>%
-  mutate(total_drt_frac = sum(trips_moved_drt_frac), # total % of trips that transition to DRT (regardless of standalone or feeder)
-         mode_with_trips_moved_drt_frac = glue::glue("{input_mode} ({total_drt_frac} {'%'})")) %>% # initial mode + initial mode share (%)
+# Add DRT-specific summary
+all_mode_shifts_drt <- all_mode_shifts |>
+  filter(str_detect(output_mode, "drt")) |>
+  mutate(trips_moved_drt_frac = round((trips / local_input_trips) * 100, 2)) |>
+  group_by(input_mode, fleet_size, scenario, filter_type) |>
+  mutate(
+    total_drt_frac = sum(trips_moved_drt_frac),
+    mode_with_trips_moved_drt_frac = glue::glue(
+      "{input_mode} ({total_drt_frac}%)"
+    )
+  ) |>
   ungroup()
 
-# save
-write_csv(demand_compare_summary_drt, "plots/mode_share/mode_shift_drt.csv")
+# Save combined results
+write_csv(all_mode_shifts, "plots/mode_share/mode_shift_all.csv")
+write_csv(all_mode_shifts_drt, "plots/mode_share/mode_shift_drt.csv")
 
+# ==============================================================================
+# 5. VISUALIZATION
+# ==============================================================================
 
+# Split DRT Output into Standalone vs Feeder
+drt_split_data <- all_mode_shifts |>
+  filter(str_detect(output_mode, "drt")) |>
+  mutate(
+    drt_service = if_else(
+      str_detect(output_mode, "_feeder$"),
+      "Feeder",
+      "Standalone"
+    )
+  )
 
-for (scenario_plot in scenarios) {
-  for (fleet_size_plot in fleet_sizes) {
+# --- Plot 1: Overall DRT Mode Share (Split by Service Type) ---
+drt_share_summary <- drt_split_data |>
+  group_by(scenario, fleet_size, filter_type, drt_service) |>
+  summarise(
+    drt_trips = sum(trips),
+    total_system_trips = sum(local_input_trips) / n_distinct(input_mode),
+    drt_share_pct = drt_trips / total_system_trips * 100,
+    .groups = "drop"
+  )
 
-    # Filter the data
-    plot_data <- demand_compare_summary_drt %>%
-      filter(fleet_size == fleet_size_plot, scenario == scenario_plot)
-
-    # Generate the plot
-    p <- ggplot(data = plot_data,
-                aes(axis1 = input_mode, axis2 = output_mode, y = trips)) +
-      geom_alluvium(aes(fill = mode_with_trips_moved_drt_frac)) +
-      geom_stratum() +
-      geom_text(stat = "stratum", aes(label = input_mode)) +
-      # geom_text(stat = "stratum", aes(label = glue::glue("{input_mode} ({people})")))  +
-      geom_text(stat = "stratum", aes(label = output_mode)) +
-      scale_x_discrete(limits = c("Before", "After"), expand = c(0.15, 0.15)) +
-      scale_fill_brewer(type = "qual", palette = "Set1") +
-      scale_y_continuous(labels = scales::label_comma()) +  # Format y-axis with commas
-      theme_bw() +
-      theme(panel.border = element_blank()) +
-      labs(
-        title = "What modes did DRT user trips transition from?",
-        subtitle = scenario_labels[[scenario_plot]],
-        y = "Number of trips",  # Change the y-axis label here
-        fill = "Initial mode (% \nof trips that \nshifted to DRT)",  # Change the legend title here
-        caption = paste0("DRT fleet size = ", fleet_size_plot)
-      )
-
-
-    print(p)
-
-    ggsave(
-      filename = paste0("plots/mode_share/mode_share_sankey_", scenario_plot, "_", fleet_size_plot, "_drt.png"),
-      plot = p)
-  }
-}
-
-
-
-
-
-
-
-
-
-# --- Facet plot --- What % of DRT trips is coming from each mode?
-demand_compare_summary_drt_facet = demand_compare_summary_drt %>%
-  mutate(scenario = case_when(
-    str_detect(output_mode, "drtNE") ~ "drtNE",
-    str_detect(output_mode, "drtNW") ~ "drtNW",
-    # for consistency
-    str_detect(scenario, "innerBUA") ~ "drtInner",
-    str_detect(scenario, "all") ~ "drtAll",
-    TRUE ~ scenario
-  )) %>%
-  group_by(fleet_size, scenario) %>%
-  mutate(pct_drt_from_mode = trips / sum(trips)) %>%
-  # rename output mode to drt | feeder
-  mutate(output_mode = case_when(
-    str_detect(output_mode, "feeder") ~ "feeder",
-    TRUE ~ "standalone"
-  )) %>%
-  ungroup()
-
-
-
-ggplot(data = demand_compare_summary_drt_facet %>%
-         filter(input_mode != "bike"),
-       aes(axis1 = input_mode, axis2 = output_mode, y = pct_drt_from_mode)) +
-  geom_alluvium(aes(fill = input_mode_trips_with_frac)) +
-  geom_stratum() +
-  ggrepel::geom_text_repel(
-    aes(label = input_mode),
-    stat = "stratum", size = 3, direction = "y", nudge_x = -.35
+p1 <- ggplot(
+  drt_share_summary,
+  aes(x = factor(fleet_size), y = drt_share_pct, fill = filter_type)
+) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+  ggh4x::facet_nested(
+    drt_service ~ scenario,
+    scales = "free_y",
+    labeller = labeller(scenario = scenario_labels)
   ) +
-  # geom_text(stat = "stratum", aes(label = input_mode), size = 3) +
-  ggrepel::geom_text_repel(
-    aes(label = output_mode),
-    stat = "stratum", size = 3, direction = "y", nudge_x = .35
-  ) +
-  scale_x_discrete(limits = c("Before", "After"), expand = c(0.15, 0.15)) +
-  scale_y_continuous(labels = scales::label_comma()) +
-  scale_fill_brewer(type = "qual", palette = "Set1") +
-  theme_bw() +
-  theme(panel.border = element_blank(),
-        legend.position="bottom") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
   labs(
-    title = "What modes did DRT trips transition from?",
-    subtitle = "Proportion of DRT trips coming from each mode",
-    y = "Number of trips",
-    fill = "Initial mode \n(Initial mode share)",
-    caption = paste0("Modes not shown: Bike (~2%), Car Passenger (~23%) ")
+    title = "Total DRT Mode Share",
+    subtitle = "Comparing Standalone (door-to-door) vs Feeder (access/egress) uptake",
+    x = "Fleet Size",
+    y = "Mode Share (%)",
+    fill = "Filter Type"
   ) +
-  facet_grid(vars(fleet_size), vars(scenario))
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+p1
+
+ggsave(
+  "plots/mode_share/plot_1_drt_share_split.png",
+  p1,
+  width = 12,
+  height = 8
+)
+
+# --- Plot 2: Shift Percentage by Mode ---
+mode_shift_pct <- drt_split_data |>
+  filter(input_mode %in% c("car", "pt", "walk", "bike", "taxi")) |>
+  group_by(scenario, fleet_size, filter_type, input_mode, drt_service) |>
+  summarise(
+    trips_shifted = sum(trips),
+    total_input_trips = first(local_input_trips),
+    pct_shifted = trips_shifted / total_input_trips * 100,
+    .groups = "drop"
+  )
+
+p2 <- ggplot(
+  mode_shift_pct,
+  aes(
+    x = factor(fleet_size),
+    y = pct_shifted,
+    color = filter_type,
+    group = interaction(filter_type, drt_service),
+    linetype = drt_service
+  )
+) +
+  geom_line(linewidth = 0.8) +
+  geom_point(size = 1.5) +
+  facet_grid(
+    input_mode ~ scenario,
+    scales = "free_y",
+    labeller = labeller(scenario = scenario_labels)
+  ) +
+  labs(
+    title = "Shift Intensity by Mode",
+    subtitle = "Percentage of original mode shifting to DRT types",
+    x = "Fleet Size",
+    y = "% of Trips Shifting",
+    color = "Filter Type",
+    linetype = "Service Type"
+  ) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+p2
+
+ggsave(
+  "plots/mode_share/plot_2_shift_pct_by_mode.png",
+  p2,
+  width = 12,
+  height = 12
+)
+
+# --- Plot 3: Intensity (%), Labeled by Volume (Trips) ---
+p3 <- ggplot(
+  mode_shift_pct,
+  aes(x = filter_type, y = pct_shifted, fill = input_mode)
+) +
+  geom_col(position = position_dodge(width = 0.9)) +
+  geom_text(
+    aes(label = scales::comma(trips_shifted), group = input_mode),
+    position = position_dodge(width = 0.9),
+    angle = 90,
+    hjust = -0.2,
+    vjust = 0.5,
+    size = 2.5
+  ) +
+  ggh4x::facet_nested(
+    fleet_size ~ scenario + drt_service,
+    labeller = labeller(scenario = scenario_labels)
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.4))) +
+  labs(
+    title = "Mode Shift Impact of DRT",
+    subtitle = "Bars = % Shifted. Labels = Number of Trips.",
+    x = "Filter Type",
+    y = "% of Original Mode Shifted",
+    fill = "Original Mode"
+  ) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "bottom"
+  )
+
+p3
+
+ggsave(
+  "plots/mode_share/plot_3_impact_bar_clean.png",
+  p3,
+  width = 16,
+  height = 10
+)
+
+# --- Plot 3b: Volume (Trips), Labeled by Intensity (%) ---
+p3b <- ggplot(
+  mode_shift_pct,
+  aes(x = filter_type, y = trips_shifted, fill = input_mode)
+) +
+  geom_col(position = position_dodge(width = 0.9)) +
+  geom_text(
+    aes(label = paste0(round(pct_shifted, 1), "%"), group = input_mode),
+    position = position_dodge(width = 0.9),
+    angle = 90,
+    hjust = -0.2,
+    vjust = 0.5,
+    size = 2.2
+  ) +
+  ggh4x::facet_nested(
+    fleet_size ~ scenario + drt_service,
+    labeller = labeller(scenario = scenario_labels)
+  ) +
+  scale_y_continuous(
+    labels = scales::comma,
+    expand = expansion(mult = c(0, 0.4))
+  ) +
+  labs(
+    title = "Mode Shift Impact of DRT",
+    subtitle = "Bars = Number of Trips. Labels = % Shifted.",
+    x = "Filter Type",
+    y = "Number of Trips Shifted",
+    fill = "Original Mode"
+  ) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "bottom"
+  )
+
+p3b
+
+ggsave(
+  "plots/mode_share/plot_3b_volume_bar_with_pct_labels.png",
+  p3b,
+  width = 16,
+  height = 10
+)
+
+# --- Plot 4: Volume Stacked ---
+p4 <- ggplot(
+  mode_shift_pct,
+  aes(x = filter_type, y = trips_shifted, fill = input_mode)
+) +
+  geom_col(position = "stack") +
+  ggh4x::facet_nested(
+    fleet_size ~ scenario + drt_service,
+    labeller = labeller(scenario = scenario_labels)
+  ) +
+  scale_y_continuous(labels = scales::comma) +
+  labs(
+    title = "Total DRT Volume by Source",
+    subtitle = "Number of trips contributing to DRT ridership",
+    x = "Filter Type",
+    y = "Total Trips",
+    fill = "Source Mode"
+  ) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "bottom"
+  )
+
+p4
+
+ggsave(
+  "plots/mode_share/plot_4_volume_stacked.png",
+  p4,
+  width = 16,
+  height = 10
+)
 
 
-ggsave(filename = "plots/mode_share/mode_share_sankey_drt_facet.png", width = 14, height = 10)
+# ==============================================================================
+# 6. ADDITIONAL PT TRIPS ENABLED BY DRT FEEDER
+# ==============================================================================
+
+# Identify trips that shifted TO feeder modes (these are NEW PT trips)
+# Exclude input_mode == "pt" since those were already PT users
+new_pt_trips <- all_mode_shifts |>
+  filter(
+    str_detect(output_mode, "_feeder$"), # Shifted to a feeder mode
+    input_mode != "pt" # Exclude existing PT users
+  ) |>
+  mutate(
+    # Categorize source modes
+    source_category = case_when(
+      input_mode %in% c("car", "taxi") ~ "Motorised",
+      input_mode %in% c("walk", "bike") ~ "Active",
+      input_mode == "car_passenger" ~ "Car Passenger",
+      TRUE ~ "Other"
+    )
+  )
+
+# --- Summary Table: New PT Trips by Source Category ---
+new_pt_summary <- new_pt_trips |>
+  group_by(scenario, fleet_size, filter_type, source_category) |>
+  summarise(
+    new_pt_trips = sum(trips),
+    .groups = "drop"
+  ) |>
+  group_by(scenario, fleet_size, filter_type) |>
+  mutate(
+    total_new_pt = sum(new_pt_trips),
+    pct_of_new_pt = round(new_pt_trips / total_new_pt * 100, 1)
+  ) |>
+  ungroup()
+
+# --- Summary: Total New PT Trips ---
+new_pt_totals <- new_pt_trips |>
+  group_by(scenario, fleet_size, filter_type) |>
+  summarise(
+    total_new_pt_trips = sum(trips),
+    from_motorised = sum(trips[source_category == "Motorised"]),
+    from_active = sum(trips[source_category == "Active"]),
+    from_car_passenger = sum(trips[source_category == "Car Passenger"]),
+    .groups = "drop"
+  ) |>
+  mutate(
+    pct_from_motorised = round(from_motorised / total_new_pt_trips * 100, 1),
+    pct_from_active = round(from_active / total_new_pt_trips * 100, 1)
+  )
+
+# Save summary
+write_csv(new_pt_totals, "plots/mode_share/new_pt_trips_from_feeder.csv")
+
+print("New PT trips enabled by DRT Feeder:")
+print(new_pt_totals)
+
+# --- Plot 5: Total New PT Trips by Source Category ---
+p5 <- ggplot(
+  new_pt_summary,
+  aes(x = factor(fleet_size), y = new_pt_trips, fill = source_category)
+) +
+  geom_col(position = "stack") +
+  ggh4x::facet_nested(
+    filter_type ~ scenario,
+    labeller = labeller(scenario = scenario_labels)
+  ) +
+  scale_y_continuous(labels = scales::comma) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title = "New PT Users Enabled by DRT Feeder",
+    subtitle = "Trips that shifted from non-PT modes to DRT Feeder (= new PT trips)",
+    x = "Fleet Size",
+    y = "Number of New PT Trips",
+    fill = "Previous Mode Category"
+  ) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+p5
+
+ggsave(
+  "plots/mode_share/plot_5_new_pt_trips_from_feeder.png",
+  p5,
+  width = 12,
+  height = 8
+)
+
+# --- Plot 6: Comparison - Motorised vs Active Sources ---
+# This highlights the policy-relevant question: Is DRT bringing car users to PT?
+
+new_pt_long <- new_pt_totals |>
+  select(
+    scenario,
+    fleet_size,
+    filter_type,
+    from_motorised,
+    from_active,
+    pct_from_motorised,
+    pct_from_active
+  ) |>
+  pivot_longer(
+    cols = c(from_motorised, from_active),
+    names_to = "source",
+    values_to = "trips"
+  ) |>
+  mutate(
+    # Map the correct percentage to the row based on source
+    pct = if_else(
+      source == "from_motorised",
+      pct_from_motorised,
+      pct_from_active
+    ),
+    source_label = if_else(
+      source == "from_motorised",
+      "From Car/Taxi",
+      "From Walk/Bike"
+    )
+  )
+
+p6 <- ggplot(
+  new_pt_long,
+  aes(x = factor(fleet_size), y = trips, fill = source_label)
+) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+  # Add Percentage Labels
+  geom_text(
+    aes(label = paste0(pct, "%")),
+    position = position_dodge(width = 0.8),
+    vjust = -0.5,
+    size = 2.5
+  ) +
+  ggh4x::facet_nested(
+    filter_type ~ scenario,
+    labeller = labeller(scenario = scenario_labels)
+  ) +
+  scale_y_continuous(
+    labels = scales::comma,
+    expand = expansion(mult = c(0, 0.2)) # Add space for labels
+  ) +
+  scale_fill_manual(
+    values = c("From Car/Taxi" = "#E41A1C", "From Walk/Bike" = "#4DAF4A")
+  ) +
+  labs(
+    title = "Impact of DRT feeders on additional Public Transport trips",
+    subtitle = "Distribution of mode shift to pt from private and active modes",
+    x = "Fleet Size",
+    y = "Number of New PT Trips",
+    fill = "Previous Mode"
+  ) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+p6
+
+ggsave(
+  "plots/mode_share/plot_6_new_pt_motorised_vs_active.png",
+  p6,
+  width = 12,
+  height = 8
+)

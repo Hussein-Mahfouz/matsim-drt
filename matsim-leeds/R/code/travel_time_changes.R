@@ -1,22 +1,30 @@
 library(tidyverse)
+library(ggh4x)
 
 
 # Set up a list of scenarios and fleet sizes to read in (file directories should exist)
 scenarios <- c("zones", "all", "innerBUA")
 
-# fleet_sizes <- c(100, 200, 500, 1000)
-fleet_sizes <- c(100, 200, 500)
-
+fleet_sizes <- c(100, 200, 500, 1000)
+# fleet_sizes <- c(100, 200, 500)
 
 # Function to read and process a file and add identifier column
 read_and_process <- function(scenario, fleet_size, file_name) {
   # Construct the file path
-  file_path <- paste0("../scenarios/fleet_sizing/", scenario, "/", fleet_size, "/sample_1.00/", file_name, ".csv")
+  file_path <- paste0(
+    "../scenarios/fleet_sizing/",
+    scenario,
+    "/",
+    fleet_size,
+    "/sample_1.00/",
+    file_name,
+    ".csv"
+  )
 
   # Check if file exists
   if (!file.exists(file_path)) {
     warning(paste("File not found:", file_path))
-    return(NULL)  # Safe fail
+    return(NULL) # Safe fail
   }
 
   # Print status
@@ -48,10 +56,9 @@ legs <- purrr::pmap_dfr(combinations, function(scenario, fleet_size) {
 })
 
 # ---------- baseline data
-legs_base_scenario = read_delim("../scenarios/basic/sample_1.00/eqasim_legs.csv")
-
-
-
+legs_base_scenario = read_delim(
+  "../scenarios/basic/sample_1.00/eqasim_legs.csv"
+)
 
 
 # -------------------------- Calculate travel time for each trip  -------------------------- #
@@ -94,7 +101,6 @@ legs <- legs %>%
   ungroup()
 
 
-
 # Step 2: Calculate travel time for each trip
 legs_tt = legs %>%
   tidytable::arrange(person_id, person_trip_id) %>%
@@ -106,7 +112,6 @@ legs_tt = legs %>%
     drt_standalone = first(drt_standalone)
   ) %>%
   tidytable::ungroup()
-
 
 
 # Step 3: Add a column to bucket the travel time into categories ased on departure time
@@ -129,94 +134,224 @@ legs_tt = legs_tt %>%
     )
   )
 
-
-# Step 4: Add data from the base scenario (to get baseline travel times for comparison)
+# Step 4: Add baseline data (Travel Time + Baseline Mode)
 
 legs_base_scenario = tidytable::as_tidytable(legs_base_scenario)
 
-# Calculate travel time for each trip
-
-
-legs_base_scenario = legs_base_scenario %>%
+# Determine Baseline Trip Mode (Hierarchy: PT > Car > Bike > Walk)
+# We aggregate the baseline legs to find the main mode of the trip
+legs_base_processed = legs_base_scenario %>%
   tidytable::arrange(person_id, person_trip_id) %>%
   tidytable::group_by(person_id, person_trip_id) %>%
   tidytable::summarise(
-    travel_time_baseline = sum(travel_time, na.rm = TRUE)) %>%
+    travel_time_baseline = sum(travel_time, na.rm = TRUE),
+    # Logic to identify the main mode of the baseline trip
+    baseline_mode = case_when(
+      any(str_detect(mode, "pt")) ~ "Public Transport",
+      any(mode == "car") ~ "Car",
+      any(mode == "taxi") ~ "Taxi",
+      any(mode == "bike") ~ "Bike",
+      TRUE ~ "Walk" # Default fallback
+    )
+  ) %>%
   tidytable::ungroup()
 
-
-# Add data from the base scenario to the scenarios data frame
-
+# Join to main dataset
 legs_tt = legs_tt %>%
-  tidytable::left_join(legs_base_scenario, by = c("person_id", "person_trip_id")) %>%
+  tidytable::left_join(
+    legs_base_processed,
+    by = c("person_id", "person_trip_id")
+  ) %>%
   tidytable::mutate(
-    travel_time_change = (travel_time - travel_time_baseline) / 60,  # convert to minutes
-    # Calculate the percentage change in travel time
-    travel_time_change_percentage = (travel_time - travel_time_baseline) / travel_time_baseline * 100)
-
-
-
-
-# Step 5: Compare travel times for trips that use drt_feeder and drt_standalone
-
-# boxplot showing travel_time_change for drt_feeder and drt_standalone, faceted
-# by scenario and fleet_size, and colors = time of day
-
-# filter legs to only include trips that have drt_feeder or drt_standalone
-legs_tt <- legs_tt %>%
-  tidytable::filter(drt_feeder | drt_standalone) %>%
-  # Create a new column to indicate if the trip is a feeder or standalone
-  tidytable::mutate(
-    drt_type = ifelse(drt_feeder, "Feeder", "Standalone"),
-    departure_time_interval = as.factor(departure_time_interval)
+    travel_time_change = (travel_time - travel_time_baseline) / 60, # minutes
+    travel_time_change_percentage = (travel_time - travel_time_baseline) /
+      travel_time_baseline *
+      100
   )
 
-# prepare columns for plotting
-legs_tt <- legs_tt %>%
-  mutate(scenario = case_when(
-    scenario == "zones" ~ "drtNE|NW",
-    scenario == "innerBUA" ~ "drtInner",
-    scenario == "all" ~ "drtAll"))
 
+# Step 5: Plotting
 
-# Plot travel time change for drt_feeder and drt_standalone trips (boxplot with each box being a departure time interval)
-ggplot(legs_tt %>%
-         filter(departure_time_interval != "0-3"),
-       aes(x = drt_type, y = travel_time_change, fill = departure_time_interval)) +
-  geom_boxplot() +
-  facet_grid(scenario ~ fleet_size) +
+# Filter for DRT usage and Clean Labels
+legs_tt_plot <- legs_tt %>%
+  tidytable::filter(drt_feeder | drt_standalone) %>%
+  tidytable::filter(!is.na(baseline_mode)) %>%
+  tidytable::mutate(
+    drt_type = ifelse(drt_feeder, "Feeder", "Standalone"),
+    scenario_label = case_when(
+      scenario == "zones" ~ "drtNE|NW",
+      scenario == "innerBUA" ~ "drtInner",
+      scenario == "all" ~ "drtAll"
+    ),
+    # Ensure factors for ordering
+    baseline_mode = factor(
+      baseline_mode,
+      levels = c("Car", "Taxi", "Public Transport", "Bike", "Walk")
+    )
+  ) %>%
+  # Filter early morning outliers if needed
+  filter(as.character(departure_time_interval) != "0-3")
+
+# --- PLOT 1: Original (By Departure Time) ---
+p_original <- ggplot(
+  legs_tt_plot,
+  aes(x = drt_type, y = travel_time_change, fill = departure_time_interval)
+) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_boxplot(outliers = FALSE, alpha = 0.8) +
+  coord_cartesian(ylim = c(-100, 100)) +
+  facet_grid(scenario_label ~ fleet_size) +
+  scale_fill_brewer(palette = "Dark2", name = "Departure time (3hr Interval)") +
   labs(
-    title = "Travel time change for all trips that used DRT",
-    x = "DRT type (Feeder vs Standalone)",
+    title = "Travel Time Impact (Time of Day)",
+    x = "DRT Type",
     y = "Net travel time change (min)"
   ) +
   theme_bw() +
-  scale_fill_brewer(palette = "Dark2",
-                    name = "Departure time (3hr Interval)") +
   theme(legend.position = "bottom")
 
-# save plot
-ggsave("plots/travel_time_changes/drt_trips_time_change.png", width = 12)
+p_original
 
-# similar plot but showing number of trips that use drt_feeder and drt_standalone per time bucket
-ggplot(legs_tt %>%
-         filter(departure_time_interval != "0-3")
-       , aes(x = drt_type, fill = departure_time_interval)) +
-  geom_bar(position = "dodge") +
-  facet_grid(scenario ~ fleet_size) +
+ggsave(
+  "plots/travel_time_changes/drt_trips_time_change.png",
+  p_original,
+  width = 12,
+  height = 10
+)
+
+
+# --- PLOT 2: Scenario Comparison (Side-by-Side / Dodged) ---
+p_scenario <- ggplot(
+  legs_tt_plot,
+  aes(
+    x = scenario_label,
+    y = travel_time_change,
+    fill = scenario_label,
+    alpha = drt_type # Use transparency to distinguish Feeder vs Standalone within the same bar cluster
+  )
+) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_boxplot(
+    outliers = FALSE,
+    position = position_dodge(width = 0.8) # Explicit dodge usually helps, though boxplot handles factors automatically
+  ) +
+  # Facet only by fleet size (columns), removing the row facet for drt_type
+  facet_grid(. ~ fleet_size) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_alpha_manual(
+    values = c("Feeder" = 0.4, "Standalone" = 1.0),
+    name = "DRT Service",
+    guide = "none"
+  ) +
   labs(
-    title = "Number of trips that used DRT",
-    x = "DRT Type (Feeder vs Standalone)",
-    y = "Number of trips"
+    title = "Travel Time Impact by Scenario",
+    subtitle = "Comparing net travel time change. Solid = Standalone, Transparent = Feeder.",
+    x = "Service Design",
+    y = "Time Change (min)",
+    fill = "Scenario"
   ) +
   theme_bw() +
-  scale_fill_brewer(palette = "Dark2",
-                    name = "Departure time (3hr Interval)") +
-  theme(legend.position = "bottom")
+  theme(
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
 
-# save plot
-ggsave("plots/travel_time_changes/drt_trips_per_interval.png", width = 12)
+p_scenario
+
+ggsave(
+  "plots/travel_time_changes/drt_time_change_by_scenario.png",
+  p_scenario,
+  width = 12,
+  height = 8
+)
 
 
+# --- PLOT 3: By Baseline Mode (Nested Facets) ---
+# Improvement: Uses ggh4x::facet_nested to grouping headers (Fleet Size -> DRT Type)
+p_origin <- ggplot(
+  legs_tt_plot,
+  aes(x = baseline_mode, y = travel_time_change, fill = baseline_mode)
+) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_boxplot(outliers = FALSE, alpha = 0.8) +
+  # coord_cartesian(ylim = c(-45, 65)) +
+
+  # Nested Facets: Groups Fleet Size headers together cleanly
+  # Rows: Scenario
+  # Cols: Fleet Size -> DRT Type
+  ggh4x::facet_nested(
+    scenario_label ~ fleet_size + drt_type
+  ) +
+
+  scale_fill_brewer(palette = "Set1", name = "Previous Mode") +
+  labs(
+    title = "Travel time change of DRT users relative to their original mode",
+    subtitle = "Relative time change aggregated by fleet size and service type",
+    x = "Original Mode",
+    y = "Time Change (min)"
+  ) +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    axis.text.x = element_blank(), # Remove X text as fill/legend explains mode
+    axis.ticks.x = element_blank()
+  )
+
+p_origin
+
+ggsave(
+  "plots/travel_time_changes/drt_time_change_by_origin_mode_split.png",
+  p_origin,
+  width = 14,
+  height = 10
+)
 
 
+# --- PLOT 4: By Baseline Mode (Side-by-Side / Dodged) ---
+# New Plot: Feeder and Standalone NEXT to each other.
+# We dodge by 'drt_type' and distinct them using Transparency (Alpha)
+
+p_origin_dodged <- ggplot(
+  legs_tt_plot,
+  aes(
+    x = baseline_mode,
+    y = travel_time_change,
+    fill = baseline_mode,
+    alpha = drt_type # Use transparency to distinguish Feeder vs Standalone
+  )
+) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_boxplot(outliers = FALSE) +
+  # coord_cartesian(ylim = c(-45, 65)) +
+
+  # Simplified Facet: Just Scenario vs Fleet Size
+  # DRT Type is now combined inside the plot area
+  ggh4x::facet_nested(scenario_label ~ fleet_size) +
+
+  scale_fill_brewer(palette = "Set1", name = "Previous Mode") +
+  scale_alpha_manual(
+    values = c("Feeder" = 0.4, "Standalone" = 1.0),
+    name = "DRT Service",
+    guide = "none"
+  ) +
+  labs(
+    title = "Travel time change of DRT users relative to their original mode",
+    subtitle = "Solid = Standalone, Transparent = Feeder",
+    x = "Original Mode",
+    y = "Time Change (min)"
+  ) +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  )
+
+p_origin_dodged
+
+ggsave(
+  "plots/travel_time_changes/drt_time_change_by_origin_mode_combined.png",
+  p_origin_dodged,
+  width = 14,
+  height = 8
+)
