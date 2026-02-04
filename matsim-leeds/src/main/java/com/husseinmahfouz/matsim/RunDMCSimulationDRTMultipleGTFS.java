@@ -169,7 +169,7 @@ public class RunDMCSimulationDRTMultipleGTFS {
 
         { // Add overrides for Leeds + DRT
             controller.addOverridingModule(new LeedsDrtModule(cmd));
-            controller.addOverridingModule(new RejectionModule(Arrays.asList("drt"), cmd));
+            controller.addOverridingModule(new RejectionModule(cmd));
             controller.addOverridingModule(new DrtAnalysisModule());
         }
         controller.run();
