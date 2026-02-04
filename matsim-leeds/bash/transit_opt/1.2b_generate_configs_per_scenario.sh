@@ -317,7 +317,7 @@ for json_file in "${JSON_FILES[@]}"; do
             --base-pt-modes "pt" \
             --base-drt-modes "drtNW,drtNE" \
             --access-egress-transit-stop-modes "bus|rail,bus|rail" \
-            --estimators "DefaultFeederDrtUtilityEstimator" \
+            --estimators "LeedsFeederDrtUtilityEstimator" \
             --mode-availability "FeederDrtModeAvailabilityWrapper"; then
             
             rm -f "$temp_cfg"
