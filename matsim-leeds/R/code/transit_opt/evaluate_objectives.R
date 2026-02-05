@@ -8,7 +8,7 @@ library(glue)
 
 # ===== USER CONFIGURATION =====
 
-ITERATION_ID <- "iteration_02"
+ITERATION_ID <- "iteration_00"
 message(glue::glue("\nRunning evaluation for: {ITERATION_ID}"))
 
 # Update Paths to read from the iteration folder
@@ -2486,7 +2486,6 @@ ggsave(
 
 message("✓ Figure 4.3x saved (Global horizontal summary with components)")
 
-
 # -------------------------
 # Figure 4.3y: Grouped Global Summary (Manual Layout)
 # -------------------------
@@ -2503,7 +2502,9 @@ objectives_ordered <- levels(factor(plot_data_global$objective_clean))
 bar_height <- 0.35
 offset <- 0.21 # Distance from center of objective tick
 
-plot_data_manual <- plot_data_global |>
+# FIX: Renamed variable to plot_data_grouped to match ggplot call
+# FIX: Renamed column y_center to y_pos to match aes()
+plot_data_grouped <- plot_data_global |>
   mutate(
     # Create combined grouping for Fill (4 colors)
     Fill_Group = paste(Mode_Group, Type, sep = " - "),
@@ -2512,7 +2513,7 @@ plot_data_manual <- plot_data_global |>
     obj_num = as.numeric(factor(objective_clean, levels = objectives_ordered)),
 
     # Determine Y-center for this bar type
-    y_center = if_else(
+    y_pos = if_else(
       Type == "Best Real Share",
       obj_num + offset,
       obj_num - offset
@@ -2520,22 +2521,24 @@ plot_data_manual <- plot_data_global |>
 
     # Calculate Rect coordinates
     # (Since PT is + and Car is -, we stack from 0 outwards)
-    ymin = y_center - (bar_height / 2),
-    ymax = y_center + (bar_height / 2),
+    ymin = y_pos - (bar_height / 2),
+    ymax = y_pos + (bar_height / 2),
     xmin = 0,
     xmax = val
   )
 
-net_change_manual <- net_change_global |>
+# FIX: Renamed variable to net_change_grouped to match ggplot call
+# FIX: Renamed column y_center to y_pos
+net_change_grouped <- net_change_global |>
   mutate(
     obj_num = as.numeric(factor(objective_clean, levels = objectives_ordered)),
-    y_center = if_else(
+    y_pos = if_else(
       Type == "Best Real Share",
       obj_num + offset,
       obj_num - offset
     ),
-    ymin = y_center - (bar_height / 2),
-    ymax = y_center + (bar_height / 2)
+    ymin = y_pos - (bar_height / 2),
+    ymax = y_pos + (bar_height / 2)
   )
 
 # 2. Define 4-Color Palette (Solid vs Light)
@@ -2619,7 +2622,6 @@ plot_global_grouped <- ggplot() +
   guides(fill = guide_legend(ncol = 2, reverse = TRUE))
 
 plot_global_grouped
-
 
 ggsave(
   file.path(plot_dir, "fig_4_3y_global_summary_grouped.png"),
