@@ -154,16 +154,16 @@ tm_diff <- tm_shape(study_area) +
   #   col.scale = tm_scale_categorical(values = fleet_pal),
   #   col.legend = tm_legend(title = "DRT Fleet Size")
   # ) +
-  # 2. DRT Zones (Filled Polygons)
-  tm_shape(drt_diff_layer) +
-  tm_polygons(
-    fill = "fleet_label", # Map variable to fill color
-    col = "white", # Border color (constant, thin)
-    lwd = 1,
-    fill.scale = tm_scale_categorical(values = fleet_pal),
-    fill.legend = tm_legend(title = "DRT Fleet Size"),
-    fill_alpha = 0.4 # Transparency to see background/context
-  ) +
+  # # 2. DRT Zones (Filled Polygons)
+  # tm_shape(drt_diff_layer) +
+  # tm_polygons(
+  #   fill = "fleet_label", # Map variable to fill color
+  #   col = "white", # Border color (constant, thin)
+  #   lwd = 1,
+  #   fill.scale = tm_scale_categorical(values = fleet_pal),
+  #   fill.legend = tm_legend(title = "DRT Fleet Size"),
+  #   fill_alpha = 0.4 # Transparency to see background/context
+  # ) +
 
   # 3. Facets & Layout
   tm_facets_grid(rows = "objective", columns = "col_label") +
@@ -178,7 +178,7 @@ tm_diff
 # --- Save ---
 tmap_save(
   tm_diff,
-  file.path(PLOT_DIR, "map_iteration_comparison_diffs.png"),
+  file.path(PLOT_DIR, "map_iteration_comparison_diffs_pt_only.png"),
   width = plot_width,
   height = 16,
   units = "cm",
@@ -215,7 +215,7 @@ tm_additions <- tm_shape(study_area) +
   tm_lines(
     col = "white",
     lwd = 0.3,
-    col_alpha = 0.3 # Fixed: Changed from alpha to col_alpha per previous warning
+    col_alpha = 0.1 # Fixed: Changed from alpha to col_alpha per previous warning
   ) +
 
   # Layer 4: Service Additions (Bright Lines on Top)
@@ -231,16 +231,16 @@ tm_additions <- tm_shape(study_area) +
     lwd.legend = tm_legend_hide()
   ) +
 
-  # Layer 3: DRT Zones (Filled Polygons)
-  tm_shape(drt_diff_layer) +
-  tm_polygons(
-    fill = "fleet_label",
-    col = "white",
-    lwd = 1,
-    fill.scale = tm_scale_categorical(values = fleet_pal),
-    fill.legend = tm_legend(title = "DRT Fleet Size"),
-    fill_alpha = 0.3
-  ) +
+  # # Layer 3: DRT Zones (Filled Polygons)
+  # tm_shape(drt_diff_layer) +
+  # tm_polygons(
+  #   fill = "fleet_label",
+  #   col = "white",
+  #   lwd = 1,
+  #   fill.scale = tm_scale_categorical(values = fleet_pal),
+  #   fill.legend = tm_legend(title = "DRT Fleet Size"),
+  #   fill_alpha = 0.3
+  # ) +
 
   # Facets & Layout
   tm_facets_grid(rows = "objective", columns = "col_label") +
@@ -256,7 +256,7 @@ tm_additions
 # 3. Save
 tmap_save(
   tm_additions,
-  file.path(PLOT_DIR, "map_iteration_comparison_additions.png"),
+  file.path(PLOT_DIR, "map_iteration_comparison_additions_pt_only.png"),
   width = plot_width,
   height = 16,
   units = "cm",
