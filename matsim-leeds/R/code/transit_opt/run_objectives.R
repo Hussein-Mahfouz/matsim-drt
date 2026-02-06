@@ -56,7 +56,7 @@ objective_dirs <- list.dirs(parent_dir, full.names = TRUE, recursive = FALSE)
 #   basename(objective_dirs)
 # )]
 objective_dirs <- objective_dirs[grepl(
-  "sc_avg_var|sc_int_var|sc_peak_var|sc_sum_var|wt_avg_tot|wt_avg_var|wt_avg_atk|wt_int_tot|wt_int_var|wt_int_atk|wt_peak_tot|wt_peak_var|wt_peak_atk|wt_sum_tot|wt_sum_var|wt_sum_atk",
+  "wt_avg_tot|wt_avg_atk|wt_int_tot|wt_int_atk|wt_peak_tot|wt_peak_atk|wt_sum_tot|wt_sum_atk",
   basename(objective_dirs)
 )]
 
