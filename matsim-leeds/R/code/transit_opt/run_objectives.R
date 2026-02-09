@@ -27,9 +27,9 @@ if (length(args) > 0) {
 # Parameters
 # -------------------------
 
-# Output directory: output/iteration_01/
+# Output directory: R/output/iteration_01/
 # (We use "output" relative path so it works with the existing fetch script mapping)
-output_dir <- file.path("output", ITERATION_ID)
+output_dir <- file.path("R/output", ITERATION_ID)
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
 # ... (base_trips_file, base_solution_dir remain unchanged)
@@ -84,10 +84,9 @@ zones_vec <- c("pt", "pt+drt")
 include_all <- TRUE
 
 # Output file paths
-mode_share_out <- "output/mode_share_by_solution.csv"
-vkm_out <- "output/vkm_by_solution.csv"
-dir.create("output", showWarnings = FALSE, recursive = TRUE)
-
+mode_share_out <- "R/output/mode_share_by_solution.csv" # Note: These vars don't seem used later, but good to update
+vkm_out <- "R/output/vkm_by_solution.csv"
+# dir.create("output", showWarnings = FALSE, recursive = TRUE) # No longer needed
 
 # -------------------------
 # Spatial data (single source)
@@ -427,5 +426,5 @@ write_csv(
 )
 
 message(
-  "✓ Combined solution objective values written to output/pso_objective_values.csv\n"
+  "✓ Combined solution objective values written to R/output/pso_objective_values.csv\n"
 )
