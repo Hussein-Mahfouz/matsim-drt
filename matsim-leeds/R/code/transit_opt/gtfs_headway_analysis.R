@@ -174,6 +174,114 @@ compare_headways <- function(solution_headways, base_headways) {
 }
 
 
+#' Calculate max concurrent trips (proxy for fleet size) by interval
+#'
+#' Estimates the Peak Vehicle Requirement (PVR) for the bus network.
+#' Calculates PVR per route (assuming no interlining between routes) and sums them up.
+#'
+#' @param gtfs A tidygtfs object
+#' @param interval_hours Integer
+#'
+#' @return Tibble with interval_label and max_bus_fleet (sum of per-route PVRs)
+#'
+calculate_max_concurrent_trips <- function(gtfs, interval_hours = 1) {
+  # 1. Get trip durations and route info
+  trip_times <- gtfs$stop_times |>
+    group_by(trip_id) |>
+    summarise(
+      start_seconds = as.numeric(min(departure_seconds, na.rm = TRUE)),
+      # buffer added to end_seconds (10 minutes) to account for recovery/layover
+      end_seconds = as.numeric(max(arrival_time, na.rm = TRUE)) + (10 * 60)
+    ) |>
+    ungroup() |>
+    inner_join(select(gtfs$trips, trip_id, route_id), by = "trip_id") |>
+    filter(!is.na(start_seconds), !is.na(end_seconds))
+
+  # 2. Define intervals helper (Daily 24h cycle)
+  seconds_per_interval <- interval_hours * 3600
+  num_intervals <- ceiling((24 * 3600) / seconds_per_interval)
+  
+  intervals <- tibble(
+    interval_num = 0:(num_intervals - 1)
+  ) |>
+    mutate(
+      start_time = interval_num * seconds_per_interval,
+      end_time = (interval_num + 1) * seconds_per_interval,
+      interval_label = paste0(interval_num * interval_hours, "-", (interval_num + 1) * interval_hours)
+    )
+
+  # 3. Helper to calculate PVR for a single route's trips
+  calc_route_pvr <- function(rt_trips) {
+    if(nrow(rt_trips) == 0) return(tibble(interval_label = intervals$interval_label, pvr = 0))
+
+    events <- bind_rows(
+      rt_trips |> select(t = start_seconds) |> mutate(change = 1),
+      rt_trips |> select(t = end_seconds) |> mutate(change = -1)
+    ) |>
+      arrange(t) |>
+      mutate(current_fleet = cumsum(change))
+
+    map_dfr(1:nrow(intervals), function(i) {
+      s <- intervals$start_time[i]
+      e <- intervals$end_time[i]
+      lbl <- intervals$interval_label[i]
+
+      # State at start of interval
+      start_val_df <- events |> filter(t < s) |> slice_tail(n = 1)
+      start_val <- if(nrow(start_val_df) > 0) start_val_df$current_fleet else 0
+
+      # Events within interval
+      events_in <- events |> filter(t >= s, t < e)
+
+      max_in_interval <- if(nrow(events_in) > 0) {
+        max(c(start_val, events_in$current_fleet))
+      } else {
+        start_val
+      }
+      
+      tibble(interval_label = lbl, pvr = max_in_interval)
+    })
+  }
+
+  # 4. Apply to each route and aggregate
+  message("  Calculating PVR per route...")
+  
+  # Group trips by route
+  # We use split/map for safety over group_modify in some dplyr versions with simple dataframes
+  trips_by_route <- split(trip_times, trip_times$route_id)
+  
+  all_route_pvrs <- map_dfr(trips_by_route, calc_route_pvr)
+
+  # Sum PVRs across all routes for each interval
+  total_fleet <- all_route_pvrs |>
+    group_by(interval_label) |>
+    summarise(max_bus_fleet = sum(pvr)) |>
+    ungroup() |>
+    # Ensure correct ordering by interval
+    mutate(start_hour = as.numeric(str_extract(interval_label, "^\\d+"))) |>
+    arrange(start_hour) |>
+    select(-start_hour)
+
+  return(total_fleet)
+}
+
+
+#' Compare fleet sizes
+#' @param sol_fleet Tibble with solution fleet
+#' @param base_fleet Tibble with base fleet
+compare_fleet <- function(sol_fleet, base_fleet) {
+  base_clean <- base_fleet |>
+    rename(max_bus_fleet_base = max_bus_fleet)
+
+  sol_fleet |>
+    left_join(base_clean, by = "interval_label") |>
+    mutate(
+      max_bus_fleet_base = replace_na(max_bus_fleet_base, 0),
+      max_bus_fleet_diff = max_bus_fleet - max_bus_fleet_base
+    )
+}
+
+
 #' Process all GTFS solutions in a directory and compare to base
 #'
 #' @param base_gtfs_path Path to base GTFS zip file
@@ -182,20 +290,26 @@ compare_headways <- function(solution_headways, base_headways) {
 #' @param interval_hours Integer. Number of hours per interval.
 #' @param iteration_folder Name of the iteration folder (default: "iteration_01")
 #'
-#' @return A list with base_headways and a dataframe of all solution comparisons
+#' @return A list with base_headways, all_solutions (headways), base_fleet, and all_solutions_fleet
 #'
 process_all_gtfs_solutions <- function(
   base_gtfs_path,
   solutions_parent_dir = "../../transit_opt/output",
   objective_names = NULL,
   interval_hours = 4,
-  iteration_folder = "iteration_0"
+  iteration_folder = "iteration_01"
 ) {
   # Calculate base headways
   message("========================================")
   message("Processing BASE GTFS...")
   message("========================================")
-  base_headways <- calculate_headway_from_zip(base_gtfs_path, interval_hours)
+  
+  message(glue::glue("Reading Base GTFS from: {base_gtfs_path}"))
+  base_gtfs <- tidytransit::read_gtfs(base_gtfs_path)
+  
+  base_headways <- calculate_route_headway(base_gtfs, interval_hours)
+  base_fleet <- calculate_max_concurrent_trips(base_gtfs, interval_hours)
+  message("✓ Base fleet size calculated")
 
   # Find all objective directories if not specified
   if (is.null(objective_names)) {
@@ -211,7 +325,8 @@ process_all_gtfs_solutions <- function(
   }
 
   # Process each objective and solution
-  all_solutions <- map_dfr(objective_names, function(obj_name) {
+  # collecting lists first to avoid repeated map_dfr merging issues
+  results_nested <- map(objective_names, function(obj_name) {
     message("\n========================================")
     message(glue::glue("Processing objective: {obj_name}"))
     message("========================================\n")
@@ -236,25 +351,42 @@ process_all_gtfs_solutions <- function(
     }
 
     # Process each solution
-    map_dfr(solution_files, function(sol_path) {
+    map(solution_files, function(sol_path) {
       solution_name <- tools::file_path_sans_ext(basename(sol_path))
       message(glue::glue("  Processing: {solution_name}"))
 
       tryCatch(
         {
-          # Calculate headways for this solution
-          sol_headways <- calculate_headway_from_zip(sol_path, interval_hours)
+          # Read GTFS once
+          gtfs <- tidytransit::read_gtfs(sol_path)
 
-          # Compare to base
+          # 1. Headways
+          sol_headways <- calculate_route_headway(gtfs, interval_hours)
           sol_compared <- compare_headways(sol_headways, base_headways)
 
           # Add identifiers
-          sol_compared |>
+          sol_compared <- sol_compared |>
             mutate(
               objective = obj_name,
               solution = solution_name,
               .before = everything()
             )
+            
+          # 2. Fleet
+          sol_fleet <- calculate_max_concurrent_trips(gtfs, interval_hours)
+          sol_fleet_compared <- compare_fleet(sol_fleet, base_fleet)
+          
+          sol_fleet_compared <- sol_fleet_compared |>
+            mutate(
+              objective = obj_name,
+              solution = solution_name,
+              .before = everything()
+            )
+            
+          list(
+            headways = sol_compared,
+            fleet = sol_fleet_compared
+          )
         },
         error = function(e) {
           message(glue::glue(
@@ -265,10 +397,28 @@ process_all_gtfs_solutions <- function(
       )
     })
   })
+  
+  # Flatten and combine results
+  results_flat <- unlist(results_nested, recursive = FALSE)
+  results_flat <- results_flat[!sapply(results_flat, is.null)]
+  
+  if (length(results_flat) == 0) {
+      return(list(
+        base_headways = base_headways,
+        all_solutions = NULL,
+        base_fleet = base_fleet,
+        all_solutions_fleet = NULL
+      ))
+  }
+  
+  all_solutions_headways <- map_dfr(results_flat, "headways")
+  all_solutions_fleet <- map_dfr(results_flat, "fleet")
 
   list(
     base_headways = base_headways,
-    all_solutions = all_solutions
+    all_solutions = all_solutions_headways,
+    base_fleet = base_fleet,
+    all_solutions_fleet = all_solutions_fleet
   )
 }
 

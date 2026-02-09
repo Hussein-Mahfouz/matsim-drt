@@ -196,6 +196,22 @@ tryCatch(
       "✓ Solution GTFS headways saved to: ",
       file.path(OUTPUT_DIR, "gtfs_headway_comparisons_overline.rds")
     )
+
+    # Save Bus Fleet Sizes
+    if (!is.null(results$all_solutions_fleet)) {
+      # Remove _gtfs suffix from solution column for consistency
+      results$all_solutions_fleet <- results$all_solutions_fleet |>
+        mutate(solution = str_remove(as.character(solution), "_gtfs$"))
+        
+      write_csv(
+        results$all_solutions_fleet,
+        file.path(OUTPUT_DIR, "bus_fleet_sizes.csv")
+      )
+      message(
+        "✓ Bus fleet sizes saved to: ",
+        file.path(OUTPUT_DIR, "bus_fleet_sizes.csv")
+      )
+    }
   },
   error = function(e) {
     message("✗ ERROR processing solution GTFS feeds: ", e$message)
@@ -229,6 +245,68 @@ tryCatch(
       "✓ DRT fleet deployments saved to: ",
       file.path(OUTPUT_DIR, "drt_fleet_deployments.csv")
     )
+
+    # ---------------------------------------------------------
+    # Generate Combined Fleet Statistcs (Bus + DRT)
+    # ---------------------------------------------------------
+    
+    bus_fleet_path <- file.path(OUTPUT_DIR, "bus_fleet_sizes.csv")
+    
+    if (file.exists(bus_fleet_path)) {
+      message("\nGenerating combined fleet analysis...")
+      
+      bus_fleet <- read_csv(bus_fleet_path, show_col_types = FALSE)
+      
+      # Aggregate DRT fleet by solution and interval
+      drt_fleet_agg <- all_drt_deployments |>
+        group_by(objective, solution, interval_label) |>
+        summarise(drt_fleet_solution = sum(fleet_size), .groups = "drop")
+      # Join and calculate totals
+      combined_fleet <- bus_fleet |>
+        rename(bus_fleet_solution = max_bus_fleet) |>
+        mutate(
+          objective = as.character(objective),
+          solution = str_remove(as.character(solution), "_gtfs$"),
+          interval_label = as.character(interval_label)
+        ) |>
+        left_join(
+          drt_fleet_agg |>
+            mutate(
+              objective = as.character(objective),
+              solution = as.character(solution),
+              interval_label = as.character(interval_label)
+            ),
+          by = c("objective", "solution", "interval_label")
+        ) |>
+        mutate(
+          drt_fleet_solution = replace_na(drt_fleet_solution, 0),
+          
+          # Bus differences
+          # Note: bus_fleet_sizes.csv has columns: max_bus_fleet(solution), max_bus_fleet_base, max_bus_fleet_diff
+          bus_fleet_diff = bus_fleet_solution - max_bus_fleet_base, 
+          bus_fleet_pct_change = if_else(max_bus_fleet_base > 0, round((bus_fleet_diff / max_bus_fleet_base) * 100, 2), 0),
+          
+          # Total totals
+          total_fleet_base = max_bus_fleet_base, # DRT used to be 0
+          total_fleet_solution = bus_fleet_solution + drt_fleet_solution,
+          total_fleet_diff = total_fleet_solution - total_fleet_base,
+          total_fleet_pct_change = if_else(total_fleet_base > 0, round((total_fleet_diff / total_fleet_base) * 100, 2), 0)
+        ) |>
+        rename(bus_fleet_base = max_bus_fleet_base) |>
+        select(
+          objective, solution, interval_label,
+          bus_fleet_base, bus_fleet_solution, drt_fleet_solution,
+          bus_fleet_diff, bus_fleet_pct_change,
+          total_fleet_diff, total_fleet_pct_change
+        ) |>
+        # Sort
+        mutate(start_hour = as.numeric(str_extract(interval_label, "^\\d+"))) |>
+        arrange(objective, solution, start_hour) |>
+        select(-start_hour)
+        
+      write_csv(combined_fleet, file.path(OUTPUT_DIR, "combined_fleet_sizes.csv"))
+      message("✓ Combined fleet analysis saved to: ", file.path(OUTPUT_DIR, "combined_fleet_sizes.csv"))
+    }
   },
   error = function(e) {
     message("✗ ERROR loading DRT deployments: ", e$message)
@@ -258,3 +336,5 @@ message("Output files saved to: ", OUTPUT_DIR)
 message("  - gtfs_sf_headways_overline.rds")
 message("  - gtfs_headway_comparisons_overline.rds")
 message("  - drt_fleet_deployments.csv")
+message("  - bus_fleet_sizes.csv")
+message("  - combined_fleet_sizes.csv")
