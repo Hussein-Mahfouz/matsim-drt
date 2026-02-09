@@ -190,8 +190,14 @@ calculate_max_concurrent_trips <- function(gtfs, interval_hours = 1) {
     group_by(trip_id) |>
     summarise(
       start_seconds = as.numeric(min(departure_seconds, na.rm = TRUE)),
-      # buffer added to end_seconds (10 minutes) to account for recovery/layover
-      end_seconds = as.numeric(max(arrival_time, na.rm = TRUE)) + (10 * 60)
+      raw_end_seconds = as.numeric(max(arrival_time, na.rm = TRUE))
+    ) |>
+    mutate(
+      duration = raw_end_seconds - start_seconds,
+      # Dynamic buffer: max(10 mins, 15% of duration)
+      # This accounts for recovery, layover, or charging/refueling proportional to distance/time
+      buffer = pmax(600, duration * 0.15),
+      end_seconds = raw_end_seconds + buffer
     ) |>
     ungroup() |>
     inner_join(select(gtfs$trips, trip_id, route_id), by = "trip_id") |>
