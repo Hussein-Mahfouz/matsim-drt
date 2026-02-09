@@ -47,7 +47,7 @@ message("==========================================\n")
 ####################
 
 # Default
-ITERATION_FOLDER <- "iteration_01"
+ITERATION_FOLDER <- "iteration_02"
 
 # Check for command line arguments
 args <- commandArgs(trailingOnly = TRUE)
@@ -69,6 +69,31 @@ OUTPUT_DIR <- file.path("R/output", ITERATION_FOLDER)
 
 # Objectives to process (NULL = auto-detect)
 OBJECTIVES_TO_PROCESS <- NULL
+
+# --- AUTO-DETECT OBJECTIVES FOR THIS ITERATION ---
+# Verify which objectives actually have results for the target iteration
+if (is.null(OBJECTIVES_TO_PROCESS)) {
+  all_obj_dirs <- list.dirs(SOLUTIONS_PARENT_DIR, full.names = FALSE, recursive = FALSE)
+  
+  # Filter to those that interpret as objectives
+  valid_obj_regex <- "sc_avg_var|sc_int_var|sc_peak_var|sc_sum_var|wt_avg_tot|wt_avg_var|wt_avg_atk|wt_int_tot|wt_int_var|wt_int_atk|wt_peak_tot|wt_peak_var|wt_peak_atk|wt_sum_tot|wt_sum_var|wt_sum_atk"
+  candidates <- all_obj_dirs[grepl(valid_obj_regex, all_obj_dirs)]
+  
+  # Check if they have the specific iteration folder with data
+  OBJECTIVES_TO_PROCESS <- candidates[sapply(candidates, function(obj) {
+    target_dir <- file.path(SOLUTIONS_PARENT_DIR, obj, ITERATION_FOLDER, "pso_results")
+    if (!dir.exists(target_dir)) return(FALSE)
+    # Check for at least one zip file
+    length(list.files(target_dir, pattern = "\\.zip$")) > 0
+  })]
+  
+  message(glue::glue("Auto-detected {length(OBJECTIVES_TO_PROCESS)} objectives with data for {ITERATION_FOLDER}:"))
+  message(paste(OBJECTIVES_TO_PROCESS, collapse = ", "))
+  
+  if (length(OBJECTIVES_TO_PROCESS) == 0) {
+    stop(glue::glue("No objectives found with data for {ITERATION_FOLDER} in {SOLUTIONS_PARENT_DIR}"))
+  }
+}
 
 # Interval hours for headway calculation
 INTERVAL_HOURS <- 4
