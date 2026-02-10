@@ -18,7 +18,12 @@ PLOT_DIR <- "R/plots/transit_opt_paper/comparisons"
 dir.create(PLOT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 # Objectives to plot
-OBJECTIVES_OF_INTEREST <- c("wt_int_tot", "wt_int_atk")
+OBJECTIVES_OF_INTEREST <- c(
+  "wt_int_tot",
+  "wt_int_atk",
+  "wt_avg_tot",
+  "wt_avg_atk"
+)
 
 # Visual Thresholds
 MIN_TRIP_DIFF <- 15
@@ -214,7 +219,7 @@ tm_additions <- tm_shape(study_area) +
   tm_shape(network_context_sf) +
   tm_lines(
     col = "white",
-    lwd = 0.3,
+    lwd = 0.15,
     col_alpha = 0.1 # Fixed: Changed from alpha to col_alpha per previous warning
   ) +
 

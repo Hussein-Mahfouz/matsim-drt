@@ -8,7 +8,7 @@ library(glue)
 
 # ===== USER CONFIGURATION =====
 
-ITERATION_ID <- "iteration_00"
+ITERATION_ID <- "iteration_01"
 message(glue::glue("\nRunning evaluation for: {ITERATION_ID}"))
 
 # Update Paths to read from the iteration folder
@@ -502,6 +502,8 @@ plot_heatmap_faceted <- ggplot(
   ) +
   theme_bw(base_size = 10) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+plot_heatmap_faceted
 
 ggsave(
   file.path(plot_dir, "fig_4_1a_correlation_heatmap_faceted.png"),
@@ -1633,10 +1635,10 @@ message("✓ Table 4.2b saved (best solutions by PT+DRT mode share)")
 
 
 # -------------------------
-# Plot: Trade-off between PT+DRT gain and Car reduction
+# Plot: Trade-off between PT+DRT gain and Car reduction (Standard)
 # -------------------------
 
-tradeoff_data <- res_mode_share |>
+tradeoff_data_old <- res_mode_share |>
   filter(
     mode %in% c("pt+drt", "car"),
     level == "trip",
@@ -1655,7 +1657,7 @@ tradeoff_data <- res_mode_share |>
   )
 
 ggplot(
-  tradeoff_data,
+  tradeoff_data_old,
   aes(x = car_change, y = pt_drt_change, color = pso_frac_of_base)
 ) +
   geom_point(size = 2.5, alpha = 0.8) +
@@ -1697,10 +1699,10 @@ ggsave(
 )
 
 # -------------------------
-# Plot: VKM efficiency
+# Plot: VKM efficiency (Standard)
 # -------------------------
 
-vkm_mode_tradeoff <- res_vkm_extended |>
+vkm_mode_tradeoff_old <- res_vkm_extended |>
   filter(
     mode == "pt+drt",
     level == "trip",
@@ -1733,7 +1735,7 @@ vkm_mode_tradeoff <- res_vkm_extended |>
   )
 
 ggplot(
-  vkm_mode_tradeoff,
+  vkm_mode_tradeoff_old,
   aes(x = pt_vkm_change / 1000, y = pt_share_delta, color = pso_frac_of_base)
 ) +
   geom_point(size = 2.5, alpha = 0.8) +
@@ -2002,7 +2004,7 @@ generate_catchment_analysis(ids_best_share, "Best_Mode_Shift")
 message("Generating combined comparative catchment analysis (Side-by-Side)...")
 
 # 1. Reuse logic to get data for both sets
-get_catchment_data <- function(target_ids, type_label) {
+get_catchment_data_old <- function(target_ids, type_label) {
   base_frame <- target_ids |>
     cross_join(res_mode_share |> distinct(level, access, zones)) |>
     mutate(
@@ -2105,8 +2107,8 @@ get_catchment_data <- function(target_ids, type_label) {
 
 # 2. Bind Data (Using same labels as 4.3y for consistency)
 combined_catchment_data <- bind_rows(
-  get_catchment_data(ids_rank0, "Best PSO Rank"),
-  get_catchment_data(ids_best_share, "Best Real Share")
+  get_catchment_data_old(ids_rank0, "Best PSO Rank"),
+  get_catchment_data_old(ids_best_share, "Best Real Share")
 ) |>
   filter(
     !str_detect(filter_label, CATCHMENT_PLOT_EXCLUDE_REGEX)
@@ -2200,7 +2202,7 @@ plot_combined_catchment <- ggplot() +
   ) +
 
   labs(
-    title = "Effect of Catchment Definition on Mode Share and VKT changes",
+    title = "Effect of catchment definition on Mode Share and VKT changes",
     subtitle = "Analysis of Best PSO Rank & Best Mode Shift Solutions",
     x = "Catchment Definition",
     y = NULL
@@ -2216,8 +2218,6 @@ plot_combined_catchment <- ggplot() +
     panel.grid.major.x = element_blank() # Hide vertical grid lines to emphasize grouping
   ) +
   guides(fill = guide_legend(ncol = 2))
-
-plot_combined_catchment
 
 ggsave(
   file.path(plot_dir, "fig_4_3_combined_catchment_comparison.png"),
@@ -2474,8 +2474,6 @@ plot_global <- ggplot() +
     plot.title = element_text(face = "bold", size = 14)
   )
 
-plot_global
-
 ggsave(
   file.path(plot_dir, "fig_4_3x_global_summary_horizontal.png"),
   plot_global,
@@ -2621,8 +2619,6 @@ plot_global_grouped <- ggplot() +
   ) +
   guides(fill = guide_legend(ncol = 2, reverse = TRUE))
 
-plot_global_grouped
-
 ggsave(
   file.path(plot_dir, "fig_4_3y_global_summary_grouped.png"),
   plot_global_grouped,
@@ -2632,6 +2628,1099 @@ ggsave(
 )
 
 message("✓ Figure 4.3y saved (Grouped summary)")
+
+# =========================================================================
+# SECTION 5: FLEET SIZE ANALYSIS (combined_fleet_sizes.csv)
+# =========================================================================
+
+message("\n==========================================")
+message("SECTION 5: FLEET SIZE ANALYSIS")
+message("==========================================\n")
+
+# --- 5.0 Load Combined Fleet Data ---
+combined_fleet_path <- file.path(input_dir, "combined_fleet_sizes.csv")
+if (!file.exists(combined_fleet_path)) {
+  stop(glue::glue("Combined fleet file not found: {combined_fleet_path}"))
+}
+
+combined_fleet <- read_csv(combined_fleet_path, show_col_types = FALSE)
+message(glue::glue("✓ Loaded combined fleet data: {nrow(combined_fleet)} rows"))
+
+# Add solution_id (numeric) from solution name
+combined_fleet <- combined_fleet |>
+  mutate(
+    solution_id = as.integer(str_extract(solution, "\\d+"))
+  )
+
+# --- 5.0b Identify Peak Interval ---
+# Peak = interval with highest bus_fleet_base
+peak_row <- combined_fleet |>
+  distinct(interval_label, bus_fleet_base) |>
+  slice_max(order_by = bus_fleet_base, n = 1, with_ties = FALSE)
+
+peak_interval <- peak_row$interval_label
+base_fleet_peak <- peak_row$bus_fleet_base
+
+message(glue::glue(
+  "Peak interval: {peak_interval}h (Base bus fleet: {base_fleet_peak})"
+))
+
+# --- 5.0c fleet_peak: Combined fleet data filtered to peak interval ---
+fleet_peak <- combined_fleet |>
+  filter(interval_label == peak_interval)
+
+# --- 5.0d Best Solution IDs ---
+# ids_rank0: Best PSO rank (solution_id == 0) per objective
+ids_rank0 <- res_mode_share |>
+  filter(
+    solution_id == 0,
+    mode == "pt+drt",
+    level == "trip",
+    access == "origin+destination",
+    zones == "pt+drt"
+  ) |>
+  distinct(objective) |>
+  mutate(solution_id = 0L)
+
+# ids_best_share: Best PT+DRT mode share per objective
+ids_best_share <- res_mode_share |>
+  filter(
+    mode == "pt+drt",
+    level == "trip",
+    access == "origin+destination",
+    zones == "pt+drt"
+  ) |>
+  group_by(objective) |>
+  slice_max(order_by = share_delta, n = 1, with_ties = FALSE) |>
+  ungroup() |>
+  select(objective, solution_id)
+
+# --- 5.0e Catchment Helper Function & Plot Constants ---
+
+# Reusable function to build catchment comparison data for a set of solution IDs
+get_catchment_data <- function(target_ids, type_label) {
+  # Get Car+Taxi Share Delta
+  car_taxi_share_data <- res_mode_share |>
+    filter(mode %in% c("car", "taxi")) |>
+    group_by(objective, solution_id, level, access, zones) |>
+    summarise(
+      share_delta_combined = sum(share_delta, na.rm = TRUE),
+      .groups = "drop"
+    )
+
+  base_frame <- target_ids |>
+    cross_join(res_mode_share |> distinct(level, access, zones)) |>
+    mutate(
+      objective_clean = objective_labels_short[objective],
+      filter_label = paste(
+        level_labels[level],
+        access_labels[access],
+        zones_labels[zones],
+        sep = " | "
+      )
+    )
+
+  catchment_metrics <- base_frame |>
+    left_join(
+      res_mode_share |>
+        filter(mode == "pt+drt") |>
+        select(objective, solution_id, level, access, zones, share_delta),
+      by = c("objective", "solution_id", "level", "access", "zones")
+    ) |>
+    rename(pt_drt_share_change = share_delta) |>
+    left_join(
+      car_taxi_share_data,
+      by = c("objective", "solution_id", "level", "access", "zones")
+    ) |>
+    rename(car_taxi_share_change = share_delta_combined) |>
+    left_join(
+      res_vkm_extended |>
+        filter(mode == "pt+drt") |>
+        select(objective, solution_id, level, access, zones, delta_km),
+      by = c("objective", "solution_id", "level", "access", "zones")
+    ) |>
+    rename(pt_drt_vkm_change = delta_km) |>
+    left_join(
+      res_vkm_extended |>
+        filter(mode == "car+taxi") |>
+        select(objective, solution_id, level, access, zones, delta_km),
+      by = c("objective", "solution_id", "level", "access", "zones")
+    ) |>
+    rename(car_taxi_vkm_change = delta_km)
+
+  catchment_metrics |>
+    select(
+      objective_clean,
+      filter_label,
+      pt_drt_share_change,
+      car_taxi_share_change,
+      pt_drt_vkm_change,
+      car_taxi_vkm_change
+    ) |>
+    pivot_longer(
+      cols = ends_with("change"),
+      names_to = "raw_metric",
+      values_to = "value"
+    ) |>
+    mutate(
+      Metric_Category = if_else(
+        str_detect(raw_metric, "share"),
+        "Mode Share Change (pp)",
+        "VKM Change ('000 km)"
+      ),
+      Mode_Group = case_when(
+        str_detect(raw_metric, "pt_drt") ~ "PT + DRT",
+        str_detect(raw_metric, "car_taxi") ~ "Car + Taxi"
+      ),
+      val = if_else(
+        Metric_Category == "VKM Change ('000 km)",
+        value / 1000,
+        value
+      ),
+      Type = type_label
+    )
+}
+
+# Plot constants for combined catchment
+offset <- 0.22
+bar_width <- 0.4
+catchment_colors <- c(
+  "PT + DRT - Best PSO Rank" = "#7570b3",
+  "Car + Taxi - Best PSO Rank" = "#d95f02",
+  "PT + DRT - Best Real Share" = "#a6bddb",
+  "Car + Taxi - Best Real Share" = "#fdae6b"
+)
+
+message("✓ Fleet analysis setup complete")
+
+
+# -------------------------
+# 5.1 Fleet-Colored Trade-off Plot
+# -------------------------
+
+# Plot: Trade-off between PT+DRT gain and Car reduction
+# -------------------------
+
+tradeoff_data <- res_mode_share |>
+  filter(
+    mode %in% c("pt+drt", "car"),
+    level == "trip",
+    access == "origin+destination",
+    zones == "pt+drt"
+  ) |>
+  select(objective, solution_id, mode, share_delta, pso_frac_of_base) |>
+  pivot_wider(names_from = mode, values_from = share_delta) |>
+  rename(pt_drt_change = `pt+drt`, car_change = car) |>
+  # Join fleet data at peak
+  left_join(
+    fleet_peak |> select(objective, solution_id, total_fleet_pct_change),
+    by = c("objective", "solution_id")
+  ) |>
+  mutate(
+    objective_clean = factor(
+      objective,
+      levels = names(objective_labels),
+      labels = objective_labels
+    )
+  )
+
+ggplot(
+  tradeoff_data,
+  aes(x = car_change, y = pt_drt_change, color = total_fleet_pct_change)
+) +
+  geom_point(size = 2.5, alpha = 0.8) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_abline(
+    slope = -1,
+    intercept = 0,
+    linetype = "dotted",
+    color = "gray30"
+  ) +
+  facet_wrap(~objective_clean, scales = "fixed", ncol = 3) +
+  scale_color_gradient2(
+    low = "#2166ac",
+    mid = "white",
+    high = "#b2182b",
+    midpoint = 0,
+    name = glue::glue("Total Fleet\n% Change\n(Peak: {peak_interval}h)")
+  ) +
+  labs(
+    title = "PT+DRT Gain vs. Car Loss — Colored by Fleet Size Change",
+    subtitle = glue::glue(
+      "Filter: Trip | O+D | PT+DRT | Peak interval: {peak_interval}h (Base fleet: {base_fleet_peak})"
+    ),
+    x = "Car Mode Share Change (pp)",
+    y = "PT+DRT Mode Share Change (pp)",
+    caption = "Diagonal: 1:1 substitution. Blue = fleet reduction, Red = fleet increase."
+  ) +
+  theme_bw(base_size = 11) +
+  theme(
+    legend.position = "right",
+    strip.text = element_text(face = "bold", size = 9),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
+  )
+
+ggsave(
+  file.path(plot_dir, "fig_4_2a_pt_car_tradeoff_fleet.png"),
+  width = 16,
+  height = 10,
+  dpi = 300
+)
+message("✓ fig_4_2a fleet-colored tradeoff saved")
+
+
+# -------------------------
+# 5.2 Fleet-Colored VKM Plot (New fig_4_2b variant)
+# -------------------------
+
+message("Creating fleet-colored VKM plot...")
+
+vkm_fleet_data <- res_vkm_extended |>
+  filter(
+    mode == "pt+drt",
+    level == "trip",
+    access == "origin+destination",
+    zones == "pt+drt"
+  ) |>
+  select(objective, solution_id, pt_vkm_change = delta_km) |>
+  left_join(
+    res_mode_share |>
+      filter(
+        mode == "pt+drt",
+        level == "trip",
+        access == "origin+destination",
+        zones == "pt+drt"
+      ) |>
+      select(objective, solution_id, pt_share_delta = share_delta),
+    by = c("objective", "solution_id")
+  ) |>
+  left_join(
+    fleet_peak |> select(objective, solution_id, total_fleet_pct_change),
+    by = c("objective", "solution_id")
+  ) |>
+  mutate(
+    objective_clean = factor(
+      objective,
+      levels = names(objective_labels),
+      labels = objective_labels
+    )
+  )
+
+ggplot(
+  vkm_fleet_data,
+  aes(
+    x = pt_vkm_change / 1000,
+    y = pt_share_delta,
+    color = total_fleet_pct_change
+  )
+) +
+  geom_point(size = 2.5, alpha = 0.8) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  facet_wrap(~objective_clean, scales = "fixed", ncol = 3) +
+  scale_color_gradient2(
+    low = "#2166ac",
+    mid = "white",
+    high = "#b2182b",
+    midpoint = 0,
+    name = glue::glue("Total Fleet\n% Change\n(Peak: {peak_interval}h)")
+  ) +
+  labs(
+    title = "PT Service Investment vs. Ridership — Colored by Fleet Size Change",
+    subtitle = glue::glue(
+      "Filter: Trip | O+D | PT+DRT | Peak interval: {peak_interval}h (Base fleet: {base_fleet_peak})"
+    ),
+    x = "PT+DRT VKM Change (1000s km)",
+    y = "PT+DRT Mode Share Change (pp)",
+    caption = "Blue = fleet reduction, Red = fleet increase. Upper-right = efficient."
+  ) +
+  theme_bw(base_size = 11) +
+  theme(
+    legend.position = "right",
+    strip.text = element_text(face = "bold", size = 9),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
+  )
+
+ggsave(
+  file.path(plot_dir, "fig_4_2b_vkm_vs_mode_share_fleet.png"),
+  width = 16,
+  height = 10,
+  dpi = 300
+)
+message("✓ fig_4_2b fleet-colored VKM saved")
+
+
+# -------------------------
+# 5.3 Catchment Grids with Fleet Labels (New variants)
+# -------------------------
+
+message("Creating catchment grids with fleet labels...")
+
+# Helper: Get fleet label string for a given objective + solution_id at peak
+get_fleet_label <- function(obj, sol_id) {
+  row <- fleet_peak |>
+    filter(objective == obj, solution_id == sol_id)
+  if (nrow(row) == 0) {
+    return("")
+  }
+  glue::glue(
+    "Bus: {row$bus_fleet_diff} | DRT: {row$drt_fleet_solution} ({sprintf('%+.1f', row$total_fleet_pct_change)}%)"
+  )
+}
+
+# Updated catchment analysis with fleet-annotated facet labels
+generate_catchment_analysis_fleet <- function(
+  target_solution_ids,
+  suffix_label
+) {
+  message(glue::glue(
+    "Generating fleet-annotated catchment analysis for: {suffix_label}"
+  ))
+
+  # Build fleet labels per objective
+  fleet_labels <- target_solution_ids |>
+    rowwise() |>
+    mutate(fleet_info = get_fleet_label(objective, solution_id)) |>
+    ungroup() |>
+    mutate(
+      objective_fleet_label = paste0(
+        objective_labels_short[objective],
+        "\n",
+        fleet_info
+      )
+    )
+
+  # 1. Join Base Frame
+  base_frame <- target_solution_ids |>
+    cross_join(res_mode_share |> distinct(level, access, zones)) |>
+    mutate(
+      objective_clean = objective_labels_short[objective],
+      filter_label = paste(
+        level_labels[level],
+        access_labels[access],
+        zones_labels[zones],
+        sep = " | "
+      )
+    ) |>
+    left_join(
+      fleet_labels |> select(objective, objective_fleet_label),
+      by = "objective"
+    )
+
+  # 2. Get Car+Taxi Share Delta
+  car_taxi_share_data <- res_mode_share |>
+    filter(mode %in% c("car", "taxi")) |>
+    group_by(objective, solution_id, level, access, zones) |>
+    summarise(
+      share_delta_combined = sum(share_delta, na.rm = TRUE),
+      .groups = "drop"
+    )
+
+  # 3. Join Metrics
+  catchment_metrics <- base_frame |>
+    left_join(
+      res_mode_share |>
+        filter(mode == "pt+drt") |>
+        select(objective, solution_id, level, access, zones, share_delta),
+      by = c("objective", "solution_id", "level", "access", "zones")
+    ) |>
+    rename(pt_drt_share_change = share_delta) |>
+    left_join(
+      car_taxi_share_data |>
+        select(
+          objective,
+          solution_id,
+          level,
+          access,
+          zones,
+          share_delta_combined
+        ),
+      by = c("objective", "solution_id", "level", "access", "zones")
+    ) |>
+    rename(car_taxi_share_change = share_delta_combined) |>
+    left_join(
+      res_vkm_extended |>
+        filter(mode == "pt+drt") |>
+        select(objective, solution_id, level, access, zones, delta_km),
+      by = c("objective", "solution_id", "level", "access", "zones")
+    ) |>
+    rename(pt_drt_vkm_change = delta_km) |>
+    left_join(
+      res_vkm_extended |>
+        filter(mode == "car+taxi") |>
+        select(objective, solution_id, level, access, zones, delta_km),
+      by = c("objective", "solution_id", "level", "access", "zones")
+    ) |>
+    rename(car_taxi_vkm_change = delta_km)
+
+  # 4. Prepare Plot Data
+  plot_data <- catchment_metrics |>
+    select(
+      objective_fleet_label,
+      filter_label,
+      pt_drt_share_change,
+      car_taxi_share_change,
+      pt_drt_vkm_change,
+      car_taxi_vkm_change
+    ) |>
+    pivot_longer(
+      cols = ends_with("change"),
+      names_to = "raw_metric",
+      values_to = "value"
+    )
+
+  if (!is.null(CATCHMENT_PLOT_EXCLUDE_REGEX)) {
+    plot_data <- plot_data |>
+      filter(!str_detect(filter_label, CATCHMENT_PLOT_EXCLUDE_REGEX))
+  }
+
+  plot_data <- plot_data |>
+    mutate(
+      Metric_Category = if_else(
+        str_detect(raw_metric, "share"),
+        "Mode Share Change (pp)",
+        "VKM Change ('000 km)"
+      ),
+      Mode_Group = case_when(
+        str_detect(raw_metric, "pt_drt") ~ "PT + DRT",
+        str_detect(raw_metric, "car_taxi") ~ "Car + Taxi"
+      ),
+      value_plot = if_else(
+        Metric_Category == "VKM Change ('000 km)",
+        value / 1000,
+        value
+      )
+    )
+
+  net_change_data <- plot_data |>
+    group_by(objective_fleet_label, filter_label, Metric_Category) |>
+    summarise(net_value = sum(value_plot, na.rm = TRUE), .groups = "drop")
+
+  plot_grid <- ggplot() +
+    geom_col(
+      data = plot_data,
+      aes(x = filter_label, y = value_plot, fill = Mode_Group),
+      position = "stack",
+      width = 0.7
+    ) +
+    geom_errorbar(
+      data = net_change_data,
+      aes(
+        x = filter_label,
+        ymin = net_value,
+        ymax = net_value,
+        color = "Net Change"
+      ),
+      width = 0.7,
+      linewidth = 0.6
+    ) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
+    facet_grid(
+      Metric_Category ~ objective_fleet_label,
+      scales = "free_y",
+      switch = "y"
+    ) +
+    scale_fill_manual(
+      values = c("PT + DRT" = "#7570b3", "Car + Taxi" = "#d95f02")
+    ) +
+    scale_color_manual(name = NULL, values = c("Net Change" = "black")) +
+    labs(
+      title = "Effect of Catchment Definition on Mode Share and VKT Changes",
+      subtitle = glue::glue(
+        "{suffix_label} Solutions | Peak fleet label: Bus Δ | DRT fleet (Total Δ%)"
+      ),
+      x = "Catchment Definition",
+      y = NULL,
+      fill = "Mode Component",
+      caption = glue::glue(
+        "Fleet stats shown for peak interval ({peak_interval}h). Base bus fleet: {base_fleet_peak}."
+      )
+    ) +
+    theme_bw(base_size = 12) +
+    theme(
+      legend.position = "bottom",
+      axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+      strip.placement = "outside",
+      strip.text.x = element_text(size = 8),
+      strip.text.y = element_text(face = "bold"),
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_blank(),
+      plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
+    )
+
+  ggsave(
+    file.path(
+      plot_dir,
+      glue::glue("fig_4_3_{suffix_label}_catchment_fleet.png")
+    ),
+    plot_grid,
+    width = 18,
+    height = 10,
+    dpi = 300
+  )
+}
+
+generate_catchment_analysis_fleet(ids_rank0, "Best_PSO_Rank")
+generate_catchment_analysis_fleet(ids_best_share, "Best_Mode_Shift")
+message("✓ Fleet-annotated catchment grids saved")
+
+
+# -------------------------
+# 5.4 Combined Catchment with Fleet Footnotes
+# -------------------------
+
+message("Creating combined catchment with fleet footnotes...")
+
+# Build fleet info for both selection types
+fleet_rank0_labels <- ids_rank0 |>
+  rowwise() |>
+  mutate(fleet_info = get_fleet_label(objective, solution_id)) |>
+  ungroup() |>
+  mutate(objective_clean = objective_labels_short[objective])
+
+fleet_best_labels <- ids_best_share |>
+  rowwise() |>
+  mutate(fleet_info = get_fleet_label(objective, solution_id)) |>
+  ungroup() |>
+  mutate(objective_clean = objective_labels_short[objective])
+
+# Build composite facet label: objective + fleet info for both
+composite_labels <- fleet_rank0_labels |>
+  select(objective_clean, rank_fleet = fleet_info) |>
+  left_join(
+    fleet_best_labels |> select(objective_clean, best_fleet = fleet_info),
+    by = "objective_clean"
+  ) |>
+  mutate(
+    composite_label = paste0(
+      objective_clean,
+      "\nRank: ",
+      rank_fleet,
+      "\nBest: ",
+      best_fleet
+    )
+  )
+
+# Re-create combined catchment data with composite labels
+combined_catchment_fleet <- bind_rows(
+  get_catchment_data(ids_rank0, "Best PSO Rank"),
+  get_catchment_data(ids_best_share, "Best Real Share")
+) |>
+  filter(!str_detect(filter_label, CATCHMENT_PLOT_EXCLUDE_REGEX)) |>
+  mutate(Fill_Group = paste(Mode_Group, Type, sep = " - ")) |>
+  left_join(
+    composite_labels |> select(objective_clean, composite_label),
+    by = "objective_clean"
+  )
+
+# Manual dodging
+catchment_labels_ordered_fleet <- sort(unique(
+  combined_catchment_fleet$filter_label
+))
+
+combined_catchment_fleet_pos <- combined_catchment_fleet |>
+  mutate(
+    x_base = as.numeric(factor(
+      filter_label,
+      levels = catchment_labels_ordered_fleet
+    )),
+    x_pos = if_else(Type == "Best Real Share", x_base + offset, x_base - offset)
+  )
+
+net_catchment_fleet <- combined_catchment_fleet_pos |>
+  group_by(composite_label, x_pos, Type, Metric_Category) |>
+  summarise(net_value = sum(val, na.rm = TRUE), .groups = "drop")
+
+plot_combined_fleet <- ggplot() +
+  geom_col(
+    data = combined_catchment_fleet_pos,
+    aes(x = x_pos, y = val, fill = Fill_Group),
+    width = bar_width,
+    position = "stack"
+  ) +
+  geom_segment(
+    data = net_catchment_fleet |> filter(str_detect(Metric_Category, "VKM")),
+    aes(
+      x = x_pos - 0.22,
+      xend = x_pos + 0.22,
+      y = net_value,
+      yend = net_value,
+      color = "Net Change"
+    ),
+    linewidth = 1
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
+  facet_grid(
+    Metric_Category ~ composite_label,
+    scales = "free_y",
+    switch = "y"
+  ) +
+  scale_fill_manual(
+    values = catchment_colors,
+    name = "",
+    labels = c(
+      "PT + DRT - Best Real Share" = "PT + DRT - Best Mode Shift",
+      "PT + DRT - Best PSO Rank" = "PT + DRT - Best PSO Rank",
+      "Car + Taxi - Best Real Share" = "Car + Taxi - Best Mode Shift",
+      "Car + Taxi - Best PSO Rank" = "Car + Taxi - Best PSO Rank"
+    )
+  ) +
+  scale_color_manual(name = NULL, values = c("Net Change" = "black")) +
+  scale_x_continuous(
+    breaks = seq_along(catchment_labels_ordered_fleet),
+    labels = catchment_labels_ordered_fleet
+  ) +
+  labs(
+    title = "Effect of Catchment Definition on Mode Share and VKT Changes",
+    subtitle = "Best PSO Rank vs Best Mode Shift",
+    x = "Catchment Definition",
+    y = NULL,
+    caption = glue::glue(
+      "Fleet labels: Bus Δ | DRT fleet (Total Δ%). Peak interval: {peak_interval}h. Base bus fleet: {base_fleet_peak}.\n",
+      "'Rank' = Best PSO Rank solution. 'Best' = Best PT+DRT Mode Shift solution."
+    )
+  ) +
+  theme_bw(base_size = 12) +
+  theme(
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+    strip.placement = "outside",
+    strip.text.x = element_text(size = 7),
+    strip.text.y = element_text(face = "bold"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
+  ) +
+  guides(fill = guide_legend(ncol = 2))
+
+ggsave(
+  file.path(plot_dir, "fig_4_3_combined_catchment_fleet.png"),
+  plot_combined_fleet,
+  width = 20,
+  height = 12,
+  dpi = 300
+)
+message("✓ Combined catchment with fleet footnotes saved")
+
+
+# -------------------------
+# 5.5 Fleet Bar Plots by Interval (NEW PROPOSED PLOT)
+# -------------------------
+
+message("Creating fleet bar plots by interval...")
+
+# Helper: Create fleet interval plot for a set of solution IDs
+create_fleet_interval_plot <- function(target_ids, suffix_label) {
+  # Join to combined fleet data (all intervals)
+  fleet_data <- target_ids |>
+    inner_join(
+      combined_fleet,
+      by = c("objective", "solution_id" = "solution_id")
+    )
+
+  # If solution_id column name differs, try matching via solution name
+  if (nrow(fleet_data) == 0) {
+    # Match via solution name pattern
+    fleet_data <- target_ids |>
+      mutate(
+        solution_pattern = paste0(
+          "combined_solution_",
+          sprintf("%02d", solution_id)
+        )
+      ) |>
+      inner_join(
+        combined_fleet |> rename(solution_name = solution),
+        by = c("objective", "solution_pattern" = "solution_name")
+      )
+  }
+
+  fleet_data <- fleet_data |>
+    mutate(
+      objective_clean = objective_labels_short[objective],
+      # Sort intervals correctly
+      start_hour = as.numeric(str_extract(interval_label, "^\\d+")),
+      interval_label = fct_reorder(interval_label, start_hour)
+    )
+
+  # Create stacked bar: bus_fleet_solution + drt_fleet_solution stacked
+  fleet_long <- fleet_data |>
+    select(
+      objective_clean,
+      interval_label,
+      bus_fleet_base,
+      bus_fleet_solution,
+      drt_fleet_solution,
+      total_fleet_pct_change
+    ) |>
+    pivot_longer(
+      cols = c(bus_fleet_solution, drt_fleet_solution),
+      names_to = "fleet_type",
+      values_to = "fleet_size"
+    ) |>
+    mutate(
+      fleet_type = case_when(
+        fleet_type == "bus_fleet_solution" ~ "Bus",
+        fleet_type == "drt_fleet_solution" ~ "DRT"
+      ),
+      fleet_type = factor(fleet_type, levels = c("DRT", "Bus"))
+    )
+
+  # Base line data (one value per interval per objective)
+  base_line_data <- fleet_data |>
+    distinct(objective_clean, interval_label, bus_fleet_base)
+
+  # Label: total fleet % change at top of stacked bar
+  label_data <- fleet_data |>
+    mutate(
+      total_fleet = bus_fleet_solution + drt_fleet_solution,
+      label = paste0(sprintf("%+.0f", total_fleet_pct_change), "%")
+    ) |>
+    select(objective_clean, interval_label, total_fleet, label)
+
+  ggplot() +
+    # Stacked bars: Bus (bottom) + DRT (top)
+    geom_col(
+      data = fleet_long,
+      aes(x = interval_label, y = fleet_size, fill = fleet_type),
+      position = "stack",
+      width = 0.7
+    ) +
+    # Base fleet line
+    geom_segment(
+      data = base_line_data,
+      aes(
+        x = as.numeric(interval_label) - 0.45,
+        xend = as.numeric(interval_label) + 0.45,
+        y = bus_fleet_base,
+        yend = bus_fleet_base
+      ),
+      color = "black",
+      linewidth = 0.8,
+      linetype = "solid"
+    ) +
+    # Total fleet % change label
+    geom_text(
+      data = label_data,
+      aes(x = interval_label, y = total_fleet + 20, label = label),
+      size = 2.8,
+      fontface = "bold",
+      color = "gray30"
+    ) +
+    facet_wrap(~objective_clean, nrow = 2, scales = "free_y") +
+    scale_fill_manual(
+      values = c("Bus" = "#4393c3", "DRT" = "#d6604d"),
+      name = "Fleet Component"
+    ) +
+    labs(
+      title = glue::glue("Fleet Composition by Time Interval — {suffix_label}"),
+      subtitle = "Black line = baseline bus fleet. Labels = total fleet % change vs baseline.",
+      x = "Time Interval",
+      y = "Fleet Size (vehicles)",
+      caption = glue::glue(
+        "Base bus fleet at peak ({peak_interval}h): {base_fleet_peak} vehicles.\n",
+        "Total fleet = Bus + DRT. % change relative to bus-only baseline."
+      )
+    ) +
+    theme_bw(base_size = 11) +
+    theme(
+      legend.position = "bottom",
+      strip.text = element_text(face = "bold", size = 10),
+      axis.text.x = element_text(angle = 45, hjust = 1, size = 9),
+      plot.title = element_text(face = "bold", size = 14),
+      plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
+    )
+}
+
+# Plot for Best PSO Rank solutions
+plot_fleet_rank <- create_fleet_interval_plot(ids_rank0, "Best PSO Rank")
+ggsave(
+  file.path(plot_dir, "fig_5_1a_fleet_by_interval_rank.png"),
+  plot_fleet_rank,
+  width = 16,
+  height = 10,
+  dpi = 300
+)
+
+# Plot for Best Mode Shift solutions
+plot_fleet_best <- create_fleet_interval_plot(ids_best_share, "Best Mode Shift")
+ggsave(
+  file.path(plot_dir, "fig_5_1a_fleet_by_interval_best_share.png"),
+  plot_fleet_best,
+  width = 16,
+  height = 10,
+  dpi = 300
+)
+
+message("✓ Fleet interval bar plots saved")
+
+
+# -------------------------
+# 5.5b Combined Fleet Interval Plot (Side-by-Side)
+# -------------------------
+
+message("Creating combined fleet interval plot...")
+
+# 1. Helper to get data for a specific type
+get_fleet_plot_data <- function(target_ids, type_label) {
+  # Join to combined fleet data (all intervals)
+  fleet_data <- target_ids |>
+    inner_join(
+      combined_fleet,
+      by = c("objective", "solution_id" = "solution_id")
+    )
+
+  if (nrow(fleet_data) == 0) {
+    return(NULL)
+  }
+
+  fleet_data |>
+    mutate(
+      objective_clean = objective_labels_short[objective],
+      start_hour = as.numeric(str_extract(interval_label, "^\\d+")),
+      interval_label = fct_reorder(interval_label, start_hour),
+      Type = type_label
+    )
+}
+
+# 2. Combine Data
+combined_fleet_plot_data <- bind_rows(
+  get_fleet_plot_data(ids_rank0, "Best PSO Rank"),
+  get_fleet_plot_data(ids_best_share, "Best Real Share")
+)
+
+write_csv(
+  combined_fleet_plot_data,
+  file.path(plot_dir, "tables/table_4_4_combined_fleet_data.csv")
+)
+
+# 3. Pivot Longer for Stacking (Bus vs DRT)
+combined_fleet_long <- combined_fleet_plot_data |>
+  select(
+    objective_clean,
+    interval_label,
+    Type,
+    bus_fleet_base,
+    bus_fleet_solution,
+    drt_fleet_solution,
+    total_fleet_pct_change
+  ) |>
+  pivot_longer(
+    cols = c(bus_fleet_solution, drt_fleet_solution),
+    names_to = "fleet_type",
+    values_to = "fleet_size"
+  ) |>
+  mutate(
+    fleet_type = case_when(
+      fleet_type == "bus_fleet_solution" ~ "Bus",
+      fleet_type == "drt_fleet_solution" ~ "DRT"
+    ),
+    # Stack order: Bus bottom, DRT top
+    fleet_type = factor(fleet_type, levels = c("Bus", "DRT"))
+  )
+
+# 4. Manual Dodging Logic (Interval on X, shift left/right by Type)
+interval_levels <- levels(combined_fleet_long$interval_label)
+bar_width <- 0.35
+offset <- 0.2
+
+combined_fleet_pos <- combined_fleet_long |>
+  mutate(
+    x_base = as.numeric(factor(interval_label, levels = interval_levels)),
+    x_pos = if_else(
+      Type == "Best Real Share",
+      x_base + offset,
+      x_base - offset
+    ),
+    Fill_Group = paste(fleet_type, Type, sep = " - "),
+
+    # 1. Set Factor Levels (Controls Legend Order)
+    #    "Bus" first implies it is the "first" category
+    Fill_Group = factor(
+      Fill_Group,
+      levels = c(
+        "Bus - Best PSO Rank",
+        "Bus - Best Real Share",
+        "DRT - Best PSO Rank",
+        "DRT - Best Real Share"
+      )
+    ),
+
+    # 2. Helper column for sorting (Bus=1, DRT=2)
+    sort_order = if_else(fleet_type == "Bus", 1, 2)
+  ) |>
+  # 3. CRITICAL: Sort the data so Bus rows are processed first (Bottom of stack)
+  arrange(objective_clean, interval_label, Type, sort_order)
+
+# 5. Base Line Data (Needs same manual dodging logic if we want lines to split)
+# Alternatively, since base fleet is identical for both, we can just center it.
+# Let's simple center it on the interval tick.
+base_line_data <- combined_fleet_plot_data |>
+  distinct(objective_clean, interval_label, bus_fleet_base) |>
+  mutate(
+    x_base = as.numeric(factor(interval_label, levels = interval_levels))
+  )
+
+# 6. Labels (Total change per bar)
+label_data_combined <- combined_fleet_plot_data |>
+  mutate(
+    total_fleet = bus_fleet_solution + drt_fleet_solution,
+    label = paste0(sprintf("%+.0f", total_fleet_pct_change), "%"),
+    x_base = as.numeric(factor(interval_label, levels = interval_levels)),
+    x_pos = if_else(
+      Type == "Best Real Share",
+      x_base + offset,
+      x_base - offset
+    )
+  )
+
+# 7. Colors (Light for Rank, Solid for Share)
+# Bus = Blueish, DRT = Reddish
+fleet_colors_combined <- c(
+  "Bus - Best Real Share" = "#4393c3", # Solid Blue
+  "Bus - Best PSO Rank" = "#92c5de", # Light Blue
+  "DRT - Best Real Share" = "#d6604d", # Solid Red
+  "DRT - Best PSO Rank" = "#f4a582" # Light Red
+)
+
+# 8. Plot
+plot_combined_fleet_interval <- ggplot() +
+  # Stacked columns
+  geom_col(
+    data = combined_fleet_pos,
+    aes(x = x_pos, y = fleet_size, fill = Fill_Group),
+    width = bar_width,
+    position = position_stack(reverse = TRUE)
+  ) +
+  # Base fleet line (centered, covering both bars)
+  geom_segment(
+    data = base_line_data,
+    aes(
+      x = x_base - 0.45,
+      xend = x_base + 0.45,
+      y = bus_fleet_base,
+      yend = bus_fleet_base
+    ),
+    color = "black",
+    linewidth = 0.6,
+    linetype = "dashed"
+  ) +
+  # Labels
+  geom_text(
+    data = label_data_combined,
+    aes(x = x_pos, y = total_fleet + 25, label = label),
+    size = 2.2,
+    original = FALSE,
+    color = "gray20"
+  ) +
+  facet_wrap(~objective_clean, nrow = 2, scales = "free_y") +
+  scale_fill_manual(
+    values = fleet_colors_combined,
+    name = "",
+    labels = c(
+      "Bus - Best Real Share" = "Bus - Best Mode Shift",
+      "Bus - Best PSO Rank" = "Bus - Best PSO Rank",
+      "DRT - Best Real Share" = "DRT - Best Mode Shift",
+      "DRT - Best PSO Rank" = "DRT - Best PSO Rank"
+    )
+  ) +
+  scale_x_continuous(
+    breaks = seq_along(interval_levels),
+    labels = interval_levels
+  ) +
+  labs(
+    title = "Fleet Composition by Time Interval (Side-by-Side Comparison)",
+    subtitle = "Light bars = Best PSO Rank | Solid bars = Best Mode Shift",
+    x = "Time Interval",
+    y = "Fleet Size (vehicles)",
+    caption = "Dashed line = baseline bus fleet. Labels = Total fleet % change vs baseline bus."
+  ) +
+  theme_bw(base_size = 11) +
+  theme(
+    legend.position = "bottom",
+    strip.text = element_text(face = "bold", size = 10),
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 9),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
+  ) +
+  guides(fill = guide_legend(ncol = 2))
+
+ggsave(
+  file.path(plot_dir, "fig_5_1_combined_fleet_interval.png"),
+  plot_combined_fleet_interval,
+  width = 16,
+  height = 10,
+  dpi = 300
+)
+
+message("✓ Combined fleet interval plot saved")
+
+
+# -------------------------
+# 5.6 Fleet Efficiency Summary (NEW PROPOSED PLOT)
+# -------------------------
+
+message("Creating fleet efficiency summary...")
+
+# For each objective, show the mode share gain per unit of fleet change
+# This shows "bang for buck" in terms of fleet resources
+efficiency_data <- fleet_peak |>
+  left_join(
+    res_mode_share |>
+      filter(
+        mode == "pt+drt",
+        level == "trip",
+        access == "origin+destination",
+        zones == "pt+drt"
+      ) |>
+      select(objective, solution_id, share_delta),
+    by = c("objective", "solution_id")
+  ) |>
+  mutate(
+    objective_clean = factor(
+      objective,
+      levels = names(objective_labels),
+      labels = objective_labels
+    )
+  )
+
+ggplot(
+  efficiency_data,
+  aes(x = total_fleet_pct_change, y = share_delta, color = objective_clean)
+) +
+  geom_point(size = 2, alpha = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  facet_wrap(~objective_clean, ncol = 3) +
+  labs(
+    title = "Fleet Efficiency: Mode Share Gain vs Fleet Size Change",
+    subtitle = glue::glue(
+      "Peak interval ({peak_interval}h). Base fleet: {base_fleet_peak}"
+    ),
+    x = "Total Fleet % Change (Bus + DRT vs Baseline Bus)",
+    y = "PT+DRT Mode Share Change (pp)",
+    caption = "Upper-left quadrant = ideal (mode share gain with fleet reduction)."
+  ) +
+  theme_bw(base_size = 11) +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(face = "bold", size = 9),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
+  )
+
+ggsave(
+  file.path(plot_dir, "fig_5_2_fleet_efficiency.png"),
+  width = 16,
+  height = 10,
+  dpi = 300
+)
+message("✓ Fleet efficiency summary saved")
 
 
 message("\nAnalysis Complete.")
@@ -2672,5 +3761,11 @@ message("  - fig_4_2b_vkm_vs_mode_share.png")
 message("  - fig_4_3_catchment_comparison_bar.png")
 message("  - fig_4_3x_global_summary_horizontal.png")
 message("  - fig_4_3x_global_summary_grouped.png")
+message("  - fig_4_2a_pt_car_tradeoff_fleet.png")
+message("  - fig_4_2b_vkm_vs_mode_share_fleet.png")
+message("  - fig_4_3_combined_catchment_fleet.png")
+message("  - fig_5_1a_fleet_by_interval_rank.png")
+message("  - fig_5_1a_fleet_by_interval_best_share.png")
+message("  - fig_5_2_fleet_efficiency.png")
 
 message("\nNote: Spatial/temporal plots are in plot_maps.R")

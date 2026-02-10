@@ -262,7 +262,7 @@ ggsave(
 # ------------------------------------------------------------------
 
 # Define catchments of interest
-target_catchments <- tribble(
+target_catchments <- tibble::tribble(
   ~level   , ~access              , ~zones   , ~catchment_label        , ~shape_code ,
   "trip"   , "origin+destination" , "pt+drt" , "Trip | O+D | PT+DRT"   ,          16 , # Circle
   "person" , "origin+destination" , "pt+drt" , "Person | O+D | PT+DRT" ,          17 , # Triangle
