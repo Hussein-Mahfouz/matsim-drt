@@ -19,7 +19,7 @@ source("R/code/transit_opt/load_spatial_layers.R")
 #  Configuration
 ####################
 
-ITERATIONS <- c("iteration_01", "iteration_02")
+ITERATIONS <- c("iteration_01", "iteration_02", "iteration_03")
 BASE_PATH <- "R/output"
 RANKING_PATH_TEMPLATE <- "R/plots/transit_opt_paper/{iter}/tables/table_4_1_solution_rankings_all.csv"
 
@@ -160,7 +160,9 @@ run_comparison_maps <- function(metric_type, title_suffix) {
       ) |>
       filter(str_detect(solution, valid_pattern)) |>
       mutate(iteration = iter_id) |>
-      select(-valid_pattern)
+      select(-valid_pattern) |>
+      # Fix fleet size: 0 -> 25
+      mutate(fleet_size = if_else(fleet_size == 0, 25, fleet_size))
   }
 
   fleet_data <- map_dfr(ITERATIONS, load_fleet_data)
@@ -188,7 +190,21 @@ run_comparison_maps <- function(metric_type, title_suffix) {
       ) |>
       filter(str_detect(solution, valid_pattern)) |>
       mutate(iteration = iter_id) |>
-      select(-valid_pattern)
+      select(-valid_pattern) |>
+      # Fix DRT fleet size (min 25) and recalculate totals
+      mutate(
+        drt_fleet_solution = if_else(
+          drt_fleet_solution == 0,
+          25,
+          drt_fleet_solution
+        ),
+        total_fleet_diff = (bus_fleet_solution + drt_fleet_solution) -
+          bus_fleet_base,
+        total_fleet_pct_change = round(
+          (total_fleet_diff / bus_fleet_base) * 100,
+          0
+        ) # Note: label text uses bus_fleet_pct_change variable name but logic implies total change in fleets relative to bus base
+      )
   }
 
   fleet_labels_df <- map_dfr(ITERATIONS, load_label_data)
@@ -203,14 +219,12 @@ run_comparison_maps <- function(metric_type, title_suffix) {
     mutate(col_label = paste0("Iteration ", iter_num, " (Diff)"))
 
   # B. DRT Fleet
-  fleet_levels_num <- c(0, 10, 25, 50, 100, 150)
+  fleet_levels_num <- c(25, 50, 100, 150)
   fleet_pal <- c(
-    "#999999",
-    "#fed976",
+    "#ffffb2",
     "#feb24c",
-    "#fd8d3c",
-    "#f03b20",
-    "#bd0026"
+    "#fc4e2a",
+    "#b10026"
   )
 
   drt_diff_layer <- drt_zones_sf |>
@@ -237,6 +251,10 @@ run_comparison_maps <- function(metric_type, title_suffix) {
   plot_additions_sf <- network_context_sf |>
     filter(num_trips_diff > 0)
 
+  plot_substractions_sf <- network_context_sf |>
+    filter(num_trips_diff < 0) |>
+    mutate(abs_diff = abs(num_trips_diff))
+
   # D. Grid Layout
   grid_layout <- expand_grid(obj = OBJECTIVES_OF_INTEREST, iter = ITERATIONS) |>
     mutate(
@@ -248,6 +266,7 @@ run_comparison_maps <- function(metric_type, title_suffix) {
   max_abs_diff <- max(abs(plot_diff_sf$num_trips_diff), na.rm = TRUE)
   diff_limits <- c(-max_abs_diff, max_abs_diff)
   max_additions <- max(plot_additions_sf$num_trips_diff, na.rm = TRUE)
+  max_substractions <- max(plot_substractions_sf$abs_diff, na.rm = TRUE)
 
   # F. Fleet Labels
   fleet_label_lookup <- fleet_labels_df |>
@@ -374,6 +393,67 @@ run_comparison_maps <- function(metric_type, title_suffix) {
       tm_layout(
         title = panel_title,
         title.position = c("left", "top"),
+        title.size = 1.0,
+        title.fontface = "bold",
+        legend.show = show_legend,
+        legend.outside = show_legend,
+        legend.outside.position = "left",
+        frame = FALSE,
+        inner.margins = c(0.01, -0.1, 0.12, 0.01)
+      )
+  }
+
+  build_substractions_panel <- function(
+    target_obj,
+    target_iter,
+    show_legend = FALSE
+  ) {
+    context_sub <- network_context_sf |>
+      filter(objective == target_obj, iteration == target_iter)
+    subs_sub <- plot_substractions_sf |>
+      filter(objective == target_obj, iteration == target_iter)
+    drt_sub <- drt_diff_layer |>
+      filter(objective == target_obj, iteration == target_iter)
+
+    iter_num <- str_extract(target_iter, "\\d+")
+    fleet_row <- fleet_label_lookup |>
+      filter(objective == target_obj, iteration == target_iter)
+    fleet_suffix <- if (nrow(fleet_row) > 0) {
+      paste0("\n", fleet_row$fleet_text)
+    } else {
+      ""
+    }
+
+    panel_title <- paste0(target_obj, " | It", iter_num, fleet_suffix)
+
+    tm_shape(study_area) +
+      tm_polygons(fill = "gray20", col_alpha = 0) +
+      tm_shape(context_sub) +
+      tm_lines(col = "white", lwd = 0.3, col_alpha = 0.15) +
+      tm_shape(subs_sub) +
+      tm_lines(
+        col = "abs_diff",
+        lwd = "num_trips",
+        lwd.scale = tm_scale_continuous(values.scale = 4),
+        col.scale = tm_scale_continuous(
+          values = "brewer.or_rd",
+          limits = c(0, max_substractions)
+        ),
+        col.legend = tm_legend(title = "Service Removed\n(Trips vs Base)"),
+        lwd.legend = tm_legend_hide()
+      ) +
+      tm_shape(drt_sub) +
+      tm_polygons(
+        fill = "fleet_label",
+        col = "white",
+        lwd = 1,
+        fill.scale = tm_scale_categorical(values = fleet_pal),
+        fill.legend = tm_legend(title = "DRT Fleet Size"),
+        fill_alpha = 0.3
+      ) +
+      tm_layout(
+        title = panel_title,
+        title.position = c("left", "top"),
         title.size = 0.8,
         title.fontface = "bold",
         legend.show = show_legend,
@@ -390,8 +470,8 @@ run_comparison_maps <- function(metric_type, title_suffix) {
 
   # Dimensions (cm)
   n_cols <- length(ITERATIONS)
-  panel_width_cm <- n_cols * 11
-  legend_width_cm <- 10
+  panel_width_cm <- n_cols * 10
+  legend_width_cm <- 4.5
   total_width_cm <- panel_width_cm + legend_width_cm
   total_height_cm <- 32
 
@@ -429,7 +509,7 @@ run_comparison_maps <- function(metric_type, title_suffix) {
     tmap_save(
       legend_panel,
       tmp_legend,
-      width = legend_width_cm + 4,
+      width = legend_width_cm,
       height = total_height_cm - 1,
       units = "cm",
       dpi = 300
@@ -482,6 +562,11 @@ run_comparison_maps <- function(metric_type, title_suffix) {
     build_additions_panel,
     paste0("map_iteration_comparison_additions_", metric_type, ".png"),
     paste0("Service Additions vs Base (", title_suffix, ")")
+  )
+  saver(
+    build_substractions_panel,
+    paste0("map_iteration_comparison_substractions_", metric_type, ".png"),
+    paste0("Service Reductions vs Base (", title_suffix, ")")
   )
 }
 

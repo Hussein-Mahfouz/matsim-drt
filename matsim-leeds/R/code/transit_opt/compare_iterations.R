@@ -2,7 +2,7 @@ library(tidyverse)
 library(glue)
 
 # Configuration
-ITERATIONS <- c("iteration_01", "iteration_02")
+ITERATIONS <- c("iteration_01", "iteration_02", "iteration_03")
 BASE_PATH <- "R/output"
 
 # Output Directory
@@ -62,7 +62,7 @@ drt_fleet <- drt_fleet_raw |>
   mutate(fleet_size = ifelse(fleet_size == 0, 25, fleet_size))
 
 # Filter PSO solutions (sanity check)
-obj_pso_raw <- obj_pso_raw |> filter(rank <= 511)
+obj_pso_raw <- obj_pso_raw |> filter(rank <= 1023)
 
 # 3. Process PSO Data (Join with Base)
 obj_pso_joined <- obj_pso_raw |>
@@ -157,11 +157,19 @@ rank0_fleet_detailed <- drt_fleet |>
 # ------------------------------------------------------------------
 
 # Filter to main subset
+# res_best_view <- res_mode_share |>
+#   filter(
+#     level == "person",
+#     access == "origin+destination",
+#     zones == "pt+drt",
+#     mode == "pt+drt"
+#   )
+
 res_best_view <- res_mode_share |>
   filter(
-    level == "trip",
-    access == "origin+destination",
-    zones == "pt+drt",
+    level == "all",
+    access == "all",
+    zones == "all",
     mode == "pt+drt"
   )
 
@@ -226,7 +234,7 @@ table_4_2c <- table_4_2c |>
 
 write_csv(
   table_4_2c,
-  file.path(PLOT_DIR, "tables/table_4_2c_iteration_comparison.csv")
+  file.path(PLOT_DIR, "tables/table_comparison_rank0_summary.csv")
 )
 
 
@@ -345,7 +353,103 @@ table_4_2c_extended <- table_4_2c_extended |>
 
 write_csv(
   table_4_2c_extended,
-  file.path(PLOT_DIR, "tables/table_4_2c_iteration_comparison_extended.csv")
+  file.path(PLOT_DIR, "tables/table_comparison_rank0_catchment.csv")
+)
+
+
+# ------------------------------------------------------------------
+# ANALYSIS 2b: BEST MODE SHARE COMPARISON (NEW)
+# ------------------------------------------------------------------
+
+# 1. Identify Best Share Solutions per Iteration & Objective
+best_share_summary <- res_best_view |>
+  group_by(objective, iteration) |>
+  slice_max(share_delta, n = 1, with_ties = FALSE) |>
+  ungroup() |>
+  select(objective, iteration, solution_id, share_delta, pso_frac_of_base)
+
+# 2. Get Fleet Strings for THESE specific solutions
+# We need to filter drt_fleet again for these specific IDs
+best_share_fleet_detailed <- drt_fleet |>
+  # Join to keep only the best rows
+  inner_join(
+    best_share_summary |> select(objective, iteration, solution_id),
+    by = c("objective", "iteration")
+  ) |>
+  # Ensure we match the solution string pattern logic
+  filter(str_ends(solution, paste0("_", sprintf("%02d", solution_id)))) |>
+  arrange(objective, iteration, scenario, interval_label) |>
+  group_by(objective, iteration, scenario) |>
+  summarise(
+    fleet_seq = paste(fleet_size, collapse = ", "),
+    total_fleet_zone = sum(fleet_size),
+    .groups = "drop"
+  ) |>
+  pivot_wider(
+    names_from = scenario,
+    values_from = c(fleet_seq, total_fleet_zone)
+  ) |>
+  mutate(
+    drt_fleet_str = glue::glue(
+      "NE:[{fleet_seq_drtNE}] | NW:[{fleet_seq_drtNW}]"
+    ),
+    total_system_fleet = total_fleet_zone_drtNE + total_fleet_zone_drtNW
+  ) |>
+  select(objective, iteration, drt_fleet_str, total_system_fleet)
+
+# 3. Create Summary Table for Best Share
+table_best_share <- best_share_summary |>
+  left_join(
+    best_share_fleet_detailed |>
+      select(objective, iteration, total_fleet = total_system_fleet),
+    by = c("objective", "iteration")
+  ) |>
+  pivot_wider(
+    names_from = iteration,
+    values_from = c(share_delta, total_fleet, pso_frac_of_base, solution_id),
+    names_glue = "{iteration}_{.value}"
+  )
+
+# Add consecutive deltas (reuse logic)
+for (i in 1:(length(ITERATIONS) - 1)) {
+  curr_it <- ITERATIONS[i]
+  next_it <- ITERATIONS[i + 1]
+  id_curr <- as.integer(str_extract(curr_it, "\\d+"))
+  id_next <- as.integer(str_extract(next_it, "\\d+"))
+  col_name <- glue::glue("calc_delta_{id_curr}_{id_next}")
+
+  table_best_share <- table_best_share |>
+    mutate(
+      !!col_name := .data[[glue("{next_it}_share_delta")]] -
+        .data[[glue("{curr_it}_share_delta")]]
+    )
+}
+
+# Clean names
+table_best_share <- table_best_share |>
+  rename_with(
+    .fn = function(x) {
+      x |>
+        str_replace("iteration_0?(\\d+)_share_delta", "it\\1_share") |>
+        str_replace("iteration_0?(\\d+)_total_fleet", "it\\1_fleet") |>
+        str_replace("iteration_0?(\\d+)_pso_frac_of_base", "it\\1_pso") |>
+        str_replace("iteration_0?(\\d+)_solution_id", "it\\1_id")
+    },
+    .cols = matches("iteration")
+  ) |>
+  select(
+    objective,
+    matches("^it\\d+_share$"),
+    matches("^it\\d+_fleet$"),
+    matches("^it\\d+_id$"),
+    matches("^it\\d+_pso$"),
+    starts_with("calc_delta_")
+  ) |>
+  arrange(desc(across(last_col())))
+
+write_csv(
+  table_best_share,
+  file.path(PLOT_DIR, "tables/table_comparison_best_share_summary.csv")
 )
 
 
@@ -462,11 +566,18 @@ if (!is.null(res_mode_share_00) && !is.null(obj_pso_00)) {
     )
 
   # Filter for the standard view (Trip | O+D | PT+DRT)
+  # bench_data <- pt_drt_00 |>
+  #   filter(
+  #     level == "person",
+  #     access == "origin+destination",
+  #     zones == "pt+drt",
+  #     !is.na(pso_frac_of_base)
+  #   )
   bench_data <- pt_drt_00 |>
     filter(
-      level == "trip",
-      access == "origin+destination",
-      zones == "pt+drt",
+      level == "all",
+      access == "all",
+      zones == "all",
       !is.na(pso_frac_of_base)
     )
 } else {
@@ -481,8 +592,22 @@ plot_data_bench <- bind_rows(
   bench_data |> select(objective, iteration, pso_frac_of_base, share_delta)
 )
 
+# Calculate max share delta from Iteration 00 for reference lines
+bench_ref_lines <- bench_data |>
+  group_by(objective) |>
+  summarise(max_share00 = max(share_delta, na.rm = TRUE), .groups = "drop")
+
+
 # 3. Plot
 plot_cloud_bench <- ggplot() +
+  # Reference Line: Best unseeded result
+  geom_hline(
+    data = bench_ref_lines,
+    aes(yintercept = max_share00),
+    linetype = "dashed",
+    color = "gray50",
+    size = 0.4
+  ) +
   # Layer 1: Benchmark (Grey, behind)
   geom_point(
     data = plot_data_bench |>
@@ -490,33 +615,48 @@ plot_cloud_bench <- ggplot() +
       # Limit to reasonable range for visibility
       filter(pso_frac_of_base < 1.5),
     aes(x = pso_frac_of_base, y = share_delta, color = "Benchmark (It00)"),
-    alpha = 0.4,
-    size = 1.5
+    alpha = 0.55,
+    size = 2.0
   ) +
   # Layer 2: Main Experiment (Colored, on top)
   geom_point(
-    data = plot_data_bench |> filter(iteration != "iteration_00"),
+    data = plot_data_bench |>
+      filter(iteration != "iteration_00") |>
+      filter(pso_frac_of_base < 1.2),
     aes(x = pso_frac_of_base, y = share_delta, color = iteration),
-    alpha = 0.6,
-    size = 2
+    alpha = 0.75,
+    size = 2.5
   ) +
-  facet_wrap(~objective, scales = "free_x") +
+  facet_wrap(~objective, scales = "free", nrow = 1) +
   #scale_x_continuous(limits = c(0.5, 1.5)) +
   scale_color_manual(
     values = c(
       "Benchmark (It00)" = "gray30",
-      "iteration_01" = "#E41A1C", # Set1 Red
-      "iteration_02" = "#377EB8" # Set1 Blue
+      "iteration_01" = "#7570b3", # Dark2 purple
+      "iteration_02" = "#d95f02", # Dark2 orange
+      "iteration_03" = "#1b9e77" # Dark2 teal
     ),
     name = "Iteration"
   ) +
   labs(
     title = "Convergence Benchmark: Seeded vs Unseeded",
-    subtitle = "Grey: Unseeded Baseline (It00) | Colored: MATSim-Seeded Iterations",
+    subtitle = "Grey: Unseeded Baseline (It00) | Colored: MATSim-Seeded Iterations | Dashed line: Best It00 result",
     x = "Proxy Objective Cost",
     y = "PT+DRT Mode Share Gain (pp)"
   ) +
-  theme_bw()
+  theme_bw() +
+  theme(
+    legend.position = "bottom", # Moves legend below the plot
+    legend.box = "horizontal", # Ensures the items inside are side-by-side
+    legend.direction = "horizontal", # Forces the direction of the scales
+    # Increase Facet Title (Strip) size
+    # 'strip.text' handles all facets; 'strip.text.x' targets just horizontal ones
+    strip.text = element_text(size = 12, face = "bold"),
+    # Increase Legend Title size
+    legend.title = element_text(size = 12, face = "bold"),
+    # Increase Legend Item (Label) size
+    legend.text = element_text(size = 11),
+  )
 
 plot_cloud_bench
 
@@ -525,7 +665,36 @@ ggsave(
   file.path(PLOT_DIR, "fig_iteration_benchmark_cloud.png"),
   plot_cloud_bench,
   width = 14,
-  height = 10
+  height = 5
 )
 
-message("✓ Benchmark plot saved.")
+# 4. Save Full Benchmark Data Table (Request #3)
+table_benchmark_full <- plot_data_bench |>
+  # Join back solution metadata for context
+  left_join(
+    bind_rows(res_best_view, bench_data) |>
+      select(
+        objective,
+        iteration,
+        pso_frac_of_base,
+        share_delta,
+        solution_id
+      ),
+    by = c("objective", "iteration", "pso_frac_of_base", "share_delta")
+  ) |>
+  # Reorder columns
+  select(
+    objective,
+    iteration,
+    solution_id,
+    pso_frac_of_base,
+    share_delta
+  ) |>
+  arrange(objective, iteration, solution_id)
+
+write_csv(
+  table_benchmark_full,
+  file.path(PLOT_DIR, "tables/table_comparison_full_cloud_data.csv")
+)
+
+message("✓ Benchmark plot and tables saved.")

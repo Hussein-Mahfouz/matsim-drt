@@ -2652,6 +2652,23 @@ combined_fleet <- combined_fleet |>
     solution_id = as.integer(str_extract(solution, "\\d+"))
   )
 
+# Adjust DRT fleet size (minimum is 25)
+combined_fleet <- combined_fleet |>
+  mutate(
+    drt_fleet_solution = ifelse(
+      drt_fleet_solution == 0 | drt_fleet_solution == 25, # Minimum should be 50 (25 in DrtNE and 25 in DrtNW)
+      50,
+      drt_fleet_solution
+    )
+  )
+# Recalculate total_fleet_diff and total_fleet_pct_change
+combined_fleet <- combined_fleet |>
+  mutate(
+    total_fleet_diff = (bus_fleet_solution + drt_fleet_solution) -
+      bus_fleet_base,
+    total_fleet_pct_change = round((total_fleet_diff / bus_fleet_base) * 100, 2)
+  )
+
 # --- 5.0b Identify Peak Interval ---
 # Peak = interval with highest bus_fleet_base
 peak_row <- combined_fleet |>
@@ -3341,7 +3358,22 @@ create_fleet_interval_plot <- function(target_ids, suffix_label) {
 
   fleet_data <- fleet_data |>
     mutate(
-      objective_clean = objective_labels_short[objective],
+      objective_clean = objective_labels_short[objective]
+    )
+
+  # Custom Sort: 'Tot' first (Top Row), 'Atk' second (Bottom Row)
+  # Assumes facet_wrap(nrow=2) fills row 1 then row 2
+  obj_levels <- unique(fleet_data$objective_clean)
+  tot_levels <- sort(obj_levels[str_ends(obj_levels, "Tot")])
+  atk_levels <- sort(obj_levels[str_ends(obj_levels, "Atk")])
+  other_levels <- setdiff(obj_levels, c(tot_levels, atk_levels))
+
+  fleet_data <- fleet_data |>
+    mutate(
+      objective_clean = factor(
+        objective_clean,
+        levels = c(tot_levels, atk_levels, other_levels)
+      ),
       # Sort intervals correctly
       start_hour = as.numeric(str_extract(interval_label, "^\\d+")),
       interval_label = fct_reorder(interval_label, start_hour)
@@ -3407,11 +3439,11 @@ create_fleet_interval_plot <- function(target_ids, suffix_label) {
     geom_text(
       data = label_data,
       aes(x = interval_label, y = total_fleet + 20, label = label),
-      size = 2.8,
+      size = 3.5,
       fontface = "bold",
       color = "gray30"
     ) +
-    facet_wrap(~objective_clean, nrow = 2, scales = "free_y") +
+    facet_wrap(~objective_clean, nrow = 2, scales = "fixed") +
     scale_fill_manual(
       values = c("Bus" = "#4393c3", "DRT" = "#d6604d"),
       name = "Fleet Component"
@@ -3420,19 +3452,19 @@ create_fleet_interval_plot <- function(target_ids, suffix_label) {
       title = glue::glue("Fleet Composition by Time Interval — {suffix_label}"),
       subtitle = "Black line = baseline bus fleet. Labels = total fleet % change vs baseline.",
       x = "Time Interval",
-      y = "Fleet Size (vehicles)",
-      caption = glue::glue(
-        "Base bus fleet at peak ({peak_interval}h): {base_fleet_peak} vehicles.\n",
-        "Total fleet = Bus + DRT. % change relative to bus-only baseline."
-      )
+      y = "Fleet Size (vehicles)"
+      # caption = glue::glue(
+      #   "Base bus fleet at peak ({peak_interval}h): {base_fleet_peak} vehicles.\n",
+      #   "Total fleet = Bus + DRT. % change relative to bus-only baseline."
+      # )
     ) +
     theme_bw(base_size = 11) +
     theme(
       legend.position = "bottom",
-      strip.text = element_text(face = "bold", size = 10),
+      strip.text = element_text(face = "bold", size = 11), # Facet Headers (Strips)
       axis.text.x = element_text(angle = 45, hjust = 1, size = 9),
-      plot.title = element_text(face = "bold", size = 14),
-      plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
+      plot.title = element_text(face = "bold", size = 14) #,
+      # plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
     )
 }
 
@@ -3617,7 +3649,7 @@ plot_combined_fleet_interval <- ggplot() +
     original = FALSE,
     color = "gray20"
   ) +
-  facet_wrap(~objective_clean, nrow = 2, scales = "free_y") +
+  facet_wrap(~objective_clean, nrow = 2, scales = "fixed") +
   scale_fill_manual(
     values = fleet_colors_combined,
     name = "",

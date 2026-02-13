@@ -10,7 +10,7 @@ source("R/code/transit_opt/load_spatial_layers.R")
 #  Configuration
 ####################
 
-ITERATIONS <- c("iteration_01", "iteration_02")
+ITERATIONS <- c("iteration_01", "iteration_02", "iteration_03")
 BASE_PATH <- "R/output"
 
 # Output
@@ -231,7 +231,7 @@ tm_additions <- tm_shape(study_area) +
     lwd.scale = tm_scale_continuous(values.scale = 4),
 
     # FIX: Changed "mpl.plasma" to "plasma"
-    col.scale = tm_scale_continuous(values = "YlGnBu"),
+    col.scale = tm_scale_continuous(values = "brewer.yl_gn_bu"),
     col.legend = tm_legend(title = "Service Added\n(Trips vs Base)"),
     lwd.legend = tm_legend_hide()
   ) +
