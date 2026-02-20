@@ -11,7 +11,7 @@ source("R/code/transit_opt/gtfs_headway_analysis.R")
 #  Configuration
 ####################
 
-ITERATION_ID <- "iteration_03" # Or "iteration_02"
+ITERATION_ID <- "iteration_01" # Or "iteration_02"
 
 # Paths
 # Input directory: where the R/output/iteration_XX files are
@@ -157,7 +157,7 @@ create_drt_layer <- function(
       tm_borders(col = "#d95f02", lwd = 2, lty = "solid") +
       tm_add_legend(
         type = "lines",
-        labels = "DRT Zones",
+        labels = "DRT operating zones",
         col = "#d95f02",
         lwd = 2,
         title = ""
@@ -181,10 +181,18 @@ create_pt_layer <- function(
   lwd_var = "num_trips",
   fixed_col = "#1b9e77",
   show_diff = FALSE,
-  lwd_scale = 5
+  lwd_scale = 5,
+  legend_title = NULL # Change default to NULL to let logic decide if not provided
 ) {
   if (!is.null(col_var) && show_diff) {
     # Diverging color scale for differences
+    # logical default: "Trip Difference\n(vs Base)"
+    final_title <- if (is.null(legend_title)) {
+      "Trip Difference\n(vs Base)"
+    } else {
+      legend_title
+    }
+
     tm_shape(pt_data) +
       tm_lines(
         col = col_var,
@@ -192,30 +200,40 @@ create_pt_layer <- function(
           values = "brewer.rd_yl_gn",
           midpoint = 0
         ),
-        col.legend = tm_legend(title = "Trip Difference\n(vs Base)"),
+        col.legend = tm_legend(title = final_title),
         lwd = lwd_var,
         lwd.scale = tm_scale_continuous(values.scale = lwd_scale),
         lwd.legend = tm_legend(show = FALSE)
       )
   } else if (!is.null(col_var)) {
     # Sequential color scale
+    final_title <- if (is.null(legend_title)) col_var else legend_title
+
     tm_shape(pt_data) +
       tm_lines(
         col = col_var,
         col.scale = tm_scale_continuous(values = "brewer.greens"),
-        col.legend = tm_legend(title = col_var),
+        col.legend = tm_legend(title = final_title),
         lwd = lwd_var,
         lwd.scale = tm_scale_continuous(values.scale = lwd_scale),
         lwd.legend = tm_legend(show = FALSE)
       )
   } else {
-    # Fixed color
+    # Fixed color (Plot 1 case)
+    final_title <- if (is.null(legend_title)) "Bus Trips" else legend_title
+
     tm_shape(pt_data) +
       tm_lines(
         col = fixed_col,
         lwd = lwd_var,
         lwd.scale = tm_scale_continuous(values.scale = lwd_scale),
-        lwd.legend = tm_legend(title = "Bus Trips")
+        lwd.legend = tm_legend(
+          title = final_title,
+          frame = FALSE,
+          text.size = 0.6, # Reverted to 0.6 or keep 0.5 if preferred
+          title.size = 0.8,
+          format = list(fun = function(x) paste0("   ", x)) # Add 3 spaces padding
+        )
       )
   }
 }
@@ -227,16 +245,50 @@ create_pt_layer <- function(
 message("\nCreating Plot 1: Study area overview...")
 
 pt_data_base <- gtfs_sf_headways_overline |> filter(interval_label == "8-12")
+current_interval <- unique(pt_data_base$interval_label)
 
-plot1 <- create_base_layers() +
+plot1 <- tm_shape(study_area) +
+  tm_borders(lwd = 1.5, col = "black") +
+  tm_shape(basemap_urban_rural) +
+  tm_fill(
+    fill = "RUC11",
+    fill.scale = tm_scale_categorical(values = "brewer.greys"),
+    fill.legend = tm_legend(
+      title = "Urbanisation",
+      frame = FALSE,
+      text.size = 0.5,
+      title.size = 0.7
+    ),
+    fill_alpha = 0.35
+  ) +
   create_drt_layer(drt, show_fleet_size = FALSE) +
-  create_pt_layer(pt_data_base, lwd_var = "num_trips", lwd_scale = 10) +
-  tm_title("Study Area: Existing Bus Network and Proposed DRT Zones") +
-  tm_layout(frame = FALSE)
+  create_pt_layer(
+    pt_data_base,
+    lwd_var = "num_trips",
+    lwd_scale = 10,
+    legend_title = glue::glue("Total bus trips\nTime: ({current_interval})")
+  ) +
+  tm_title("Study area with existing bus network and proposed DRT zones") +
+  tm_layout(
+    frame = FALSE,
+    legend.frame = FALSE
+  ) +
+  # Add Scalebar & Compass (Separated positions)
+  tm_scalebar(
+    text.size = 0.6,
+    breaks = c(0, 5, 10, 15, 20),
+    position = c(0.55, 0.05)
+  ) +
+  tm_compass(
+    size = 1.9,
+    text.size = 0.6,
+    position = c(0.95, 0.08)
+  )
+
 plot1
 tmap_save(
   plot1,
-  file.path(output_dir, "01_study_area_overview.png"),
+  file.path(output_dir, "01_study_area_overview2.png"),
   width = 16,
   height = 11,
   units = "cm",
