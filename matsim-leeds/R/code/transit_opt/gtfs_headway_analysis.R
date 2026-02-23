@@ -193,14 +193,22 @@ calculate_max_concurrent_trips <- function(gtfs, interval_hours = 1) {
 
   # 1. Calculate Average Round Trip Time (RTT) per Route
   # We estimate this from the GTFS content
-  route_stats <- gtfs$stop_times |>
-    # Get departure of first stop and arrival of last stop per trip
+  stop_times_dt <- gtfs$stop_times
+
+  # Ensure we have numeric seconds. tidytransit usually provides arrival_time/departure_time as hms.
+  # We prefer 'arrival_time' and 'departure_time' columns.
+  # If checking for 'departure_seconds' directly, ensure it exists or create it.
+
+  route_stats <- stop_times_dt |>
     group_by(trip_id) |>
     summarise(
-      start_seconds = min(departure_seconds, na.rm = TRUE),
-      end_seconds = max(arrival_time, na.rm = TRUE),
-      duration_sec = end_seconds - start_seconds,
+      # tidytransit uses hms, which is numeric seconds under the hood, but explicitly converting is safer
+      start_seconds = as.numeric(min(departure_time, na.rm = TRUE)),
+      end_seconds = as.numeric(max(arrival_time, na.rm = TRUE)),
       .groups = "drop"
+    ) |>
+    mutate(
+      duration_sec = end_seconds - start_seconds
     ) |>
     left_join(select(gtfs$trips, trip_id, route_id), by = "trip_id") |>
     # Average duration per route (RTT)
@@ -249,7 +257,7 @@ calculate_max_concurrent_trips <- function(gtfs, interval_hours = 1) {
 
   fleet_per_route_interval <- expand_grid(
     route_id = unique(trips_with_routes$route_id),
-    interval_cols = intervals
+    intervals # Pass unnamed to unpack columns (interval_num, interval_label)
   ) |>
     select(route_id, interval_num, interval_label) |>
     left_join(trip_counts, by = c("route_id", "interval_num")) |>
