@@ -58,6 +58,21 @@
         },
         {
             "type": "java",
+            "name": "RunBatchGTFSConverter",
+            "request": "launch",
+            "mainClass": "com.husseinmahfouz.matsim.pt2matsim.RunBatchGTFSConverter",
+            "projectName": "matsim-leeds",
+            "cwd": "${workspaceFolder}/matsim-leeds",
+            "args": [
+                "data/external/gtfs_optimisation/min_variance_stops",
+                "20230814",
+                "EPSG:3857",
+                "data/external/gtfs_optimisation/min_variance_stops",
+                "src/main/resources/config_pt2matsim.xml",
+            ]
+        },
+        {
+            "type": "java",
             "name": "RunCreateDefaultConfig",
             "request": "launch",
             "mainClass": "com.husseinmahfouz.matsim.dmc.RunCreateDefaultConfig",
