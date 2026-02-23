@@ -179,96 +179,195 @@ compare_headways <- function(solution_headways, base_headways) {
 #' Estimates the Peak Vehicle Requirement (PVR) for the bus network.
 #' Calculates PVR per route (assuming no interlining between routes) and sums them up.
 #'
+#' UPDATED: Now uses the same formula-based logic as the Python optimization code
+#' to ensure consistent fleet sizing: ceil((RTT * 1.15) / headway).
+#' The legacy empirical method (counting overlapping trip boxes) is preserved in comments.
+#'
 #' @param gtfs A tidygtfs object
 #' @param interval_hours Integer
 #'
 #' @return Tibble with interval_label and max_bus_fleet (sum of per-route PVRs)
 #'
 calculate_max_concurrent_trips <- function(gtfs, interval_hours = 1) {
-  # 1. Get trip durations and route info
-  trip_times <- gtfs$stop_times |>
+  # --- NEW IMPLEMENTATION: MATCHING PYTHON OPTIMIZATION LOGIC ---
+
+  # 1. Calculate Average Round Trip Time (RTT) per Route
+  # We estimate this from the GTFS content
+  route_stats <- gtfs$stop_times |>
+    # Get departure of first stop and arrival of last stop per trip
     group_by(trip_id) |>
     summarise(
-      start_seconds = as.numeric(min(departure_seconds, na.rm = TRUE)),
-      raw_end_seconds = as.numeric(max(arrival_time, na.rm = TRUE))
+      start_seconds = min(departure_seconds, na.rm = TRUE),
+      end_seconds = max(arrival_time, na.rm = TRUE),
+      duration_sec = end_seconds - start_seconds,
+      .groups = "drop"
     ) |>
-    mutate(
-      duration = raw_end_seconds - start_seconds,
-      # Dynamic buffer: max(10 mins, 15% of duration)
-      # This accounts for recovery, layover, or charging/refueling proportional to distance/time
-      buffer = pmax(600, duration * 0.15),
-      end_seconds = raw_end_seconds + buffer
-    ) |>
-    ungroup() |>
-    inner_join(select(gtfs$trips, trip_id, route_id), by = "trip_id") |>
-    filter(!is.na(start_seconds), !is.na(end_seconds))
+    left_join(select(gtfs$trips, trip_id, route_id), by = "trip_id") |>
+    # Average duration per route (RTT)
+    group_by(route_id) |>
+    summarise(
+      avg_rtt_sec = mean(duration_sec, na.rm = TRUE),
+      .groups = "drop"
+    )
 
-  # 2. Define intervals helper (Daily 24h cycle)
+  # 2. Calculate Frequency per Interval
   seconds_per_interval <- interval_hours * 3600
   num_intervals <- ceiling((24 * 3600) / seconds_per_interval)
-  
+
+  # Determine time intervals
   intervals <- tibble(
     interval_num = 0:(num_intervals - 1)
   ) |>
     mutate(
-      start_time = interval_num * seconds_per_interval,
-      end_time = (interval_num + 1) * seconds_per_interval,
-      interval_label = paste0(interval_num * interval_hours, "-", (interval_num + 1) * interval_hours)
+      start_sec = interval_num * seconds_per_interval,
+      end_sec = (interval_num + 1) * seconds_per_interval,
+      interval_label = paste0(
+        interval_num * interval_hours,
+        "-",
+        (interval_num + 1) * interval_hours
+      )
     )
 
-  # 3. Helper to calculate PVR for a single route's trips
-  calc_route_pvr <- function(rt_trips) {
-    if(nrow(rt_trips) == 0) return(tibble(interval_label = intervals$interval_label, pvr = 0))
+  # Assign trips to intervals based on start time
+  trips_with_routes <- gtfs$trips |> select(trip_id, route_id)
 
-    events <- bind_rows(
-      rt_trips |> select(t = start_seconds) |> mutate(change = 1),
-      rt_trips |> select(t = end_seconds) |> mutate(change = -1)
+  trip_counts <- gtfs$stop_times |>
+    filter(stop_sequence == 0) |> # Start of trip
+    left_join(trips_with_routes, by = "trip_id") |>
+    mutate(
+      dep_sec = as.numeric(departure_seconds),
+      interval_num = floor(dep_sec / seconds_per_interval)
     ) |>
-      arrange(t) |>
-      mutate(current_fleet = cumsum(change))
+    group_by(route_id, interval_num) |>
+    summarise(num_trips = n(), .groups = "drop")
 
-    map_dfr(1:nrow(intervals), function(i) {
-      s <- intervals$start_time[i]
-      e <- intervals$end_time[i]
-      lbl <- intervals$interval_label[i]
+  # 3. Apply Fleet Formula: Ceiling( (RTT * 1.15) / Headway )
+  # Headway = (Interval Duration) / Num Trips
+  # Therefore: Fleet = Ceiling( (RTT * 1.15 * Num_Trips) / Interval_Duration )
 
-      # State at start of interval
-      start_val_df <- events |> filter(t < s) |> slice_tail(n = 1)
-      start_val <- if(nrow(start_val_df) > 0) start_val_df$current_fleet else 0
+  OPERATIONAL_BUFFER <- 1.15
 
-      # Events within interval
-      events_in <- events |> filter(t >= s, t < e)
+  fleet_per_route_interval <- expand_grid(
+    route_id = unique(trips_with_routes$route_id),
+    interval_cols = intervals
+  ) |>
+    select(route_id, interval_num, interval_label) |>
+    left_join(trip_counts, by = c("route_id", "interval_num")) |>
+    replace_na(list(num_trips = 0)) |>
+    left_join(route_stats, by = "route_id") |>
+    mutate(
+      # Standard Python Formula:
+      # vehicles = ceil( (RTT * buffer) / headway )
+      # vehicles = ceil( (RTT * buffer * n_trips) / interval_duration )
+      raw_vehicles = (avg_rtt_sec * OPERATIONAL_BUFFER * num_trips) /
+        seconds_per_interval,
+      vehicles_needed = ceiling(raw_vehicles),
 
-      max_in_interval <- if(nrow(events_in) > 0) {
-        max(c(start_val, events_in$current_fleet))
-      } else {
-        start_val
-      }
-      
-      tibble(interval_label = lbl, pvr = max_in_interval)
-    })
-  }
+      # Python rule: max(1, int(vehicles)) if service is active (>0 trips)
+      vehicles_needed = if_else(num_trips > 0, pmax(1, vehicles_needed), 0)
+    )
 
-  # 4. Apply to each route and aggregate
-  message("  Calculating PVR per route...")
-  
-  # Group trips by route
-  # We use split/map for safety over group_modify in some dplyr versions with simple dataframes
-  trips_by_route <- split(trip_times, trip_times$route_id)
-  
-  all_route_pvrs <- map_dfr(trips_by_route, calc_route_pvr)
-
-  # Sum PVRs across all routes for each interval
-  total_fleet <- all_route_pvrs |>
+  # 4. Aggregate
+  total_fleet <- fleet_per_route_interval |>
     group_by(interval_label) |>
-    summarise(max_bus_fleet = sum(pvr)) |>
-    ungroup() |>
-    # Ensure correct ordering by interval
-    mutate(start_hour = as.numeric(str_extract(interval_label, "^\\d+"))) |>
+    summarise(max_bus_fleet = sum(vehicles_needed, na.rm = TRUE)) |>
+    mutate(
+      start_hour = as.numeric(str_extract(interval_label, "^\\d+"))
+    ) |>
     arrange(start_hour) |>
     select(-start_hour)
 
   return(total_fleet)
+
+  # --- LEGACY IMPLEMENTATION: EMPIRICAL PVR CALCULATION ---
+  # Preserved for reference/reversion if needed.
+  # This method calculates PVR by creating time-windows for every trip
+  # (Duration + Buffer) and counting overlaps.
+
+  # # 1. Get trip durations and route info
+  # trip_times <- gtfs$stop_times |>
+  #   group_by(trip_id) |>
+  #   summarise(
+  #     start_seconds = as.numeric(min(departure_seconds, na.rm = TRUE)),
+  #     raw_end_seconds = as.numeric(max(arrival_time, na.rm = TRUE))
+  #   ) |>
+  #   mutate(
+  #     duration = raw_end_seconds - start_seconds,
+  #     # Dynamic buffer: max(10 mins, 15% of duration)
+  #     # This accounts for recovery, layover, or charging/refueling proportional to distance/time
+  #     buffer = pmax(600, duration * 0.15),
+  #     end_seconds = raw_end_seconds + buffer
+  #   ) |>
+  #   ungroup() |>
+  #   inner_join(select(gtfs$trips, trip_id, route_id), by = "trip_id") |>
+  #   filter(!is.na(start_seconds), !is.na(end_seconds))
+  #
+  # # 2. Define intervals helper (Daily 24h cycle)
+  # seconds_per_interval <- interval_hours * 3600
+  # num_intervals <- ceiling((24 * 3600) / seconds_per_interval)
+  #
+  # intervals <- tibble(
+  #   interval_num = 0:(num_intervals - 1)
+  # ) |>
+  #   mutate(
+  #     start_time = interval_num * seconds_per_interval,
+  #     end_time = (interval_num + 1) * seconds_per_interval,
+  #     interval_label = paste0(interval_num * interval_hours, "-", (interval_num + 1) * interval_hours)
+  #   )
+  #
+  # # 3. Helper to calculate PVR for a single route's trips
+  # calc_route_pvr <- function(rt_trips) {
+  #   if(nrow(rt_trips) == 0) return(tibble(interval_label = intervals$interval_label, pvr = 0))
+  #
+  #   events <- bind_rows(
+  #     rt_trips |> select(t = start_seconds) |> mutate(change = 1),
+  #     rt_trips |> select(t = end_seconds) |> mutate(change = -1)
+  #   ) |>
+  #     arrange(t) |>
+  #     mutate(current_fleet = cumsum(change))
+  #
+  #   map_dfr(1:nrow(intervals), function(i) {
+  #     s <- intervals$start_time[i]
+  #     e <- intervals$end_time[i]
+  #     lbl <- intervals$interval_label[i]
+  #
+  #     # State at start of interval
+  #     start_val_df <- events |> filter(t < s) |> slice_tail(n = 1)
+  #     start_val <- if(nrow(start_val_df) > 0) start_val_df$current_fleet else 0
+  #
+  #     # Events within interval
+  #     events_in <- events |> filter(t >= s, t < e)
+  #
+  #     max_in_interval <- if(nrow(events_in) > 0) {
+  #       max(c(start_val, events_in$current_fleet))
+  #     } else {
+  #       start_val
+  #     }
+  #
+  #     tibble(interval_label = lbl, pvr = max_in_interval)
+  #   })
+  # }
+  #
+  # # 4. Apply to each route and aggregate
+  # message("  Calculating PVR per route...")
+  #
+  # # Group trips by route
+  # # We use split/map for safety over group_modify in some dplyr versions with simple dataframes
+  # trips_by_route <- split(trip_times, trip_times$route_id)
+  #
+  # all_route_pvrs <- map_dfr(trips_by_route, calc_route_pvr)
+  #
+  # # Sum PVRs across all routes for each interval
+  # total_fleet <- all_route_pvrs |>
+  #   group_by(interval_label) |>
+  #   summarise(max_bus_fleet = sum(pvr)) |>
+  #   ungroup() |>
+  #   # Ensure correct ordering by interval
+  #   mutate(start_hour = as.numeric(str_extract(interval_label, "^\\d+"))) |>
+  #   arrange(start_hour) |>
+  #   select(-start_hour)
+  #
+  # return(total_fleet)
 }
 
 
@@ -309,10 +408,10 @@ process_all_gtfs_solutions <- function(
   message("========================================")
   message("Processing BASE GTFS...")
   message("========================================")
-  
+
   message(glue::glue("Reading Base GTFS from: {base_gtfs_path}"))
   base_gtfs <- tidytransit::read_gtfs(base_gtfs_path)
-  
+
   base_headways <- calculate_route_headway(base_gtfs, interval_hours)
   base_fleet <- calculate_max_concurrent_trips(base_gtfs, interval_hours)
   message("✓ Base fleet size calculated")
@@ -377,18 +476,18 @@ process_all_gtfs_solutions <- function(
               solution = solution_name,
               .before = everything()
             )
-            
+
           # 2. Fleet
           sol_fleet <- calculate_max_concurrent_trips(gtfs, interval_hours)
           sol_fleet_compared <- compare_fleet(sol_fleet, base_fleet)
-          
+
           sol_fleet_compared <- sol_fleet_compared |>
             mutate(
               objective = obj_name,
               solution = solution_name,
               .before = everything()
             )
-            
+
           list(
             headways = sol_compared,
             fleet = sol_fleet_compared
@@ -403,20 +502,20 @@ process_all_gtfs_solutions <- function(
       )
     })
   })
-  
+
   # Flatten and combine results
   results_flat <- unlist(results_nested, recursive = FALSE)
   results_flat <- results_flat[!sapply(results_flat, is.null)]
-  
+
   if (length(results_flat) == 0) {
-      return(list(
-        base_headways = base_headways,
-        all_solutions = NULL,
-        base_fleet = base_fleet,
-        all_solutions_fleet = NULL
-      ))
+    return(list(
+      base_headways = base_headways,
+      all_solutions = NULL,
+      base_fleet = base_fleet,
+      all_solutions_fleet = NULL
+    ))
   }
-  
+
   all_solutions_headways <- map_dfr(results_flat, "headways")
   all_solutions_fleet <- map_dfr(results_flat, "fleet")
 
