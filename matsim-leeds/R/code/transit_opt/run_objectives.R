@@ -428,3 +428,54 @@ write_csv(
 message(
   "✓ Combined solution objective values written to R/output/pso_objective_values.csv\n"
 )
+
+message("\n")
+message("##########################################")
+message("## COMBINING SOLUTION FLEET STATS")
+message("##########################################")
+message("\n")
+
+# Build paths for fleet stats
+fleet_stats_paths <- file.path(
+  "../../transit_opt/output",
+  objective_names,
+  ITERATION_ID,
+  "pso_results",
+  "combined_solution_fleet_stats.csv"
+)
+
+# Function to read and label fleet stats file
+read_fleet_stats <- function(path, objective_name) {
+  if (!file.exists(path)) {
+    # It is possible some old runs don't have this file, so we warn but don't fail
+    # message(glue::glue(\"No combined_solution_fleet_stats.csv found for {objective_name}\"))
+    return(NULL)
+  }
+  df <- read_csv(path, show_col_types = FALSE)
+  df$objective_name <- objective_name
+  df
+}
+
+# Read and combine all fleet stats
+all_solution_fleet_df <- purrr::map2_dfr(
+  fleet_stats_paths,
+  objective_names,
+  read_fleet_stats
+)
+
+if (nrow(all_solution_fleet_df) > 0) {
+  all_solution_fleet_df <- all_solution_fleet_df |>
+    select(objective_name, everything())
+
+  # Save to CSV
+  write_csv(
+    all_solution_fleet_df,
+    file.path(output_dir, "combined_solution_fleet_sizes_from_opt.csv")
+  )
+
+  message(
+    "✓ Combined solution fleet stats written to R/output/combined_solution_fleet_sizes_from_opt.csv\n"
+  )
+} else {
+  message("No fleet stats files found.")
+}
