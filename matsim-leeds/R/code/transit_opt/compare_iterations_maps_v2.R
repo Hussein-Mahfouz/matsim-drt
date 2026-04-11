@@ -219,7 +219,7 @@ run_comparison_maps <- function(metric_type, title_suffix) {
     mutate(col_label = paste0("Iteration ", iter_num, " (Diff)"))
 
   # B. DRT Fleet
-  fleet_levels_num <- c(25, 50, 100, 150)
+  fleet_levels_num <- c(25, 50, 75, 100)
   fleet_pal <- c(
     "#ffffb2",
     "#feb24c",

@@ -89,7 +89,7 @@ plot_diff_sf <- diff_data |>
 
 # --- B. DRT Fleet (Polygons) ---
 # Fixed Levels and Palette (Grey for 0, Yellow->Red for active)
-fleet_levels_num <- c(0, 10, 25, 50, 100, 150)
+fleet_levels_num <- c(0, 10, 25, 50, 75, 100)
 fleet_pal <- c("#999999", "#fed976", "#feb24c", "#fd8d3c", "#f03b20", "#bd0026") # Grey -> Yellow -> Red
 
 drt_diff_layer <- drt_zones_sf |>

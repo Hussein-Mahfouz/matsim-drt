@@ -11,7 +11,7 @@ source("R/code/transit_opt/gtfs_headway_analysis.R")
 #  Configuration
 ####################
 
-ITERATION_ID <- "iteration_01" # Or "iteration_02"
+ITERATION_ID <- "iteration_03" # Or "iteration_02"
 
 # Paths
 # Input directory: where the R/output/iteration_XX files are
@@ -230,9 +230,9 @@ create_pt_layer <- function(
         lwd.legend = tm_legend(
           title = final_title,
           frame = FALSE,
-          text.size = 0.6, # Reverted to 0.6 or keep 0.5 if preferred
-          title.size = 0.8,
-          format = list(fun = function(x) paste0("   ", x)) # Add 3 spaces padding
+          text.size = 0.6,
+          title.size = 0.7,
+          format = list(fun = function(x) paste0(" ", x)) # Add 3 spaces padding
         )
       )
   }
@@ -265,7 +265,7 @@ plot1 <- tm_shape(study_area) +
   create_pt_layer(
     pt_data_base,
     lwd_var = "num_trips",
-    lwd_scale = 10,
+    lwd_scale = 8,
     legend_title = glue::glue("Total bus trips\nTime: ({current_interval})")
   ) +
   tm_title("Study area with existing bus network and proposed DRT zones") +
@@ -288,7 +288,7 @@ plot1 <- tm_shape(study_area) +
 plot1
 tmap_save(
   plot1,
-  file.path(output_dir, "01_study_area_overview2.png"),
+  file.path(output_dir, "01_study_area_overview.png"),
   width = 16,
   height = 11,
   units = "cm",

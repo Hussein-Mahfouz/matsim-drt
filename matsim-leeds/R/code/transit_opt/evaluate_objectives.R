@@ -56,7 +56,9 @@ OBJECTIVES_TO_EXCLUDE <- "^sc_|_var$|_sum_"
 CATCHMENT_PLOT_EXCLUDE_REGEX <- "\\| O \\|"
 
 # 3. Correlation Settings
-MAX_SOLUTION_RANK_FOR_CORRELATION <- NULL # NULL = use all
+# MAX_SOLUTION_RANK_FOR_CORRELATION <- NULL # NULL = use all
+MAX_SOLUTION_RANK_FOR_CORRELATION <- 1023 # NULL = use all
+
 
 # 4. Top-k Settings
 TOPK_HEATMAP_K_CONFIG <- 5
@@ -2698,6 +2700,19 @@ ids_rank0 <- res_mode_share |>
   ) |>
   distinct(objective) |>
   mutate(solution_id = 0L)
+# # Instead of hardcoding solution_id == 0 (in case rank0 is corrupted):
+# ids_rank0 <- res_mode_share |>
+#   filter(
+#     mode == "pt+drt",
+#     level == "trip",
+#     access == "origin+destination",
+#     zones == "pt+drt"
+#   ) |>
+#   group_by(objective) |>
+#   # Fetch whatever the lowest available solution_id is (representing best rank)
+#   slice_min(order_by = solution_id, n = 1, with_ties = FALSE) |>
+#   ungroup() |>
+#   select(objective, solution_id)
 
 # ids_best_share: Best PT+DRT mode share per objective
 ids_best_share <- res_mode_share |>
@@ -3332,7 +3347,11 @@ message("✓ Combined catchment with fleet footnotes saved")
 message("Creating fleet bar plots by interval...")
 
 # Helper: Create fleet interval plot for a set of solution IDs
-create_fleet_interval_plot <- function(target_ids, suffix_label) {
+create_fleet_interval_plot <- function(
+  target_ids,
+  suffix_label,
+  exclude_intervals = NULL
+) {
   # Join to combined fleet data (all intervals)
   fleet_data <- target_ids |>
     inner_join(
@@ -3360,6 +3379,13 @@ create_fleet_interval_plot <- function(target_ids, suffix_label) {
     mutate(
       objective_clean = objective_labels_short[objective]
     )
+
+  # --- Filter out excluded intervals ---
+  if (!is.null(exclude_intervals)) {
+    fleet_data <- fleet_data |>
+      filter(!interval_label %in% exclude_intervals)
+  }
+  # ------------------------------------------
 
   # Custom Sort: 'Tot' first (Top Row), 'Atk' second (Bottom Row)
   # Assumes facet_wrap(nrow=2) fills row 1 then row 2
@@ -3453,23 +3479,26 @@ create_fleet_interval_plot <- function(target_ids, suffix_label) {
       subtitle = "Black line = baseline bus fleet. Labels = total fleet % change vs baseline.",
       x = "Time Interval",
       y = "Fleet Size (vehicles)"
-      # caption = glue::glue(
-      #   "Base bus fleet at peak ({peak_interval}h): {base_fleet_peak} vehicles.\n",
-      #   "Total fleet = Bus + DRT. % change relative to bus-only baseline."
-      # )
     ) +
     theme_bw(base_size = 11) +
     theme(
       legend.position = "bottom",
       strip.text = element_text(face = "bold", size = 11), # Facet Headers (Strips)
       axis.text.x = element_text(angle = 45, hjust = 1, size = 9),
-      plot.title = element_text(face = "bold", size = 14) #,
-      # plot.caption = element_text(hjust = 0, size = 8, color = "gray30")
+      plot.title = element_text(face = "bold", size = 14)
     )
 }
 
+# Define intervals to exclude
+intervals_to_drop <- c("0-4")
+
 # Plot for Best PSO Rank solutions
-plot_fleet_rank <- create_fleet_interval_plot(ids_rank0, "Best PSO Rank")
+plot_fleet_rank <- create_fleet_interval_plot(
+  ids_rank0,
+  "Best PSO Rank",
+  exclude_intervals = intervals_to_drop
+)
+
 ggsave(
   file.path(plot_dir, "fig_5_1a_fleet_by_interval_rank.png"),
   plot_fleet_rank,
@@ -3479,7 +3508,11 @@ ggsave(
 )
 
 # Plot for Best Mode Shift solutions
-plot_fleet_best <- create_fleet_interval_plot(ids_best_share, "Best Mode Shift")
+plot_fleet_best <- create_fleet_interval_plot(
+  ids_best_share,
+  "Best Mode Shift",
+  exclude_intervals = intervals_to_drop
+)
 ggsave(
   file.path(plot_dir, "fig_5_1a_fleet_by_interval_best_share.png"),
   plot_fleet_best,
@@ -3489,6 +3522,201 @@ ggsave(
 )
 
 message("✓ Fleet interval bar plots saved")
+
+
+# -------------------------
+# 5.1b Fleet Bar Plots by Interval (From Optimization Data)
+# -------------------------
+
+combined_fleet_opt_path <- file.path(
+  input_dir,
+  "combined_solution_fleet_sizes_from_opt.csv"
+)
+if (file.exists(combined_fleet_opt_path)) {
+  message("Creating 5.1b plots from Optimization Data...")
+
+  combined_fleet_opt <- read_csv(
+    combined_fleet_opt_path,
+    show_col_types = FALSE
+  )
+
+  # Align columns and clean data
+  combined_fleet_opt <- combined_fleet_opt |>
+    rename(objective = objective_name) |>
+    mutate(
+      solution_id = as.integer(str_extract(solution, "\\d+")),
+      # Apply same DRT minimum sizing rule: 0/25 -> 50
+      drt_fleet_solution = ifelse(
+        drt_fleet_solution == 0 | drt_fleet_solution == 25,
+        50,
+        drt_fleet_solution
+      ),
+      # Recalculate percentages to be consistent with adjustments
+      total_fleet_diff = (bus_fleet_solution + drt_fleet_solution) -
+        bus_fleet_base,
+      total_fleet_pct_change = round(
+        (total_fleet_diff / bus_fleet_base) * 100,
+        2
+      )
+    )
+
+  # Duplicate plotting function for this dataset
+  create_fleet_interval_plot_opt <- function(target_ids, suffix_label) {
+    # Join to combined_fleet_opt
+    fleet_data <- target_ids |>
+      inner_join(
+        combined_fleet_opt,
+        by = c("objective", "solution_id")
+      )
+
+    # Fallback to name matching if IDs fail (though regular extraction should work)
+    if (nrow(fleet_data) == 0) {
+      fleet_data <- target_ids |>
+        mutate(
+          solution_pattern = paste0(
+            "combined_solution_",
+            sprintf("%02d", solution_id)
+          )
+        ) |>
+        inner_join(
+          combined_fleet_opt |> rename(solution_name = solution),
+          by = c("objective", "solution_pattern" = "solution_name")
+        )
+    }
+
+    fleet_data <- fleet_data |>
+      mutate(objective_clean = objective_labels_short[objective])
+
+    # Sort objectives
+    obj_levels <- unique(fleet_data$objective_clean)
+    tot_levels <- sort(obj_levels[str_ends(obj_levels, "Tot")])
+    atk_levels <- sort(obj_levels[str_ends(obj_levels, "Atk")])
+    other_levels <- setdiff(obj_levels, c(tot_levels, atk_levels))
+
+    fleet_data <- fleet_data |>
+      mutate(
+        objective_clean = factor(
+          objective_clean,
+          levels = c(tot_levels, atk_levels, other_levels)
+        ),
+        start_hour = as.numeric(str_extract(interval_label, "^\\d+")),
+        interval_label = fct_reorder(interval_label, start_hour)
+      )
+
+    # Prepare for plotting
+    fleet_long <- fleet_data |>
+      select(
+        objective_clean,
+        interval_label,
+        bus_fleet_base,
+        bus_fleet_solution,
+        drt_fleet_solution,
+        total_fleet_pct_change
+      ) |>
+      pivot_longer(
+        cols = c(bus_fleet_solution, drt_fleet_solution),
+        names_to = "fleet_type",
+        values_to = "fleet_size"
+      ) |>
+      mutate(
+        fleet_type = case_when(
+          fleet_type == "bus_fleet_solution" ~ "Bus",
+          fleet_type == "drt_fleet_solution" ~ "DRT"
+        ),
+        fleet_type = factor(fleet_type, levels = c("DRT", "Bus"))
+      )
+
+    base_line_data <- fleet_data |>
+      distinct(objective_clean, interval_label, bus_fleet_base)
+
+    label_data <- fleet_data |>
+      mutate(
+        total_fleet = bus_fleet_solution + drt_fleet_solution,
+        label = paste0(sprintf("%+.0f", total_fleet_pct_change), "%")
+      ) |>
+      select(objective_clean, interval_label, total_fleet, label)
+
+    # Plot
+    ggplot() +
+      geom_col(
+        data = fleet_long,
+        aes(x = interval_label, y = fleet_size, fill = fleet_type),
+        position = "stack",
+        width = 0.7
+      ) +
+      geom_segment(
+        data = base_line_data,
+        aes(
+          x = as.numeric(interval_label) - 0.45,
+          xend = as.numeric(interval_label) + 0.45,
+          y = bus_fleet_base,
+          yend = bus_fleet_base
+        ),
+        color = "black",
+        linewidth = 0.8,
+        linetype = "solid"
+      ) +
+      geom_text(
+        data = label_data,
+        aes(x = interval_label, y = total_fleet + 20, label = label),
+        size = 3.5,
+        fontface = "bold",
+        color = "gray30"
+      ) +
+      facet_wrap(~objective_clean, nrow = 2, scales = "fixed") +
+      scale_fill_manual(
+        values = c("Bus" = "#4393c3", "DRT" = "#d6604d"),
+        name = "Fleet Component"
+      ) +
+      labs(
+        title = glue::glue(
+          "Fleet Composition by Time Interval — {suffix_label}"
+        ),
+        subtitle = "Black line = baseline bus fleet. Labels = total fleet % change vs baseline.",
+        x = "Time Interval",
+        y = "Fleet Size (vehicles)"
+      ) +
+      theme_bw(base_size = 11) +
+      theme(
+        legend.position = "bottom",
+        strip.text = element_text(face = "bold", size = 11),
+        axis.text.x = element_text(angle = 45, hjust = 1, size = 9),
+        plot.title = element_text(face = "bold", size = 14)
+      )
+  }
+
+  # Plot for Best PSO Rank solutions
+  plot_fleet_rank_opt <- create_fleet_interval_plot_opt(
+    ids_rank0,
+    "Best PSO Rank"
+  )
+  ggsave(
+    file.path(plot_dir, "fig_5_1b_fleet_by_interval_rank_from_opt.png"),
+    plot_fleet_rank_opt,
+    width = 16,
+    height = 10,
+    dpi = 300
+  )
+
+  # Plot for Best Mode Shift solutions
+  plot_fleet_best_opt <- create_fleet_interval_plot_opt(
+    ids_best_share,
+    "Best Mode Shift"
+  )
+  ggsave(
+    file.path(plot_dir, "fig_5_1b_fleet_by_interval_best_share_from_opt.png"),
+    plot_fleet_best_opt,
+    width = 16,
+    height = 10,
+    dpi = 300
+  )
+
+  message("✓ Fleet interval bar plots (from opt) saved")
+} else {
+  message(
+    "! Skipped 5.1b: combined_solution_fleet_sizes_from_opt.csv not found"
+  )
+}
 
 
 # -------------------------

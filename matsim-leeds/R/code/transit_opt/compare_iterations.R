@@ -15,7 +15,7 @@ dir.create(
 
 # Objective Filtering
 OBJECTIVES_TO_INCLUDE <- NULL
-OBJECTIVES_TO_EXCLUDE <- "^sc_|_var$|_sum_|_peak_"
+OBJECTIVES_TO_EXCLUDE <- "^sc_|_var$|_sum_|_peak_|atk1"
 
 # Helper to load and tag data
 load_iter_data <- function(iter_name, file_name) {
@@ -588,12 +588,28 @@ if (!is.null(res_mode_share_00) && !is.null(obj_pso_00)) {
 # We want Iteration 00 to be the "background"
 # This works even if bench_data is empty
 plot_data_bench <- bind_rows(
-  res_best_view |> select(objective, iteration, pso_frac_of_base, share_delta),
-  bench_data |> select(objective, iteration, pso_frac_of_base, share_delta)
+  res_best_view |>
+    select(objective, iteration, pso_frac_of_base, share_delta, solution_id),
+  bench_data |>
+    select(objective, iteration, pso_frac_of_base, share_delta, solution_id)
 )
 
+# --- Filter by maximum solution ID ---
+MAX_SOLUTION_ID <- 100 # Set this to your limit (e.g., 50, 100), or NULL to keep all
+
+if (!is.null(MAX_SOLUTION_ID)) {
+  message(glue::glue(
+    "Filtering cloud plot to keep solution_id <= {MAX_SOLUTION_ID}"
+  ))
+  plot_data_bench <- plot_data_bench |>
+    filter(solution_id <= MAX_SOLUTION_ID)
+}
+# ----------------------------------------
+
 # Calculate max share delta from Iteration 00 for reference lines
-bench_ref_lines <- bench_data |>
+# (Updated to use the filtered plot_data_bench to ensure reference lines match the visible data)
+bench_ref_lines <- plot_data_bench |>
+  filter(iteration == "iteration_00") |>
   group_by(objective) |>
   summarise(max_share00 = max(share_delta, na.rm = TRUE), .groups = "drop")
 
@@ -628,33 +644,30 @@ plot_cloud_bench <- ggplot() +
     size = 2.5
   ) +
   facet_wrap(~objective, scales = "free", nrow = 1) +
-  #scale_x_continuous(limits = c(0.5, 1.5)) +
   scale_color_manual(
     values = c(
       "Benchmark (It00)" = "gray30",
-      "iteration_01" = "#7570b3", # Dark2 purple
-      "iteration_02" = "#d95f02", # Dark2 orange
-      "iteration_03" = "#1b9e77" # Dark2 teal
+      "iteration_01" = "#7570b3",
+      "iteration_02" = "#d95f02",
+      "iteration_03" = "#1b9e77"
     ),
     name = "Iteration"
   ) +
   labs(
     title = "Convergence Benchmark: Seeded vs Unseeded",
-    subtitle = "Grey: Unseeded Baseline (It00) | Colored: MATSim-Seeded Iterations | Dashed line: Best It00 result",
+    subtitle = glue::glue(
+      "Grey: Unseeded (It00) | Colored: Seeded | Filtered to solution_id <= {ifelse(is.null(MAX_SOLUTION_ID), 'Max', MAX_SOLUTION_ID)}"
+    ),
     x = "Proxy Objective Cost",
     y = "PT+DRT Mode Share Gain (pp)"
   ) +
   theme_bw() +
   theme(
-    legend.position = "bottom", # Moves legend below the plot
-    legend.box = "horizontal", # Ensures the items inside are side-by-side
-    legend.direction = "horizontal", # Forces the direction of the scales
-    # Increase Facet Title (Strip) size
-    # 'strip.text' handles all facets; 'strip.text.x' targets just horizontal ones
+    legend.position = "bottom",
+    legend.box = "horizontal",
+    legend.direction = "horizontal",
     strip.text = element_text(size = 12, face = "bold"),
-    # Increase Legend Title size
     legend.title = element_text(size = 12, face = "bold"),
-    # Increase Legend Item (Label) size
     legend.text = element_text(size = 11),
   )
 
