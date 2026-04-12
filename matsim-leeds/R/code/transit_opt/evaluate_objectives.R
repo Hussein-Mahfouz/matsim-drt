@@ -247,24 +247,44 @@ objective_labels <- c(
   "wt_peak_atk" = "Wait Time\nPeak Atkinson"
 )
 
+# objective_labels_short <- c(
+#   "sc_avg_var" = "SC-Avg-Var",
+#   "sc_int_var" = "SC-Int-Var",
+#   "sc_peak_var" = "SC-Peak-Var",
+#   "sc_sum_var" = "SC-Sum-Var",
+#   "wt_avg_tot" = "WT-Avg-Tot",
+#   "wt_avg_var" = "WT-Avg-Var",
+#   "wt_avg_atk" = "WT-Avg-Atk",
+#   "wt_int_tot" = "WT-Int-Tot",
+#   "wt_int_var" = "WT-Int-Var",
+#   "wt_int_atk" = "WT-Int-Atk",
+#   "wt_sum_tot" = "WT-Sum-Tot",
+#   "wt_sum_var" = "WT-Sum-Var",
+#   "wt_sum_atk" = "WT-Sum-Atk",
+#   "wt_peak_tot" = "WT-Peak-Tot",
+#   "wt_peak_var" = "WT-Peak-Var",
+#   "wt_peak_atk" = "WT-Peak-Atk"
+# )
+
 objective_labels_short <- c(
   "sc_avg_var" = "SC-Avg-Var",
   "sc_int_var" = "SC-Int-Var",
   "sc_peak_var" = "SC-Peak-Var",
   "sc_sum_var" = "SC-Sum-Var",
-  "wt_avg_tot" = "WT-Avg-Tot",
-  "wt_avg_var" = "WT-Avg-Var",
-  "wt_avg_atk" = "WT-Avg-Atk",
-  "wt_int_tot" = "WT-Int-Tot",
-  "wt_int_var" = "WT-Int-Var",
-  "wt_int_atk" = "WT-Int-Atk",
-  "wt_sum_tot" = "WT-Sum-Tot",
-  "wt_sum_var" = "WT-Sum-Var",
-  "wt_sum_atk" = "WT-Sum-Atk",
-  "wt_peak_tot" = "WT-Peak-Tot",
-  "wt_peak_var" = "WT-Peak-Var",
-  "wt_peak_atk" = "WT-Peak-Atk"
+  "wt_avg_tot" = "Avg-Tot",
+  "wt_avg_var" = "Avg-Var",
+  "wt_avg_atk" = "Avg-Atk",
+  "wt_int_tot" = "Int-Tot",
+  "wt_int_var" = "Int-Var",
+  "wt_int_atk" = "Int-Atk",
+  "wt_sum_tot" = "Sum-Tot",
+  "wt_sum_var" = "Sum-Var",
+  "wt_sum_atk" = "Sum-Atk",
+  "wt_peak_tot" = "Peak-Tot",
+  "wt_peak_var" = "Peak-Var",
+  "wt_peak_atk" = "Peak-Atk"
 )
+
 
 # Apply filters to labels
 if (!is.null(OBJECTIVES_TO_INCLUDE)) {

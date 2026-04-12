@@ -17,6 +17,17 @@ dir.create(
 OBJECTIVES_TO_INCLUDE <- NULL
 OBJECTIVES_TO_EXCLUDE <- "^sc_|_var$|_sum_|_peak_|atk1"
 
+# Define short labels mapping
+objective_labels_short <- c(
+  "wt_avg_tot" = "Avg-Tot",
+  "wt_avg_atk" = "Avg-Atk",
+  "wt_int_tot" = "Int-Tot",
+  "wt_int_atk" = "Int-Atk",
+  "wt_peak_tot" = "Peak-Tot",
+  "wt_peak_atk" = "Peak-Atk"
+)
+
+
 # Helper to load and tag data
 load_iter_data <- function(iter_name, file_name) {
   path <- file.path(BASE_PATH, iter_name, file_name)
@@ -242,9 +253,15 @@ write_csv(
 plot_cloud <- res_best_view |>
   filter(!is.na(pso_frac_of_base)) |>
   filter(pso_frac_of_base < 1.5) |> # Limit to reasonable range for visibility
+  mutate(
+    objective_clean = factor(
+      objective_labels_short[objective],
+      levels = objective_labels_short
+    )
+  ) |>
   ggplot(aes(x = pso_frac_of_base, y = share_delta, color = iteration)) +
   geom_point(alpha = 0.5, size = 2) +
-  facet_wrap(~objective, scales = "free_x") +
+  facet_wrap(~objective_clean, scales = "free_x") +
   #scale_x_continuous(limits = c(0.5, 1.5)) +
   labs(
     title = "Optimization Convergence",
@@ -285,6 +302,12 @@ res_catchment_view <- res_mode_share |>
 # Plot 2: Multi-Catchment Cloud
 plot_cloud_catchment <- res_catchment_view |>
   filter(!is.na(pso_frac_of_base)) |>
+  mutate(
+    objective_clean = factor(
+      objective_labels_short[objective],
+      levels = objective_labels_short
+    )
+  ) |>
   ggplot(aes(
     x = pso_frac_of_base,
     y = share_delta,
@@ -292,7 +315,7 @@ plot_cloud_catchment <- res_catchment_view |>
     shape = catchment_label
   )) +
   geom_point(alpha = 0.6, size = 2.5) +
-  facet_wrap(~objective, scales = "free") +
+  facet_wrap(~objective_clean, scales = "free") +
   labs(
     title = "Optimization Convergence by Catchment Definition",
     subtitle = "Comparing solution distribution across different metric filters",
@@ -459,15 +482,21 @@ write_csv(
 
 # geom_path automatically connects points in order 1->2->3->...
 arrow_data <- rank0_summary |>
-  arrange(objective, iteration)
+  arrange(objective, iteration) |>
+  mutate(
+    objective_clean = factor(
+      objective_labels_short[objective],
+      levels = objective_labels_short
+    )
+  )
 
 plot_arrows <- ggplot(
   arrow_data,
   aes(
     x = pso_frac_of_base,
     y = share_delta,
-    color = objective,
-    group = objective
+    color = objective_clean,
+    group = objective_clean
   )
 ) +
   geom_path(
@@ -484,8 +513,8 @@ plot_arrows <- ggplot(
   ) +
   theme_bw() +
   ggrepel::geom_text_repel(
-    data = arrow_data |> group_by(objective) |> slice_tail(n = 1), # Label last point
-    aes(label = objective),
+    data = arrow_data |> group_by(objective_clean) |> slice_tail(n = 1), # Label last point
+    aes(label = objective_clean),
     size = 3
   ) +
   theme(legend.position = "bottom")
@@ -611,8 +640,21 @@ if (!is.null(MAX_SOLUTION_ID)) {
 bench_ref_lines <- plot_data_bench |>
   filter(iteration == "iteration_00") |>
   group_by(objective) |>
-  summarise(max_share00 = max(share_delta, na.rm = TRUE), .groups = "drop")
+  summarise(max_share00 = max(share_delta, na.rm = TRUE), .groups = "drop") |>
+  mutate(
+    objective_clean = factor(
+      objective_labels_short[objective],
+      levels = objective_labels_short
+    )
+  )
 
+plot_data_bench <- plot_data_bench |>
+  mutate(
+    objective_clean = factor(
+      objective_labels_short[objective],
+      levels = objective_labels_short
+    )
+  )
 
 # 3. Plot
 plot_cloud_bench <- ggplot() +
@@ -643,7 +685,7 @@ plot_cloud_bench <- ggplot() +
     alpha = 0.75,
     size = 2.5
   ) +
-  facet_wrap(~objective, scales = "free", nrow = 1) +
+  facet_wrap(~objective_clean, scales = "free", nrow = 1) +
   scale_color_manual(
     values = c(
       "Benchmark (It00)" = "gray30",

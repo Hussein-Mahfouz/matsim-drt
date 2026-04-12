@@ -35,6 +35,25 @@ OBJECTIVES_OF_INTEREST <- c(
   "wt_avg_atk"
 )
 
+objective_labels_short <- c(
+  "wt_avg_tot" = "Avg-Tot",
+  "wt_avg_atk" = "Avg-Atk",
+  "wt_int_tot" = "Int-Tot",
+  "wt_int_atk" = "Int-Atk",
+  "wt_peak_tot" = "Peak-Tot",
+  "wt_peak_atk" = "Peak-Atk"
+)
+
+get_objective_label <- function(objective_name) {
+  objective_label <- unname(objective_labels_short[objective_name])
+
+  if (is.na(objective_label)) {
+    return(objective_name)
+  }
+
+  objective_label
+}
+
 # Visual Thresholds
 MIN_TRIP_DIFF <- 15
 MAP_INTERVAL <- "8-12"
@@ -294,6 +313,7 @@ run_comparison_maps <- function(metric_type, title_suffix) {
       filter(objective == target_obj, iteration == target_iter)
 
     iter_num <- str_extract(target_iter, "\\d+")
+    target_obj_label <- get_objective_label(target_obj)
     fleet_row <- fleet_label_lookup |>
       filter(objective == target_obj, iteration == target_iter)
     fleet_suffix <- if (nrow(fleet_row) > 0) {
@@ -302,7 +322,7 @@ run_comparison_maps <- function(metric_type, title_suffix) {
       ""
     }
 
-    panel_title <- paste0(target_obj, " | It", iter_num, fleet_suffix)
+    panel_title <- paste0(target_obj_label, " | It", iter_num, fleet_suffix)
 
     # Use diff_limits from local scope
     tm_shape(study_area) +
@@ -355,6 +375,7 @@ run_comparison_maps <- function(metric_type, title_suffix) {
       filter(objective == target_obj, iteration == target_iter)
 
     iter_num <- str_extract(target_iter, "\\d+")
+    target_obj_label <- get_objective_label(target_obj)
     fleet_row <- fleet_label_lookup |>
       filter(objective == target_obj, iteration == target_iter)
     fleet_suffix <- if (nrow(fleet_row) > 0) {
@@ -363,7 +384,7 @@ run_comparison_maps <- function(metric_type, title_suffix) {
       ""
     }
 
-    panel_title <- paste0(target_obj, " | It", iter_num, fleet_suffix)
+    panel_title <- paste0(target_obj_label, " | It", iter_num, fleet_suffix)
 
     tm_shape(study_area) +
       tm_polygons(fill = "gray20", col_alpha = 0) +
@@ -416,6 +437,7 @@ run_comparison_maps <- function(metric_type, title_suffix) {
       filter(objective == target_obj, iteration == target_iter)
 
     iter_num <- str_extract(target_iter, "\\d+")
+    target_obj_label <- get_objective_label(target_obj)
     fleet_row <- fleet_label_lookup |>
       filter(objective == target_obj, iteration == target_iter)
     fleet_suffix <- if (nrow(fleet_row) > 0) {
@@ -424,7 +446,7 @@ run_comparison_maps <- function(metric_type, title_suffix) {
       ""
     }
 
-    panel_title <- paste0(target_obj, " | It", iter_num, fleet_suffix)
+    panel_title <- paste0(target_obj_label, " | It", iter_num, fleet_suffix)
 
     tm_shape(study_area) +
       tm_polygons(fill = "gray20", col_alpha = 0) +
