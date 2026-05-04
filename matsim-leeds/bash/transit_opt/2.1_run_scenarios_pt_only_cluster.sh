@@ -1,0 +1,112 @@
+#!/bin/bash
+
+# Submit MATSim simulation jobs for all combined_solution_* directories in a scenario to the cluster
+# PT-only version (no DRT)
+# Each solution directory contains:
+#   - config_simulation_dmc.xml (for PT-only)
+#   - network_mapped.xml.gz
+#   - schedule_mapped.xml.gz
+#   - vehicles_unmapped.xml
+
+# Run from matsim-leeds root: bash bash/transit_opt/2.1_run_scenarios_pt_only_cluster.sh <scenario_name>
+
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 <scenario_name>"
+    echo "Example: $0 sc_avg_var"
+    exit 1
+fi
+
+SCENARIO_NAME=$1
+
+# --- Leeds HPC modules
+module load gcc/14.2.0
+module load java/jdk-21.0.6
+# Load local Maven if needed
+export MAVEN_HOME="$HOME/maven"
+export PATH="$MAVEN_HOME/bin:$PATH"
+
+# Get the current working directory (matsim-leeds root)
+MATSIM_DIR="$(pwd)"
+
+# Base directory for this scenario
+SCENARIO_DIR="$MATSIM_DIR/data/supply/transit_opt_paper/$SCENARIO_NAME"
+
+# Path to your MATSim jar
+JAR_FILE="$MATSIM_DIR/target/matsim-leeds-1.0.jar"
+
+# Main class (PT-only, no DRT)
+MAIN_CLASS="com.husseinmahfouz.matsim.RunDMCSimulationDRTMultipleGTFSNoDRT"
+
+# Simulation parameters
+SAMPLE_SIZE="1.00"  # 0.50, 0.20, 0.10, 0.05, 0.01
+ITERATIONS=65
+GLOBAL_THREADS=12
+QSIM_THREADS=12
+CLEAN_ITERS_AT_END="keep"  # Delete the ITERS/ directory? Options (keep, delete). If I delete, eqasim does not write its csv files
+
+# Cluster resource parameters
+CPUS_PER_TASK=12
+MEM_PER_CPU=8192  # MB per CPU (8GB)
+MAX_RUNTIME="36:00:00"  # 36 hours
+
+# Shared input files (based on sample size)
+INPUT_PLANS_FILE="$MATSIM_DIR/data/demand/plans_sample_eqasim_${SAMPLE_SIZE}.xml"
+VEHICLES_FILE="$MATSIM_DIR/data/supply/network_vehicles_${SAMPLE_SIZE}.xml"
+
+echo "========================================="
+echo "Submitting PT-only jobs for scenario: $SCENARIO_NAME"
+echo "========================================="
+
+# Loop through each combined_solution_* directory
+for SOLUTION_DIR in "$SCENARIO_DIR"/combined_solution_*/; do
+    # Skip if not a directory
+    [ -d "$SOLUTION_DIR" ] || continue
+
+    SOLUTION_NAME=$(basename "$SOLUTION_DIR")
+    
+    # Check if config exists
+    TEMPLATE_CONFIG="${SOLUTION_DIR}config_simulation_dmc.xml"
+    if [ ! -f "$TEMPLATE_CONFIG" ]; then
+        echo "⚠️  Config not found, skipping: $SOLUTION_NAME"
+        continue
+    fi
+    
+    # PT/Network files in solution directory
+    TRANSIT_SCHEDULE_FILE="${SOLUTION_DIR}schedule_mapped.xml.gz"
+    TRANSIT_VEHICLES_FILE="${SOLUTION_DIR}vehicles_unmapped.xml"
+    NETWORK_FILE="${SOLUTION_DIR}network_mapped.xml.gz"
+    
+    # Define output directory
+    OUTPUT_DIR="${SOLUTION_DIR}output"
+
+    # Separate directory for SLURM logs (persistent across runs)
+    SLURM_LOG_DIR="${SOLUTION_DIR}logs"
+    mkdir -p "$SLURM_LOG_DIR"
+
+    # Submit job to cluster
+    sbatch -n 1 --cpus-per-task=$CPUS_PER_TASK \
+        --time=$MAX_RUNTIME \
+        --mem-per-cpu=$MEM_PER_CPU \
+        --job-name="${SCENARIO_NAME}_${SOLUTION_NAME}" \
+        --output="${SLURM_LOG_DIR}/slurm-%j.out" \
+        --wrap="java -Xmx80G -cp $JAR_FILE $MAIN_CLASS \
+            --config-path $TEMPLATE_CONFIG \
+            --global-threads $GLOBAL_THREADS \
+            --qsim-threads $QSIM_THREADS \
+            --iterations $ITERATIONS \
+            --sample-size $SAMPLE_SIZE \
+            --clean-iters-at-end $CLEAN_ITERS_AT_END \
+            --output-directory $OUTPUT_DIR \
+            --input-plans-file $INPUT_PLANS_FILE \
+            --vehicles-file $VEHICLES_FILE \
+            --transit-schedule-file $TRANSIT_SCHEDULE_FILE \
+            --transit-vehicles-file $TRANSIT_VEHICLES_FILE \
+            --network-input-file $NETWORK_FILE"
+
+    echo "Submitted job for $SOLUTION_NAME"
+done
+
+echo ""
+echo "========================================="
+echo "All jobs submitted for: $SCENARIO_NAME"
+echo "========================================="

@@ -14,9 +14,9 @@ echo "Current Local Directory: $LOCAL_DIR"
 
 # Declare an associative array to map local paths to their corresponding remote paths
 declare -A FILES_AND_DIRS=(
-    #["data"]="data"
-    ["src/main/resources"]="src/main/resources"
-    ["target"]="target"
+    ["data/supply/transit_opt_paper/drt_fleet_templates"]="data/supply/transit_opt_paper/drt_fleet_templates"
+    #["src/main/resources"]="src/main/resources"
+    #["target"]="target"
 )
 
 # Loop through each item in the array and run rsync
@@ -28,11 +28,13 @@ for ITEM in "${!FILES_AND_DIRS[@]}"; do
     if [[ -d "$LOCAL_PATH" ]]; then
         echo "Syncing directory $ITEM to $REMOTE_PATH"
         # Use a trailing slash to sync only the contents of the directory
-        rsync -avz "$LOCAL_PATH/" "$REMOTE_PATH"
+        rsync -avz --progress \
+            --exclude='schedule_unmapped.xml' \
+            "$LOCAL_PATH/" "$REMOTE_PATH"
     elif [[ -f "$LOCAL_PATH" ]]; then
         echo "Syncing file $ITEM to $REMOTE_PATH"
         # Sync the file directly without the trailing slash
-        rsync -avz "$LOCAL_PATH" "$REMOTE_PATH"
+        rsync -avz --progress "$LOCAL_PATH" "$REMOTE_PATH"
     else
         echo "Error: $LOCAL_PATH does not exist or is not a valid file/directory. Skipping..."
     fi

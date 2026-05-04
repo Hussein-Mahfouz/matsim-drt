@@ -391,7 +391,7 @@
 			<param name="disableAfterIteration" value="-1" />
 			<param name="executionPath" value="null" />
 			<param name="subpopulation" value="null" />
-			<param name="weight" value="0.95" />
+			<param name="weight" value="0.90" />
 		</parameterset>
 
 		<!-- <parameterset type="strategysettings">
