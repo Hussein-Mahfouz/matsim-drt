@@ -343,7 +343,7 @@ tmap_save(
 
 message("Creating Plot 3: Single objective detailed view...")
 
-selected_objective <- "wt_avg_atk"
+selected_objective <- "wt_int_tot"
 selected_solution <- "combined_solution_00"
 selected_interval <- "8-12"
 
@@ -413,6 +413,234 @@ if (INCLUDE_DRT_FLEET) {
     dpi = 300
   )
 }
+
+
+# Plot 3b.1: Positive changes only (Service increases)
+single_pt_data_positive <- single_pt_data |>
+  filter(num_trips_diff > 0)
+
+plot3b_1 <- create_base_layers() +
+  create_drt_layer(
+    drt,
+    drt_deployments = all_drt_deployments,
+    objective = selected_objective,
+    solution = selected_solution,
+    interval_label = selected_interval,
+    show_fleet_size = TRUE
+  ) +
+  create_pt_layer(
+    single_pt_data_positive,
+    col_var = "num_trips_diff",
+    show_diff = TRUE
+  ) +
+  tm_title(glue::glue(
+    "Bus Service Increases ({selected_interval}h) - {selected_objective} Best Solution"
+  )) +
+  tm_layout(frame = FALSE)
+
+plot3b_1
+
+tmap_save(
+  plot3b_1,
+  file.path(output_dir, "03b_1_single_objective_positive_changes.png"),
+  width = 16,
+  height = 11,
+  units = "cm",
+  dpi = 300
+)
+
+# Plot 3b.2: Negative changes only (Service decreases)
+single_pt_data_negative <- single_pt_data |>
+  filter(num_trips_diff < 0)
+
+plot3b_2 <- create_base_layers() +
+  create_drt_layer(
+    drt,
+    drt_deployments = all_drt_deployments,
+    objective = selected_objective,
+    solution = selected_solution,
+    interval_label = selected_interval,
+    show_fleet_size = TRUE
+  ) +
+  create_pt_layer(
+    single_pt_data_negative,
+    col_var = "num_trips_diff",
+    show_diff = TRUE
+  ) +
+  tm_title(glue::glue(
+    "Bus Service Decreases ({selected_interval}h) - {selected_objective} Best Solution"
+  )) +
+  tm_layout(frame = FALSE)
+
+plot3b_2
+
+tmap_save(
+  plot3b_2,
+  file.path(output_dir, "03b_2_single_objective_negative_changes.png"),
+  width = 16,
+  height = 11,
+  units = "cm",
+  dpi = 300
+)
+
+# Combine positive and negative changes with a grouping variable
+single_pt_data_faceted <- bind_rows(
+  single_pt_data_positive |> mutate(change_type = "Service Increases"),
+  single_pt_data_negative |> mutate(change_type = "Service Decreases")
+)
+# Prepare DRT data with the same faceting variable
+drt_faceted <- bind_rows(
+  drt |> mutate(change_type = "Service Increases"),
+  drt |> mutate(change_type = "Service Decreases")
+)
+
+# Join fleet data to the faceted DRT zones
+drt_with_fleet_faceted <- join_drt_fleet_to_zones(
+  drt_zones = drt_faceted,
+  drt_deployments = all_drt_deployments,
+  objective = selected_objective,
+  solution = selected_solution,
+  interval_label = selected_interval
+)
+
+# Get unique fleet sizes for discrete scale
+fleet_levels <- sort(unique(all_drt_deployments$fleet_size))
+
+# Create faceted plot with DRT fleet
+plot3b_combined <- create_base_layers() +
+  tm_shape(drt_with_fleet_faceted) +
+  tm_polygons(
+    fill = "fleet_size",
+    fill.scale = tm_scale_categorical(
+      values = "brewer.oranges",
+      levels = fleet_levels,
+      labels = paste(fleet_levels, "vehicles")
+    ),
+    fill.legend = tm_legend(title = "DRT Fleet Size"),
+    fill_alpha = 0.6,
+    col = "#d95f02",
+    lwd = 2
+  ) +
+  tm_shape(single_pt_data_faceted) +
+  tm_lines(
+    col = "num_trips_diff",
+    col.scale = tm_scale_continuous(
+      values = "brewer.rd_yl_gn",
+      midpoint = 0
+    ),
+    col.legend = tm_legend(title = "Trip Difference\n(vs Base)"),
+    lwd = "num_trips",
+    lwd.scale = tm_scale_continuous(values.scale = 5),
+    lwd.legend = tm_legend(show = FALSE)
+  ) +
+  tm_facets_wrap(by = "change_type", ncol = 2) +
+  tm_title(glue::glue(
+    "Bus Service Changes ({selected_interval}h) - {selected_objective} Best Solution"
+  )) +
+  tm_layout(frame = FALSE)
+
+plot3b_combined
+
+tmap_save(
+  plot3b_combined,
+  file.path(output_dir, "03b_combined_service_changes.png"),
+  width = 24,
+  height = 11,
+  units = "cm",
+  dpi = 300
+)
+
+
+# Select multiple time intervals
+selected_intervals <- c("8-12", "12-16", "16-20")
+
+# Filter data for all selected intervals
+multi_interval_pt_data <- all_solutions_overline |>
+  filter(
+    objective == selected_objective,
+    solution == paste0(selected_solution, "_gtfs"),
+    interval_label %in% selected_intervals
+  )
+
+# Create maps without legends and without titles
+interval_maps <- map(selected_intervals, \(interval) {
+  pt_data_interval <- multi_interval_pt_data |>
+    filter(interval_label == interval)
+
+  create_base_layers() +
+    create_drt_layer(
+      drt,
+      drt_deployments = all_drt_deployments,
+      objective = selected_objective,
+      solution = selected_solution,
+      interval_label = interval,
+      show_fleet_size = TRUE
+    ) +
+    create_pt_layer(
+      pt_data_interval |> filter(num_trips_diff > 0),
+      col_var = "num_trips_diff",
+      show_diff = TRUE
+    ) +
+    tm_title(glue::glue("{interval}h")) +
+    tm_layout(
+      frame = FALSE,
+      legend.show = FALSE
+    )
+})
+
+# Create legend map with MUCH larger sizing
+legend_map <- {
+  pt_data_interval <- multi_interval_pt_data |>
+    filter(interval_label == selected_intervals[1], num_trips_diff > 0)
+
+  create_base_layers() +
+    create_drt_layer(
+      drt,
+      drt_deployments = all_drt_deployments,
+      objective = selected_objective,
+      solution = selected_solution,
+      interval_label = selected_intervals[1],
+      show_fleet_size = TRUE
+    ) +
+    create_pt_layer(
+      pt_data_interval,
+      col_var = "num_trips_diff",
+      show_diff = TRUE
+    ) +
+    tm_layout(
+      frame = FALSE,
+      legend.only = TRUE,
+      legend.position = c("center", "center"),
+      legend.text.size = 2.0,
+      legend.title.size = 2.5,
+      legend.width = 2.0,
+      legend.height = 2.0,
+      legend.bg.color = "white",
+      legend.bg.alpha = 0.8,
+      # Scale up the legend symbols/icons
+      legend.item.height = 2.0, # Height of legend items
+      legend.item.width = 2.0 # Width of legend items
+    )
+}
+
+plot3c <- tmap_arrange(
+  list(interval_maps[[1]], interval_maps[[2]], interval_maps[[3]], legend_map),
+  ncol = 3,
+  nrow = 2,
+  heights = c(1, 0.5) # Even more space for legend
+)
+
+plot3c
+
+tmap_save(
+  plot3c,
+  file.path(output_dir, "03c_single_objective_multi_interval.png"),
+  width = 24,
+  height = 18, # More height
+  units = "cm",
+  dpi = 300
+)
+
 
 ####################
 #  Plot 4: Compare Multiple Solutions for Single Objective
