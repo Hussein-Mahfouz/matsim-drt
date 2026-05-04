@@ -44,3 +44,23 @@ See the [Wiki](https://github.com/Hussein-Mahfouz/matsim-drt/wiki) for detailed 
 ## Using the model
 
 I plan to develop the documentation in the wiki so that anyone can run this model on their own. In the meantime, if you are interested in using it, reach out and I can help you get started
+
+## Citation
+
+If you use this MATSim model in your research or project, please cite the following paper:
+
+**Mahfouz, H., Balac, M., Morgan, M., Lovelace, R., & Heinen, E. (2026).** Assessing trade-offs in demand-responsive transport service area design: Operational efficiency vs. system-wide goals. *Journal of Urban Mobility, 9*, 100219. https://doi.org/10.1016/j.urbmob.2026.100219
+
+### BibTeX
+
+```bibtex
+@article{mahfouz2026assessing,
+  title={Assessing trade-offs in demand-responsive transport service area design: Operational efficiency vs. system-wide goals},
+  author={Mahfouz, Hussein and Balac, Milos and Morgan, Malcolm and Lovelace, Robin and Heinen, Eva},
+  journal={Journal of Urban Mobility},
+  volume={9},
+  pages={100219},
+  year={2026},
+  publisher={Elsevier},
+  doi={10.1016/j.urbmob.2026.100219}
+}
