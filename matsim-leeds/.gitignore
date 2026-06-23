@@ -1,0 +1,41 @@
+calibration_env/
+# Build output
+target/
+dependency-reduced-pom.xml
+com/
+
+# MATSim simulation output
+scenarios/
+
+# Large data files
+src/main/resources/data/supply/*.xml.gz
+src/main/resources/data/supply/*.osm
+src/main/resources/data/supply/*.osm.pbf
+src/main/resources/data/supply/*.zip
+src/main/resources/data/demand/
+
+# Calibration outputs (large files)
+calibration/*.csv
+calibration/*.gpkg
+calibration/*.html
+
+# Keep calibration scripts
+!calibration/*.py
+
+# Large supply data files
+src/main/resources/data/supply/*.osm
+src/main/resources/data/supply/*.osm.pbf
+src/main/resources/data/supply/*.zip
+src/main/resources/data/supply/gtfs_bus/
+src/main/resources/data/supply/*.xml.gz
+src/main/resources/data/supply/*.xml
+
+# Keep small XML configs
+!src/main/resources/data/supply/osm_config.xml
+!src/main/resources/data/supply/pt_mapper_config.xml
+!src/main/resources/data/supply/network_vehicles.xml
+!src/main/resources/data/supply/vehicles_unmapped.xml
+
+# Demand data
+src/main/resources/data/demand/
+.DS_Store
